@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "A2UIPrompt", targets: ["A2UIPrompt"]),
         .library(name: "A2UIParser", targets: ["A2UIParser"]),
         .library(name: "A2UISurface", targets: ["A2UISurface"]),
+        .library(name: "A2UIRuntime", targets: ["A2UIRuntime"]),
     ],
     targets: [
         .target(name: "A2UICore"),
@@ -19,6 +20,7 @@ let package = Package(
                 resources: [.copy("Resources")]),
         .target(name: "A2UIParser", dependencies: ["A2UICore"]),
         .target(name: "A2UISurface", dependencies: ["A2UICore"]),
+        .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface"]),
         .testTarget(name: "A2UICoreTests", dependencies: ["A2UICore"],
                     resources: [.copy("Fixtures")]),
         .testTarget(name: "A2UICatalogTests", dependencies: ["A2UICatalog"],
@@ -26,5 +28,6 @@ let package = Package(
         .testTarget(name: "A2UIPromptTests", dependencies: ["A2UIPrompt"]),
         .testTarget(name: "A2UIParserTests", dependencies: ["A2UIParser"]),
         .testTarget(name: "A2UISurfaceTests", dependencies: ["A2UISurface"]),
+        .testTarget(name: "A2UIRuntimeTests", dependencies: ["A2UIRuntime"]),
     ]
 )

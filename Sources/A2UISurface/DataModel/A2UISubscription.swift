@@ -9,6 +9,12 @@ public final class A2UISubscription {
         self.onCancel = onCancel
     }
 
+    /// An inert subscription (nothing to cancel). Useful for literal/static bindings that have
+    /// no underlying data-model path to observe.
+    public static var inert: A2UISubscription {
+        A2UISubscription(onCancel: {})
+    }
+
     /// Detach the listener. Idempotent.
     public func cancel() {
         onCancel?()
