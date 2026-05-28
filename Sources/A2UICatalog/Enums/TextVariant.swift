@@ -1,6 +1,6 @@
 import A2UICore
 
-public enum TextVariant: String, Codable, Sendable, Equatable {
+public enum TextVariant: String, Codable, Sendable, Equatable, CaseIterable {
     case h1
     case h2
     case h3
