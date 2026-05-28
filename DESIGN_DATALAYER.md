@@ -1,7 +1,18 @@
 # swift-a2ui Data Layer 設計ドキュメント（v0.9 準拠 / 実装前レビュー用）
 
 作成日: 2026-05-28
-ステータス: **合意済み（2026-05-28）→ TDD 実装中**
+ステータス: **Data Layer 全 6 Step 実装完了（2026-05-28）**
+
+## 実装状況（feature/data-layer ブランチ）
+- ✅ Step 1: DataModel（相対パス / auto-viv / 型強制 / cascade·bubble 通知 / 購読）— A2UISurface
+- ✅ Step 2: DataContext / ComponentContext（resolve / subscribe / nested）— A2UIRuntime
+- ✅ Step 3: 関数 / checks 評価（formatString 中心、全14関数）— A2UIRuntime
+- ✅ Step 4: @Observable 状態モデル + MessageProcessor（ライフサイクル）— A2UISurface
+- ✅ Step 5: template List 展開（ResolvedChild / scope）— A2UIRuntime
+- ✅ Step 6: Binder Layer（ResolvedComponent = @Observable 解決済み props）— A2UIRuntime
+
+全 260 テスト通過。SwiftUI View 実装は責務境界どおり利用者（Delish）側。
+次：delish-ios の Phase 1（runA2UIAgent 置換）/ Phase 2（この Data Layer の上に SwiftUI View）。
 
 ## 合意事項（2026-05-28）
 1. ターゲット分割: **`A2UIRuntime` を新設**（DataContext / 関数評価 / Binder）。`A2UISurface` に DataModel/通知/MessageProcessor を集約。
