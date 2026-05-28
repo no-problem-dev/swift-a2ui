@@ -75,6 +75,34 @@ public final class ResolvedComponent {
         context.dispatch(name, actionContext)
     }
 
+    /// Resolve a raw nested DynamicString value (e.g. inside `tabs[i].title` or
+    /// `options[i].label`) against this node's data scope. Returns the coerced string.
+    /// Use this from a projection when a structural prop carries `DynamicString`s the runtime
+    /// did not subscribe to at the top level.
+    public func resolveDynamicString(_ raw: AnyCodable?) -> String {
+        guard let raw else { return "" }
+        switch raw {
+        case .string(let s): return s
+        case .int(let i): return String(i)
+        case .double(let d): return d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : String(d)
+        case .bool(let b): return b ? "true" : "false"
+        case .object(let dict):
+            if case .string(let path)? = dict["path"], dict.count == 1 {
+                let value = context.dataContext.dataModel.get(path, scope: context.dataContext.path)
+                return resolveDynamicString(value)
+            }
+            if case .string? = dict["call"],
+               let data = try? JSONEncoder().encode(raw),
+               let call = try? JSONDecoder().decode(FunctionCall.self, from: data) {
+                let value = functions.evaluate(call, in: context.dataContext)
+                return resolveDynamicString(value)
+            }
+            return ""
+        default:
+            return ""
+        }
+    }
+
     /// Perform the action described by the component's `action` prop:
     /// - `{"event": {"name", "context"}}` → resolve the context against this node's scope and
     ///   dispatch a user action to the host.

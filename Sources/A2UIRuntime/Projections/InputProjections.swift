@@ -114,12 +114,10 @@ public struct ResolvedChoicePicker: ResolvedProjection {
             for item in arr {
                 if case .object(let dict) = item,
                    case .string(let v)? = dict["value"] {
-                    // Option `label` is a DynamicString; for the schema it commonly arrives as a
-                    // literal string. Best-effort read.
-                    let lbl: String = {
-                        if case .string(let s)? = dict["label"] { return s }
-                        return v
-                    }()
+                    // Option `label` is a `DynamicString` — resolve bindings/functions through
+                    // the runtime so dynamic labels work. Falls back to the value when missing.
+                    let resolved = r.resolveDynamicString(dict["label"])
+                    let lbl = resolved.isEmpty ? v : resolved
                     opts.append(ResolvedChoiceOption(label: lbl, value: v))
                 }
             }

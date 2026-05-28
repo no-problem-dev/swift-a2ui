@@ -50,9 +50,33 @@ public struct ResolvedImage: ResolvedProjection {
     }
 }
 
+/// The two forms of an `Icon.name` schema field: a preset icon name (from a known set) or a raw
+/// SVG path string. The catalog schema models this as `{ string | { svgPath: string } }`.
+public enum ResolvedIconName: Sendable, Equatable {
+    case preset(String)
+    case svgPath(String)
+
+    public init?(_ value: AnyCodable?) {
+        switch value {
+        case .string(let s):
+            self = .preset(s)
+        case .object(let dict):
+            if case .string(let path)? = dict["svgPath"] {
+                self = .svgPath(path)
+            } else {
+                return nil
+            }
+        default:
+            return nil
+        }
+    }
+}
+
 public struct ResolvedIcon: ResolvedProjection {
-    public let name: String
-    public init(_ r: ResolvedComponent) { name = r.text("name") }
+    public let name: ResolvedIconName?
+    public init(_ r: ResolvedComponent) {
+        name = ResolvedIconName(r.props["name"])
+    }
 }
 
 public struct ResolvedVideo: ResolvedProjection {
@@ -110,15 +134,16 @@ public struct ResolvedCard: ResolvedProjection {
 }
 
 public struct ResolvedTabs: ResolvedProjection {
-    /// Tab titles paired with their child slots, in order.
+    /// Tab titles paired with their child slots, in order. Titles are `DynamicString`s — they may
+    /// be plain literals or `{path}` bindings; this projection resolves both through the runtime's
+    /// data context (correctly scoped) so views never see unresolved bindings.
     public let tabs: [(title: String, child: ResolvedChild)]
     public init(_ r: ResolvedComponent) {
-        // Children are appended in tab order by ResolvedComponent; titles come from raw props.
         var titles: [String] = []
         if case .array(let arr)? = r.rawProps["tabs"] {
             for item in arr {
-                if case .object(let dict) = item, case .string(let t)? = dict["title"] {
-                    titles.append(t)
+                if case .object(let dict) = item {
+                    titles.append(r.resolveDynamicString(dict["title"]))
                 } else {
                     titles.append("")
                 }

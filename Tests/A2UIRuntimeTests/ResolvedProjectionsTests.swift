@@ -179,4 +179,47 @@ struct ResolvedProjectionsTests {
         p.selection.set(["b"])
         #expect(dm.get("/sel") == .array([.string("b")]))
     }
+
+    @Test("ResolvedTabs: title binding resolves through DataContext")
+    func resolvedTabsBindingTitle() {
+        let (r, _) = make(type: "Tabs", [
+            "tabs": .array([
+                .object(["title": .object(["path": .string("/headline")]), "child": .string("t1")]),
+                .object(["title": .string("Static"), "child": .string("t2")]),
+            ]),
+        ], data: .object(["headline": .string("Live Title")]))
+        let p: ResolvedTabs = r.projected()
+        #expect(p.tabs[0].title == "Live Title")
+        #expect(p.tabs[1].title == "Static")
+    }
+
+    @Test("ResolvedChoicePicker: option label binding resolves through DataContext")
+    func resolvedChoicePickerLabelBinding() {
+        let (r, _) = make(type: "ChoicePicker", [
+            "options": .array([
+                .object(["label": .object(["path": .string("/labelA")]), "value": .string("a")]),
+            ]),
+            "value": .object(["path": .string("/sel")]),
+        ], data: .object(["labelA": .string("Alpha"), "sel": .array([])]))
+        let p: ResolvedChoicePicker = r.projected()
+        #expect(p.options[0].label == "Alpha")
+        #expect(p.options[0].value == "a")
+    }
+
+    @Test("ResolvedIcon: preset vs svgPath forms decode into ResolvedIconName")
+    func resolvedIconForms() {
+        let (preset, _) = make(type: "Icon", ["name": .string("home")])
+        if case .preset(let s) = preset.projected(as: ResolvedIcon.self).name {
+            #expect(s == "home")
+        } else {
+            Issue.record("expected .preset")
+        }
+
+        let (svg, _) = make(type: "Icon", ["name": .object(["svgPath": .string("M0 0H10")])])
+        if case .svgPath(let p) = svg.projected(as: ResolvedIcon.self).name {
+            #expect(p == "M0 0H10")
+        } else {
+            Issue.record("expected .svgPath")
+        }
+    }
 }
