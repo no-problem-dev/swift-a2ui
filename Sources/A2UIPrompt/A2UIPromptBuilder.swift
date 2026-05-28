@@ -79,6 +79,7 @@ public struct A2UIPromptBuilder: Sendable {
         role: String,
         workflowRules: String? = nil,
         uiDescription: String? = nil,
+        examples: String? = nil,
         includeSchema: Bool = true
     ) -> String {
         var sections: [String] = [role]
@@ -92,6 +93,10 @@ public struct A2UIPromptBuilder: Sendable {
 
         if includeSchema {
             sections.append(schemaBlock())
+        }
+
+        if let examples {
+            sections.append("### Examples:\n\(examples)")
         }
 
         return sections.joined(separator: "\n\n")

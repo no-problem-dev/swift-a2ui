@@ -76,7 +76,6 @@ public enum SchemaRenderer {
         return .object([
             "type": .string("object"),
             "allOf": .array(allOf),
-            "unevaluatedProperties": .bool(false),
         ])
     }
 

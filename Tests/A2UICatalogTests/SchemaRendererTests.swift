@@ -46,8 +46,7 @@ struct SchemaRendererComponentTests {
         // mixins: ComponentCommon + CatalogComponentCommon
         #expect(allOf.count == 3)
         #expect((allOf[0]["$ref"] as? String)?.hasSuffix("ComponentCommon") == true)
-        // unevaluatedProperties false
-        #expect(json["unevaluatedProperties"] as? Bool == false)
+        #expect(json["unevaluatedProperties"] == nil)
     }
 
     @Test("Button schema includes Checkable mixin + child(ComponentId) + action(Action)")

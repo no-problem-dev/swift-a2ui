@@ -160,6 +160,23 @@ struct A2UIPromptBuilderCustomTests {
         #expect(workflowIdx < uiIdx)
         #expect(uiIdx < schemaIdx)
     }
+
+    @Test("examples are appended in their own section after schema")
+    func examplesSection() {
+        let examples = "---BEGIN EX1---\n<a2ui-json>{}</a2ui-json>\n---END EX1---"
+        let prompt = builder.buildSystemPrompt(role: "role", examples: examples)
+        #expect(prompt.contains("### Examples:"))
+        #expect(prompt.contains("---BEGIN EX1---"))
+        let schemaIdx = prompt.range(of: SchemaBlockFormatter.beginMarker)!.lowerBound
+        let examplesIdx = prompt.range(of: "### Examples:")!.lowerBound
+        #expect(schemaIdx < examplesIdx)
+    }
+
+    @Test("examples section is absent when examples is nil")
+    func examplesAbsentWhenNil() {
+        let prompt = builder.buildSystemPrompt(role: "role")
+        #expect(!prompt.contains("### Examples:"))
+    }
 }
 
 // MARK: - A2UIPromptBuilder (bundled schemas)
