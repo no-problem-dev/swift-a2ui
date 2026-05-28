@@ -104,6 +104,16 @@ public final class MessageProcessor {
         }
     }
 
+    /// Remove every surface, cancelling action subscriptions and emitting `onSurfaceDeleted` for
+    /// each. Used when the host resets the session (e.g. user starts a fresh conversation).
+    public func removeAll() {
+        let ids = Array(surfaces.keys)
+        surfaces.removeAll()
+        for sub in actionSubscriptions.values { sub.cancel() }
+        actionSubscriptions.removeAll()
+        for id in ids { onSurfaceDeleted.emit(id) }
+    }
+
     /// Aggregate data models of surfaces with `sendDataModel == true`, keyed by surface id.
     /// The host/transport includes this in client→server message metadata (spec §3).
     public func getClientDataModel() -> [String: AnyCodable] {

@@ -38,9 +38,40 @@ public extension ResolvedComponent {
         }
     }
 
+    /// Integer value for `key`, or nil. Coerces from int / int-valued double / numeric string —
+    /// the cross-format conversion many ids (e.g. 18-digit recipe ids carried as strings to
+    /// preserve precision) need.
+    func int(_ key: String) -> Int? {
+        switch props[key] {
+        case .int(let i): return i
+        case .double(let d):
+            // Reject lossy / non-integral doubles. Doubles can faithfully hold integers up to 2^53.
+            guard d == d.rounded(), abs(d) < 1e15 else { return nil }
+            return Int(d)
+        case .string(let s): return Int(s)
+        default: return nil
+        }
+    }
+
     func stringArray(_ key: String) -> [String] {
         guard case .array(let arr)? = props[key] else { return [] }
         return arr.compactMap { if case .string(let s) = $0 { return s } else { return nil } }
+    }
+
+    /// Integer array for `key`. Each element is coerced via the same rules as `int(_:)`.
+    /// Empty when the prop is absent or not an array.
+    func intArray(_ key: String) -> [Int] {
+        guard case .array(let arr)? = props[key] else { return [] }
+        return arr.compactMap { element in
+            switch element {
+            case .int(let i): return i
+            case .double(let d):
+                guard d == d.rounded(), abs(d) < 1e15 else { return nil }
+                return Int(d)
+            case .string(let s): return Int(s)
+            default: return nil
+            }
+        }
     }
 
     /// Whether a prop is present and non-empty (used for placeholder/redacted states).

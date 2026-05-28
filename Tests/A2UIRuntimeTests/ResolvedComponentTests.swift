@@ -100,6 +100,51 @@ private extension AnyCodable {
 }
 
 @MainActor
+@Suite("ResolvedComponent: numeric accessors")
+struct ResolvedComponentNumericTests {
+
+    private func make(_ properties: [String: AnyCodable]) -> ResolvedComponent {
+        let ctx = ComponentContext(
+            componentId: "c", componentType: "Custom",
+            properties: properties,
+            dataContext: DataContext(dataModel: DataModel(), functions: BasicFunctions())
+        )
+        return ResolvedComponent(context: ctx, functions: BasicFunctions())
+    }
+
+    @Test("int coerces int / int-valued double / numeric string")
+    func intCoercion() {
+        #expect(make(["v": .int(42)]).int("v") == 42)
+        #expect(make(["v": .double(7.0)]).int("v") == 7)
+        #expect(make(["v": .string("18000000000000000")]).int("v") == 18000000000000000)
+    }
+
+    @Test("int rejects non-integral / out-of-range doubles")
+    func intRejectsLossy() {
+        #expect(make(["v": .double(3.5)]).int("v") == nil)
+    }
+
+    @Test("int returns nil for missing / non-numeric")
+    func intMissing() {
+        #expect(make([:]).int("v") == nil)
+        #expect(make(["v": .bool(true)]).int("v") == nil)
+    }
+
+    @Test("intArray coerces each element independently")
+    func intArrayCoercion() {
+        let r = make(["ids": .array([.string("1"), .int(2), .double(3.0), .string("x")])])
+        // String "x" is dropped (compactMap), others coerce.
+        #expect(r.intArray("ids") == [1, 2, 3])
+    }
+
+    @Test("intArray returns empty for missing / non-array")
+    func intArrayEmpty() {
+        #expect(make([:]).intArray("ids") == [])
+        #expect(make(["ids": .string("not-an-array")]).intArray("ids") == [])
+    }
+}
+
+@MainActor
 @Suite("ResolvedComponent: two-way binding & reactive logic (spec §8)")
 struct ResolvedComponentReactivityTests {
 
