@@ -1,6 +1,6 @@
 import A2UICore
 
-public enum ImageFit: String, Codable, Sendable, Equatable {
+public enum ImageFit: String, Codable, Sendable, Equatable, CaseIterable {
     case contain
     case cover
     case fill

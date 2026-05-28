@@ -46,6 +46,15 @@ public struct A2UIPromptBuilder: Sendable {
         _catalogSchema = catalogSchema
     }
 
+    /// Initialize with a custom **catalog** schema while keeping the bundled server-to-client and
+    /// common-types schemas. This is the common case for an app with a custom component catalog:
+    /// generate the catalog schema from your Swift types (`SchemaRenderer`) and pass it here.
+    public init(catalogSchema: String) {
+        _serverToClientSchema = nil
+        _commonTypesSchema = nil
+        _catalogSchema = catalogSchema
+    }
+
     // MARK: - Public API
 
     /// Build a complete system prompt in the official A2UI format.

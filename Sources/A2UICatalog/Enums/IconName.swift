@@ -1,6 +1,6 @@
 import A2UICore
 
-public enum IconName: String, Codable, Sendable, Equatable {
+public enum IconName: String, Codable, Sendable, Equatable, CaseIterable {
     case accountCircle
     case add
     case arrowBack

@@ -21,18 +21,13 @@ public struct BasicComponentCatalog: ComponentCatalog, Sendable {
 
     public init() {}
 
-    /// Load the bundled catalog.json and return its contents as a String.
+    /// Return the catalog schema, **generated from the Swift component types** via
+    /// `BasicCatalogSchema` / `SchemaRenderer` — not from a hand-written JSON file.
     ///
-    /// Returns `"{}"` if the resource cannot be located, which should not
-    /// happen in a correctly assembled package.
+    /// The Swift types (component property declarations + `SchemaEnumerable` enums) are the
+    /// single source of truth; the LLM-facing schema is derived from them, so the two can never
+    /// drift. (A `GeneratedSchemaEquivalence` test pins the output to the official v0.9 catalog.)
     public static func catalogSchemaJSON() -> String {
-        guard let url = Bundle.module.url(
-            forResource: "catalog",
-            withExtension: "json",
-            subdirectory: "Resources"
-        ) else {
-            return "{}"
-        }
-        return (try? String(contentsOf: url, encoding: .utf8)) ?? "{}"
+        BasicCatalogSchema.render()
     }
 }
