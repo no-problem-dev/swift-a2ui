@@ -247,6 +247,45 @@ struct A2UIPromptBuilderBundledTests {
         #expect(!block.contains("\"$schema\": \""))
     }
 
+    @Test("allowedMessages prunes server_to_client oneOf and shrinks the schema block")
+    func allowedMessagesShrinksS2C() {
+        let baseline = A2UIPromptBuilder().schemaBlock()
+        let pruned = A2UIPromptBuilder(
+            catalogSchema: "{}",
+            allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"]
+        ).schemaBlock()
+        #expect(pruned.count < baseline.count)
+        #expect(!pruned.contains("UpdateDataModelMessage"))
+        #expect(!pruned.contains("DeleteSurfaceMessage"))
+        #expect(pruned.contains("CreateSurfaceMessage"))
+        #expect(pruned.contains("UpdateComponentsMessage"))
+    }
+
+    @Test("pruneCommonTypes drops $defs not reachable from the active catalog")
+    func pruneCommonTypesShrinksCommon() {
+        // catalog で DynamicNumber / DynamicStringList を一切参照しないケース
+        let minimalCatalog = """
+        {
+            "components": {
+                "Text": {"$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"},
+                "Column": {"$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList"}
+            }
+        }
+        """
+        let baseline = A2UIPromptBuilder(catalogSchema: minimalCatalog).schemaBlock()
+        let pruned = A2UIPromptBuilder(
+            catalogSchema: minimalCatalog,
+            allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"],
+            pruneCommonTypes: true
+        ).schemaBlock()
+        #expect(pruned.count < baseline.count)
+        // catalog から到達できない型は消える（DynamicNumber / DynamicStringList が典型）
+        #expect(!pruned.contains("\"DynamicNumber\":"))
+        #expect(!pruned.contains("\"DynamicStringList\":"))
+        // DynamicString は catalog 直接参照なので残る
+        #expect(pruned.contains("\"DynamicString\":"))
+    }
+
     @Test("schema block remains valid: each labelled JSON re-parses cleanly")
     func bundledSchemaJSONIsReparsable() throws {
         let builder = A2UIPromptBuilder()

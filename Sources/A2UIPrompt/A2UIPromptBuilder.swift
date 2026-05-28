@@ -1,5 +1,6 @@
 import Foundation
 import A2UICatalog
+import A2UICore
 
 /// Builds LLM system prompts in the official Google A2UI format.
 ///
@@ -23,6 +24,13 @@ public struct A2UIPromptBuilder: Sendable {
     private let _commonTypesSchema: String?
     private let _catalogSchema: String?
 
+    /// 残す server_to_client メッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）。
+    /// `nil` = プルーニング無効、bundled の oneOf を全て残す。
+    private let _allowedMessages: Set<String>?
+
+    /// `true` のとき、catalog と server_to_client から到達可能な common_types の `$defs` のみ残す。
+    private let _pruneCommonTypes: Bool
+
     // MARK: - Init
 
     /// Initialize using the schemas bundled with A2UIPrompt (server_to_client.json,
@@ -31,6 +39,8 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = nil
+        _allowedMessages = nil
+        _pruneCommonTypes = false
     }
 
     /// Initialize with custom schema strings, bypassing the bundled resources.
@@ -44,15 +54,57 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = serverToClientSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
+        _allowedMessages = nil
+        _pruneCommonTypes = false
     }
 
     /// Initialize with a custom **catalog** schema while keeping the bundled server-to-client and
-    /// common-types schemas. This is the common case for an app with a custom component catalog:
-    /// generate the catalog schema from your Swift types (`SchemaRenderer`) and pass it here.
-    public init(catalogSchema: String) {
+    /// common-types schemas.
+    public init(
+        catalogSchema: String,
+        allowedMessages: Set<String>? = nil,
+        pruneCommonTypes: Bool = false
+    ) {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = catalogSchema
+        _allowedMessages = allowedMessages
+        _pruneCommonTypes = pruneCommonTypes
+    }
+
+    /// 全パラメタを任意で渡せる統合 init。`nil` 指定のフィールドは bundled リソースにフォールバックする。
+    /// 派生 builder (`A2UIPromptCompact` 等) が部分カスタムを渡す用途を想定。
+    ///
+    /// - Parameters:
+    ///   - serverToClientSchema: server_to_client schema を上書き。`nil` = bundled
+    ///   - commonTypesSchema: common_types schema を上書き。`nil` = bundled
+    ///   - catalogSchema: catalog schema を上書き。`nil` = bundled basic catalog
+    ///   - allowedMessages: server_to_client `oneOf` を絞る。Python `with_pruning(allowed_messages:)` 相当
+    ///   - pruneCommonTypes: catalog と s2c から到達可能な common_types の `$defs` のみ残す
+    public init(
+        serverToClientSchema: String?,
+        commonTypesSchema: String?,
+        catalogSchema: String?,
+        allowedMessages: Set<String>? = nil,
+        pruneCommonTypes: Bool = false
+    ) {
+        _serverToClientSchema = serverToClientSchema
+        _commonTypesSchema = commonTypesSchema
+        _catalogSchema = catalogSchema
+        _allowedMessages = allowedMessages
+        _pruneCommonTypes = pruneCommonTypes
+    }
+
+    // MARK: - Bundled resources (public)
+
+    /// Bundled `server_to_client.json` を文字列で返す（minify 後）。派生 builder 用のフック。
+    public static func bundledServerToClientJSON() -> String {
+        loadBundledResource("server_to_client")
+    }
+
+    /// Bundled `common_types.json` を文字列で返す（minify 後）。派生 builder 用のフック。
+    public static func bundledCommonTypesJSON() -> String {
+        loadBundledResource("common_types")
     }
 
     // MARK: - Public API
@@ -105,12 +157,32 @@ public struct A2UIPromptBuilder: Sendable {
     /// Build just the schema block portion of the prompt.
     ///
     /// The block is formatted by `SchemaBlockFormatter` and contains the
-    /// server-to-client, common types, and catalog schemas.
+    /// server-to-client, common types, and catalog schemas. Applies `allowedMessages` and
+    /// `pruneCommonTypes` opt-ins when set.
     public func schemaBlock() -> String {
-        SchemaBlockFormatter.format(
-            serverToClientSchema: resolvedServerToClientSchema,
-            commonTypesSchema: resolvedCommonTypesSchema,
-            catalogSchema: resolvedCatalogSchema
+        let catalogString = resolvedCatalogSchema
+        var s2cString = resolvedServerToClientSchema
+        var commonString = resolvedCommonTypesSchema
+
+        // allowed_messages: server_to_client の oneOf / $defs を絞る
+        if let allowed = _allowedMessages,
+           let parsed = Self.parseJSON(s2cString) {
+            let pruned = SchemaPruner.pruneMessages(serverToClient: parsed, allowedMessages: allowed)
+            s2cString = Self.serializeJSON(pruned) ?? s2cString
+        }
+
+        // prune_common_types: catalog と (絞られた) s2c から到達可能な $defs だけ残す
+        if _pruneCommonTypes,
+           let common = Self.parseJSON(commonString) {
+            let externals = [catalogString, s2cString].compactMap(Self.parseJSON)
+            let pruned = SchemaPruner.pruneCommonTypes(commonTypes: common, reachableFrom: externals)
+            commonString = Self.serializeJSON(pruned) ?? commonString
+        }
+
+        return SchemaBlockFormatter.format(
+            serverToClientSchema: s2cString,
+            commonTypesSchema: commonString,
+            catalogSchema: catalogString
         )
     }
 
@@ -126,6 +198,23 @@ public struct A2UIPromptBuilder: Sendable {
 
     private var resolvedCatalogSchema: String {
         _catalogSchema ?? BasicComponentCatalog.catalogSchemaJSON()
+    }
+
+    // MARK: - JSON helpers
+
+    private static func parseJSON(_ string: String) -> AnyCodable? {
+        guard let data = string.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(AnyCodable.self, from: data)
+    }
+
+    private static func serializeJSON(_ value: AnyCodable) -> String? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        guard let data = try? encoder.encode(value),
+              let string = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return string
     }
 
     /// Load a JSON file from A2UIPrompt's own resource bundle.
