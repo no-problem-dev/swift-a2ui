@@ -17,7 +17,7 @@ let package = Package(
         // No resources: the catalog schema is generated from Swift types (BasicCatalogSchema).
         .target(name: "A2UICatalog", dependencies: ["A2UICore"]),
         .target(name: "A2UIPrompt", dependencies: ["A2UICatalog"],
-                resources: [.copy("Resources")]),
+                resources: [.process("Resources")]),
         .target(name: "A2UIParser", dependencies: ["A2UICore"]),
         .target(name: "A2UISurface", dependencies: ["A2UICore"]),
         .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface", "A2UICatalog"]),
