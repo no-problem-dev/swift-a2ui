@@ -18,4 +18,19 @@ public enum A2UIWorkflowRules {
         - Parent components MUST appear before their child components.
         This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.
     """
+
+    /// Required-property reminders for the **basic catalog** components.
+    ///
+    /// These mirror the natural-language hints the Google Python SDK includes alongside the basic
+    /// catalog: although the required properties are already encoded in the schema's `required`
+    /// arrays, LLMs follow an explicit prose reminder more reliably. This is basic-catalog domain
+    /// knowledge, so it lives here in the library rather than in each consuming app.
+    public static let basicCatalogRules = """
+    Instructions specific to the basic catalog:
+    **REQUIRED PROPERTIES:** You MUST include ALL required properties for every component, even if they are inside a template or will be bound to data.
+    - For 'Text', you MUST provide 'text'. If dynamic, use { "path": "..." }.
+    - For 'Image', you MUST provide 'url'. If dynamic, use { "path": "..." }.
+    - For 'Button', you MUST provide 'action'.
+    - For 'TextField', 'CheckBox', etc., you MUST provide 'label'.
+    """
 }
