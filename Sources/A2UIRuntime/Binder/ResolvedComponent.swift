@@ -41,11 +41,18 @@ public final class ResolvedComponent {
     /// Property keys treated as structural (resolved into `children`, not `props`).
     private static let structuralKeys: Set<String> = ["child", "children", "trigger", "content", "tabs"]
 
+    /// The raw (unresolved) properties as declared on the message. Useful for typed projections
+    /// that need static-only fields the runtime did not subscribe to (e.g. Tabs titles). For
+    /// anything dynamic, prefer the resolved `props`.
+    @ObservationIgnored
+    public let rawProps: [String: AnyCodable]
+
     public init(context: ComponentContext, functions: any FunctionResolving = NoFunctionResolver()) {
         self.id = context.componentId
         self.type = context.componentType
         self.context = context
         self.functions = functions
+        self.rawProps = context.properties
         bind()
     }
 
@@ -66,6 +73,56 @@ public final class ResolvedComponent {
     /// Dispatch a user action declared by this component (e.g. a Button's `action.event`).
     public func dispatch(name: String, context actionContext: [String: AnyCodable]) {
         context.dispatch(name, actionContext)
+    }
+
+    /// Perform the action described by the component's `action` prop:
+    /// - `{"event": {"name", "context"}}` → resolve the context against this node's scope and
+    ///   dispatch a user action to the host.
+    /// - `{"functionCall": {...}}` → evaluate the function for its side effect (e.g. `openUrl`).
+    /// No-op for any other shape.
+    public func performAction() {
+        guard case .object(let action)? = rawProps["action"] else { return }
+        if case .object(let event)? = action["event"] {
+            let name: String = {
+                if case .string(let n)? = event["name"] { return n }
+                return ""
+            }()
+            guard !name.isEmpty else { return }
+            var resolved: [String: AnyCodable] = [:]
+            if case .object(let ctx)? = event["context"] {
+                for (key, raw) in ctx {
+                    resolved[key] = resolveActionArg(raw) ?? .null
+                }
+            }
+            dispatch(name: name, context: resolved)
+            return
+        }
+        if case .object(let fc)? = action["functionCall"] {
+            _ = resolveActionArg(.object(fc))
+        }
+    }
+
+    /// Resolve an action context value, which may itself contain `{path}` bindings or `{call}`
+    /// function calls. Mirrors the runtime's general arg resolution but scoped to this node.
+    private func resolveActionArg(_ value: AnyCodable) -> AnyCodable? {
+        switch value {
+        case .object(let dict):
+            if case .string(let path)? = dict["path"], dict.count == 1 {
+                return context.dataContext.dataModel.get(path, scope: context.dataContext.path)
+            }
+            if case .string? = dict["call"],
+               let data = try? JSONEncoder().encode(value),
+               let call = try? JSONDecoder().decode(FunctionCall.self, from: data) {
+                return functions.evaluate(call, in: context.dataContext)
+            }
+            var out: [String: AnyCodable] = [:]
+            for (k, v) in dict { out[k] = resolveActionArg(v) ?? .null }
+            return .object(out)
+        case .array(let arr):
+            return .array(arr.map { resolveActionArg($0) ?? .null })
+        default:
+            return value
+        }
     }
 
     // MARK: - Two-way binding (spec §"Two-way binding & input components")

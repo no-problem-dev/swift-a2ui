@@ -20,7 +20,7 @@ let package = Package(
                 resources: [.copy("Resources")]),
         .target(name: "A2UIParser", dependencies: ["A2UICore"]),
         .target(name: "A2UISurface", dependencies: ["A2UICore"]),
-        .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface"]),
+        .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface", "A2UICatalog"]),
         .testTarget(name: "A2UICoreTests", dependencies: ["A2UICore"],
                     resources: [.copy("Fixtures")]),
         .testTarget(name: "A2UICatalogTests", dependencies: ["A2UICatalog"],
