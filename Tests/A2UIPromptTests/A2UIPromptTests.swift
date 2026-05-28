@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import A2UIPrompt
 
@@ -47,16 +48,43 @@ struct SchemaBlockFormatterTests {
         #expect(block.contains(SchemaBlockFormatter.endMarker))
     }
 
-    @Test("formatted block contains all three schema labels")
+    @Test("formatted block contains all three schema labels followed by their JSON on the next line")
     func containsAllSchemaLabels() {
         let block = SchemaBlockFormatter.format(
             serverToClientSchema: "S2C",
             commonTypesSchema: "COMMON",
             catalogSchema: "CATALOG"
         )
-        #expect(block.contains("### Server To Client Schema: S2C"))
-        #expect(block.contains("### Common Types Schema: COMMON"))
-        #expect(block.contains("### Catalog Schema: CATALOG"))
+        #expect(block.contains("### Server To Client Schema:\nS2C"))
+        #expect(block.contains("### Common Types Schema:\nCOMMON"))
+        #expect(block.contains("### Catalog Schema:\nCATALOG"))
+    }
+
+    @Test("formatted block omits Common Types Schema when empty or `{}`")
+    func omitsEmptyCommonTypes() {
+        for empty in ["", "{}"] {
+            let block = SchemaBlockFormatter.format(
+                serverToClientSchema: "S2C",
+                commonTypesSchema: empty,
+                catalogSchema: "CATALOG"
+            )
+            #expect(!block.contains("### Common Types Schema:"))
+            #expect(block.contains("### Server To Client Schema:\nS2C"))
+            #expect(block.contains("### Catalog Schema:\nCATALOG"))
+        }
+    }
+
+    @Test("sections are separated by blank lines (\\n\\n)")
+    func sectionsSeparatedByBlankLines() {
+        let block = SchemaBlockFormatter.format(
+            serverToClientSchema: "S2C",
+            commonTypesSchema: "COMMON",
+            catalogSchema: "CATALOG"
+        )
+        #expect(block.contains("\n\n### Server To Client Schema:"))
+        #expect(block.contains("\n\n### Common Types Schema:"))
+        #expect(block.contains("\n\n### Catalog Schema:"))
+        #expect(block.contains("\n\n---END A2UI JSON SCHEMA---"))
     }
 
     @Test("BEGIN marker appears before END marker")
@@ -205,5 +233,44 @@ struct A2UIPromptBuilderBundledTests {
         let builder = A2UIPromptBuilder()
         let block = builder.schemaBlock()
         #expect(block.contains("a2ui.org"))
+    }
+
+    @Test("bundled schemas are minified: no `\": \"` pretty separators on the schema lines")
+    func bundledSchemasAreMinified() {
+        let builder = A2UIPromptBuilder()
+        let block = builder.schemaBlock()
+        // The schema label lines themselves do contain a colon, but the bundled JSON
+        // body should not contain the pretty `": "` separator pattern used inside JSON objects.
+        // (e.g. `"$schema": "..."` pretty form should become `"$schema":"..."` minified.)
+        // Pick a known-stable key from common_types.json that exists in a pretty form.
+        #expect(block.contains("\"$schema\":\""))
+        #expect(!block.contains("\"$schema\": \""))
+    }
+
+    @Test("schema block remains valid: each labelled JSON re-parses cleanly")
+    func bundledSchemaJSONIsReparsable() throws {
+        let builder = A2UIPromptBuilder()
+        let block = builder.schemaBlock()
+        // Extract each "### Label:\nJSON" section's JSON portion and assert it parses.
+        let labels = ["### Server To Client Schema:", "### Common Types Schema:", "### Catalog Schema:"]
+        for label in labels {
+            guard let labelRange = block.range(of: label) else {
+                Issue.record("missing label \(label)")
+                continue
+            }
+            let afterLabel = block[labelRange.upperBound...]
+            // JSON starts after the newline immediately after the label.
+            guard let newline = afterLabel.firstIndex(of: "\n") else {
+                Issue.record("no newline after \(label)")
+                continue
+            }
+            let jsonStart = afterLabel.index(after: newline)
+            // The JSON section ends at the next blank line (\n\n) or end of block.
+            let remainder = afterLabel[jsonStart...]
+            let end = remainder.range(of: "\n\n")?.lowerBound ?? remainder.endIndex
+            let jsonString = String(remainder[..<end])
+            let data = Data(jsonString.utf8)
+            _ = try JSONSerialization.jsonObject(with: data)
+        }
     }
 }

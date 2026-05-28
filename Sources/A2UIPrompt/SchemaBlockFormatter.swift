@@ -21,12 +21,13 @@ public enum SchemaBlockFormatter {
         commonTypesSchema: String,
         catalogSchema: String
     ) -> String {
-        """
-        \(beginMarker)
-        ### Server To Client Schema: \(serverToClientSchema)
-        ### Common Types Schema: \(commonTypesSchema)
-        ### Catalog Schema: \(catalogSchema)
-        \(endMarker)
-        """
+        var sections: [String] = [beginMarker]
+        sections.append("### Server To Client Schema:\n\(serverToClientSchema)")
+        if !commonTypesSchema.isEmpty, commonTypesSchema != "{}" {
+            sections.append("### Common Types Schema:\n\(commonTypesSchema)")
+        }
+        sections.append("### Catalog Schema:\n\(catalogSchema)")
+        sections.append(endMarker)
+        return sections.joined(separator: "\n\n")
     }
 }

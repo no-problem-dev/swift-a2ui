@@ -137,9 +137,26 @@ public struct A2UIPromptBuilder: Sendable {
     private static func loadBundledResource(_ name: String) -> String {
         let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Resources")
             ?? Bundle.module.url(forResource: name, withExtension: "json")
-        guard let url else {
+        guard let url, let data = try? Data(contentsOf: url) else {
             return "{}"
         }
-        return (try? String(contentsOf: url, encoding: .utf8)) ?? "{}"
+        if let minified = minifyJSON(data) {
+            return minified
+        }
+        return String(data: data, encoding: .utf8) ?? "{}"
+    }
+
+    /// Bundled JSON resources をプロンプト埋め込み用に minify する。
+    /// Python 公式 (`json.dumps(..., separators=(",", ":"))`) と同等の出力を狙う。
+    /// `.sortedKeys` を採用してプロンプトキャッシュヒット率を安定化させる。
+    private static func minifyJSON(_ data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
+              let minified = try? JSONSerialization.data(
+                  withJSONObject: object,
+                  options: [.sortedKeys, .withoutEscapingSlashes]
+              ) else {
+            return nil
+        }
+        return String(data: minified, encoding: .utf8)
     }
 }
