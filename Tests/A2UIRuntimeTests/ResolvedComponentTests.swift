@@ -52,6 +52,51 @@ struct ResolvedComponentDataPropsTests {
         )
         #expect(rc.props["text"] == .string("Alice"))
     }
+
+    @Test("scope exposes the node's data scope")
+    func exposesScope() {
+        let (rc, _) = make(["text": .literalString("x")], scope: "/items/3")
+        #expect(rc.scope == "/items/3")
+    }
+
+    @Test("bindingPath returns the raw path for a binding, nil for a literal")
+    func bindingPathExtraction() {
+        let (rc, _) = make([
+            "value": .object(["path": .string("/form/email")]),
+            "label": .string("Email"),
+        ])
+        #expect(rc.bindingPath("value") == "/form/email")
+        #expect(rc.bindingPath("label") == nil)
+    }
+
+    @Test("write(_:_:) writes back through the binding path (View → Model)")
+    func writeBack() {
+        let (rc, dm) = make(["value": .object(["path": .string("/form/email")])], data: .object([:]))
+        rc.write("value", .string("jane@example.com"))
+        #expect(dm.get("/form/email") == .string("jane@example.com"))
+    }
+
+    @Test("write respects scope for relative binding (template input)")
+    func writeScoped() {
+        let (rc, dm) = make(
+            ["value": .object(["path": .string("done")])],
+            data: .object(["items": .array([.object(["done": .bool(false)])])]),
+            scope: "/items/0"
+        )
+        rc.write("value", .bool(true))
+        #expect(dm.get("/items/0/done") == .bool(true))
+    }
+
+    @Test("write is a no-op for a literal prop")
+    func writeLiteralNoOp() {
+        let (rc, dm) = make(["value": .string("static")], data: .object(["x": .int(1)]))
+        rc.write("value", .string("changed"))
+        #expect(dm.get("/value") == nil)  // nothing written
+    }
+}
+
+private extension AnyCodable {
+    static func literalString(_ s: String) -> AnyCodable { .string(s) }
 }
 
 @MainActor

@@ -49,9 +49,33 @@ public final class ResolvedComponent {
         bind()
     }
 
+    /// This node's data scope (JSON Pointer). Empty string = root. Template instances carry their
+    /// element scope (e.g. `/items/2`), so two-way writes land at the correct path.
+    public var scope: String { context.dataContext.path }
+
     /// Dispatch a user action declared by this component (e.g. a Button's `action.event`).
     public func dispatch(name: String, context actionContext: [String: AnyCodable]) {
         context.dispatch(name, actionContext)
+    }
+
+    // MARK: - Two-way binding (spec §"Two-way binding & input components")
+
+    /// The raw (unresolved) binding path for a prop, if the prop is a `{ "path": ... }` binding.
+    /// Input components write back through this path; nil when the prop is a literal/function.
+    public func bindingPath(_ key: String) -> String? {
+        guard case .object(let dict)? = context.properties[key],
+              case .string(let path)? = dict["path"], dict.count == 1 else {
+            return nil
+        }
+        return path
+    }
+
+    /// Write a new value for a two-way-bound prop back into the data model (View → Model).
+    /// No-op when the prop is not a binding. Resolves the path against this node's scope, so the
+    /// data model updates and all subscribers (incl. sibling Text labels) re-render reactively.
+    public func write(_ key: String, _ value: AnyCodable?) {
+        guard let path = bindingPath(key) else { return }
+        context.dataContext.set(path, value)
     }
 
     /// Release all data-model subscriptions. Call on unmount (spec §6 cleanup).
