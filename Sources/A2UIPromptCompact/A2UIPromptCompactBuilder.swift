@@ -17,7 +17,10 @@ import Foundation
 /// catalog 側で `functions: []` を採用していることを前提とした独自最適化である。
 public struct A2UIPromptCompactBuilder: Sendable {
 
-    private let inner: A2UIPromptBuilder
+    /// 内部で利用している `A2UIPromptBuilder`。`A2UIPromptConfiguration.promptBuilder` などに
+    /// そのまま渡せる脱出ハッチ。
+    public let builder: A2UIPromptBuilder
+    private var inner: A2UIPromptBuilder { builder }
 
     /// Bundled の compact common_types を 1 度だけ生成してプロセス内で再利用する。
     private static let compactCommonTypes: String =
@@ -30,7 +33,7 @@ public struct A2UIPromptCompactBuilder: Sendable {
         catalogSchema: String? = nil,
         allowedMessages: Set<String>? = nil
     ) {
-        self.inner = A2UIPromptBuilder(
+        self.builder = A2UIPromptBuilder(
             serverToClientSchema: nil,                      // bundled
             commonTypesSchema: Self.compactCommonTypes,     // compact 版
             catalogSchema: catalogSchema,                   // 渡されたものを優先、nil なら bundled
