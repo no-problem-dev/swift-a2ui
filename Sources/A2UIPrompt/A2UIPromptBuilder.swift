@@ -124,12 +124,15 @@ public struct A2UIPromptBuilder: Sendable {
     }
 
     /// Load a JSON file from A2UIPrompt's own resource bundle.
+    ///
+    /// Tries the explicit `Resources/` subdirectory first (which matches the
+    /// `.copy("Resources")` layout) and falls back to a flat lookup, which is
+    /// the layout SwiftPM produces when `.process("Resources")` flattens the
+    /// directory hierarchy.
     private static func loadBundledResource(_ name: String) -> String {
-        guard let url = Bundle.module.url(
-            forResource: name,
-            withExtension: "json",
-            subdirectory: "Resources"
-        ) else {
+        let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Resources")
+            ?? Bundle.module.url(forResource: name, withExtension: "json")
+        guard let url else {
             return "{}"
         }
         return (try? String(contentsOf: url, encoding: .utf8)) ?? "{}"
