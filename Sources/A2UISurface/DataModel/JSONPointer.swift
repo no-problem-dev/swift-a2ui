@@ -6,6 +6,30 @@ import A2UICore
 /// Escaping sequences are handled: ~1 → / and ~0 → ~.
 public enum JSONPointer {
 
+    /// Resolve a path against a base scope, supporting A2UI relative paths.
+    ///
+    /// A2UI extends RFC 6901 (`renderer_guide.md` §3): a path that does NOT start with `/`
+    /// is **relative** and resolves against `scope` (the current collection scope, e.g. `/users/0`).
+    /// A path starting with `/` is **absolute** and ignores the scope.
+    ///
+    /// - Parameters:
+    ///   - path: absolute (`/a/b`) or relative (`a/b`) pointer.
+    ///   - scope: the base path for relative resolution (default root `""`).
+    ///   - data: the document root.
+    public static func resolve(path: String, scope: String, in data: AnyCodable) -> AnyCodable? {
+        resolve(path: absolutePath(path, scope: scope), in: data)
+    }
+
+    /// Combine a (possibly relative) path with a scope into an absolute path.
+    /// Absolute paths (leading `/`) are returned unchanged.
+    public static func absolutePath(_ path: String, scope: String) -> String {
+        if path.hasPrefix("/") { return path }
+        let normalizedScope = scope == "/" ? "" : scope
+        if path.isEmpty { return normalizedScope.isEmpty ? "/" : normalizedScope }
+        let base = normalizedScope.hasSuffix("/") ? String(normalizedScope.dropLast()) : normalizedScope
+        return "\(base)/\(path)"
+    }
+
     /// Resolve a JSON Pointer path in an AnyCodable value.
     /// Returns nil if the path doesn't exist or any intermediate node is the wrong type.
     public static func resolve(path: String, in data: AnyCodable) -> AnyCodable? {
@@ -116,28 +140,67 @@ public enum JSONPointer {
         }
 
         let remaining = tokens.dropFirst()
+        // Auto-vivification (renderer_guide.md §3): a numeric token implies an Array container,
+        // a non-numeric token implies an Object container.
+        let firstIsIndex = isArrayIndex(first)
 
         if remaining.isEmpty {
-            if case .object(var dict) = data {
-                dict[first] = value
-                data = .object(dict)
-            } else if let index = Int(first), case .array(var arr) = data, index >= 0, index < arr.count {
+            // Leaf assignment.
+            if firstIsIndex, let index = Int(first) {
+                var arr: [AnyCodable] = {
+                    if case .array(let existing) = data { return existing }
+                    return []
+                }()
+                growArray(&arr, toInclude: index)
                 arr[index] = value
                 data = .array(arr)
             } else {
-                data = .object([first: value])
+                var dict: [String: AnyCodable] = {
+                    if case .object(let existing) = data { return existing }
+                    return [:]
+                }()
+                dict[first] = value
+                data = .object(dict)
             }
         } else {
-            if case .object(var dict) = data {
-                var child = dict[first] ?? .object([:])
+            // Intermediate: decide the child container type from the NEXT token.
+            let nextIsIndex = isArrayIndex(remaining.first!)
+            let emptyChild: AnyCodable = nextIsIndex ? .array([]) : .object([:])
+
+            if firstIsIndex, let index = Int(first) {
+                var arr: [AnyCodable] = {
+                    if case .array(let existing) = data { return existing }
+                    return []
+                }()
+                growArray(&arr, toInclude: index)
+                var child = arr[index]
+                if case .null = child { child = emptyChild }
+                setRecursive(tokens: remaining, value: value, in: &child)
+                arr[index] = child
+                data = .array(arr)
+            } else {
+                var dict: [String: AnyCodable] = {
+                    if case .object(let existing) = data { return existing }
+                    return [:]
+                }()
+                var child = dict[first] ?? emptyChild
                 setRecursive(tokens: remaining, value: value, in: &child)
                 dict[first] = child
                 data = .object(dict)
-            } else {
-                var child: AnyCodable = .object([:])
-                setRecursive(tokens: remaining, value: value, in: &child)
-                data = .object([first: child])
             }
+        }
+    }
+
+    /// A token is an array index if it is a non-negative integer with no leading zeros (except "0").
+    private static func isArrayIndex(_ token: String) -> Bool {
+        guard let n = Int(token), n >= 0 else { return false }
+        return String(n) == token
+    }
+
+    /// Grow an array with `.null` (sparse) entries so that `index` is addressable.
+    private static func growArray(_ arr: inout [AnyCodable], toInclude index: Int) {
+        if index >= arr.count {
+            arr.append(contentsOf: Array(repeating: .null, count: index - arr.count + 1))
         }
     }
 }
