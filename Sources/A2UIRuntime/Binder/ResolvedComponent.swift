@@ -53,6 +53,16 @@ public final class ResolvedComponent {
     /// element scope (e.g. `/items/2`), so two-way writes land at the correct path.
     public var scope: String { context.dataContext.path }
 
+    /// Decode a resolved string-enum prop into its catalog type (e.g. `TextVariant`, `ButtonVariant`).
+    ///
+    /// The catalog enums are the type-safe representation of A2UI's string-valued schema fields, so
+    /// views should `switch` on the enum rather than on raw strings. Returns nil when the prop is
+    /// absent or not a recognized case.
+    public func decode<E: RawRepresentable>(_ type: E.Type, _ key: String) -> E? where E.RawValue == String {
+        guard case .string(let raw)? = props[key] else { return nil }
+        return E(rawValue: raw)
+    }
+
     /// Dispatch a user action declared by this component (e.g. a Button's `action.event`).
     public func dispatch(name: String, context actionContext: [String: AnyCodable]) {
         context.dispatch(name, actionContext)
