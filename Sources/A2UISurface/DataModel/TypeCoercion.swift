@@ -20,18 +20,17 @@ public enum TypeCoercion {
     /// - null/undefined → ""
     /// - Objects/Arrays → JSON-stringified for cross-client consistency
     /// - Numbers/Booleans → standard string representation
-    public static func toString(_ value: AnyCodable?) -> String {
+    public static func toString(_ value: StructuredValue?) -> String {
         guard let value else { return "" }
         switch value {
         case .null:
             return ""
         case .bool(let b):
             return b ? "true" : "false"
-        case .int(let i):
-            return String(i)
-        case .double(let d):
-            // Locale-neutral. Render integral doubles without a trailing ".0"
+        case .number(let n):
+            // Locale-neutral. Render integral numbers without a trailing ".0"
             // to match JS/Dart-style output used by other A2UI clients.
+            let d = n.double
             if d == d.rounded() && abs(d) < 1e15 {
                 return String(Int(d))
             }
@@ -44,17 +43,15 @@ public enum TypeCoercion {
     }
 
     /// Coerce a value (possibly nil = undefined) to a Bool per the spec.
-    public static func toBool(_ value: AnyCodable?) -> Bool {
+    public static func toBool(_ value: StructuredValue?) -> Bool {
         guard let value else { return false }
         switch value {
         case .null:
             return false
         case .bool(let b):
             return b
-        case .int(let i):
-            return i != 0
-        case .double(let d):
-            return d != 0
+        case .number(let n):
+            return (n.double) != 0
         case .string(let s):
             switch s.lowercased() {
             case "true": return true
@@ -71,17 +68,15 @@ public enum TypeCoercion {
     /// Coerce a value (possibly nil = undefined) to a Double per the spec.
     /// - null/undefined → 0
     /// - numeric strings → parsed, else 0
-    public static func toNumber(_ value: AnyCodable?) -> Double {
+    public static func toNumber(_ value: StructuredValue?) -> Double {
         guard let value else { return 0 }
         switch value {
         case .null:
             return 0
         case .bool(let b):
             return b ? 1 : 0
-        case .int(let i):
-            return Double(i)
-        case .double(let d):
-            return d
+        case .number(let n):
+            return n.double
         case .string(let s):
             return Double(s) ?? 0
         case .array, .object:
@@ -89,7 +84,7 @@ public enum TypeCoercion {
         }
     }
 
-    private static func jsonString(_ value: AnyCodable) -> String {
+    private static func jsonString(_ value: StructuredValue) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(value),

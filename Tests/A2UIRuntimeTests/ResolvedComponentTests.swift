@@ -8,8 +8,8 @@ import A2UICore
 struct ResolvedComponentDataPropsTests {
 
     private func make(
-        _ properties: [String: AnyCodable],
-        data: AnyCodable = .object([:]),
+        _ properties: [String: StructuredValue],
+        data: StructuredValue = .object([:]),
         scope: String = ""
     ) -> (ResolvedComponent, DataModel) {
         let dm = DataModel(data)
@@ -95,15 +95,15 @@ struct ResolvedComponentDataPropsTests {
     }
 }
 
-private extension AnyCodable {
-    static func literalString(_ s: String) -> AnyCodable { .string(s) }
+private extension StructuredValue {
+    static func literalString(_ s: String) -> StructuredValue { .string(s) }
 }
 
 @MainActor
 @Suite("ResolvedComponent: numeric accessors")
 struct ResolvedComponentNumericTests {
 
-    private func make(_ properties: [String: AnyCodable]) -> ResolvedComponent {
+    private func make(_ properties: [String: StructuredValue]) -> ResolvedComponent {
         let ctx = ComponentContext(
             componentId: "c", componentType: "Custom",
             properties: properties,
@@ -203,7 +203,7 @@ struct ResolvedComponentReactivityTests {
 @Suite("ResolvedComponent: structural children")
 struct ResolvedComponentStructuralTests {
 
-    private func make(_ properties: [String: AnyCodable], data: AnyCodable = .object([:])) -> ResolvedComponent {
+    private func make(_ properties: [String: StructuredValue], data: StructuredValue = .object([:])) -> ResolvedComponent {
         let ctx = ComponentContext(
             componentId: "c", componentType: "Column",
             properties: properties,

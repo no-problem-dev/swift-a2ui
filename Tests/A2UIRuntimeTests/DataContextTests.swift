@@ -56,7 +56,7 @@ struct DataContextResolutionTests {
         #expect(ctx.resolveString(.binding(DataBinding(path: "/missing"))) == "")
     }
 
-    @Test("DynamicValue binding resolves to concrete AnyCodable")
+    @Test("DynamicValue binding resolves to concrete StructuredValue")
     func dynamicValueBinding() {
         let dm = DataModel(.object(["count": .int(7)]))
         let ctx = DataContext(dataModel: dm)
@@ -118,7 +118,7 @@ struct ComponentContextTests {
 
     @Test("from(component:) extracts id, type, and strips id/component from props")
     func fromComponent() {
-        let component: AnyCodable = .object([
+        let component: StructuredValue = .object([
             "id": .string("btn1"),
             "component": .string("Button"),
             "label": .string("Submit"),
@@ -136,7 +136,7 @@ struct ComponentContextTests {
 
     @Test("from(component:) returns nil without id/component")
     func fromComponentInvalid() {
-        let component: AnyCodable = .object(["label": .string("x")])
+        let component: StructuredValue = .object(["label": .string("x")])
         let ctx = ComponentContext.from(component: component, dataContext: DataContext(dataModel: DataModel()))
         #expect(ctx == nil)
     }
@@ -145,7 +145,7 @@ struct ComponentContextTests {
     func dispatchForwards() {
         final class Box: @unchecked Sendable {
             var name: String?
-            var ctx: [String: AnyCodable]?
+            var ctx: [String: StructuredValue]?
         }
         let box = Box()
         let cc = ComponentContext(

@@ -1,13 +1,13 @@
 public struct CreateSurface: Codable, Sendable, Equatable {
     public let surfaceId: String
     public let catalogId: String
-    public let theme: AnyCodable?
+    public let theme: StructuredValue?
     public let sendDataModel: Bool?
 
     public init(
         surfaceId: String,
         catalogId: String,
-        theme: AnyCodable? = nil,
+        theme: StructuredValue? = nil,
         sendDataModel: Bool? = nil
     ) {
         self.surfaceId = surfaceId

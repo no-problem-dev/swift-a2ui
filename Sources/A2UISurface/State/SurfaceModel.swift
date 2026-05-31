@@ -10,7 +10,7 @@ import Observation
 public final class SurfaceModel: Identifiable {
     public let id: String
     public let catalogId: String
-    public let theme: AnyCodable?
+    public let theme: StructuredValue?
     /// If true, the host should send this surface's full data model with client→server messages.
     public let sendDataModel: Bool
 
@@ -24,7 +24,7 @@ public final class SurfaceModel: Identifiable {
     public init(
         id: String,
         catalogId: String,
-        theme: AnyCodable? = nil,
+        theme: StructuredValue? = nil,
         sendDataModel: Bool = false,
         dataModel: DataModel = DataModel(),
         components: SurfaceComponentsModel = SurfaceComponentsModel()
@@ -39,7 +39,7 @@ public final class SurfaceModel: Identifiable {
 
     /// Dispatch a user action originating from a component in this surface.
     /// Timestamps with the current time in ISO 8601 (spec `action` schema).
-    public func dispatchAction(name: String, sourceComponentId: String, context: [String: AnyCodable]) {
+    public func dispatchAction(name: String, sourceComponentId: String, context: [String: StructuredValue]) {
         let action = UserAction(
             name: name,
             surfaceId: id,

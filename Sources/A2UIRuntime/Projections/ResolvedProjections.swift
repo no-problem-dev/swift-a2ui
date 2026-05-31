@@ -3,7 +3,7 @@ import A2UICore
 
 // Type-safe, resolved projections of the Basic Catalog components.
 //
-// `ResolvedComponent` holds a dynamic `[String: AnyCodable]` of already-resolved props. These
+// `ResolvedComponent` holds a dynamic `[String: StructuredValue]` of already-resolved props. These
 // projections give each component a **strongly typed, compiler-checked** view of those props:
 // scalar bindings are resolved to Swift values, enum fields use the catalog enum types, structural
 // fields surface as `[ResolvedChild]`, and two-way fields expose write-back.
@@ -56,7 +56,7 @@ public enum ResolvedIconName: Sendable, Equatable {
     case preset(String)
     case svgPath(String)
 
-    public init?(_ value: AnyCodable?) {
+    public init?(_ value: StructuredValue?) {
         switch value {
         case .string(let s):
             self = .preset(s)

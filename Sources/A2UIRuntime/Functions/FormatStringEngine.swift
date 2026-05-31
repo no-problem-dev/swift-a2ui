@@ -52,7 +52,7 @@ enum FormatStringEngine {
         _ expr: String,
         in context: DataContext,
         functions: any FunctionResolving
-    ) -> AnyCodable? {
+    ) -> StructuredValue? {
         // Function call: identifier followed by (...)
         if let parenIndex = expr.firstIndex(of: "("), expr.hasSuffix(")") {
             let name = String(expr[expr.startIndex..<parenIndex]).trimmingCharacters(in: .whitespaces)
@@ -76,8 +76,8 @@ enum FormatStringEngine {
         _ s: String,
         in context: DataContext,
         functions: any FunctionResolving
-    ) -> [String: AnyCodable] {
-        var out: [String: AnyCodable] = [:]
+    ) -> [String: StructuredValue] {
+        var out: [String: StructuredValue] = [:]
         for segment in splitTopLevel(s, by: ",") {
             guard let colon = topLevelColon(segment) else { continue }
             let name = String(segment[segment.startIndex..<colon]).trimmingCharacters(in: .whitespaces)
@@ -91,7 +91,7 @@ enum FormatStringEngine {
         _ raw: String,
         in context: DataContext,
         functions: any FunctionResolving
-    ) -> AnyCodable? {
+    ) -> StructuredValue? {
         // Nested explicit binding: ${...}
         if raw.hasPrefix("${"), raw.hasSuffix("}") {
             let inner = String(raw.dropFirst(2).dropLast())
@@ -104,7 +104,7 @@ enum FormatStringEngine {
         return evaluateExpression(raw, in: context, functions: functions)
     }
 
-    private static func parseLiteral(_ s: String) -> AnyCodable? {
+    private static func parseLiteral(_ s: String) -> StructuredValue? {
         if (s.hasPrefix("'") && s.hasSuffix("'")) || (s.hasPrefix("\"") && s.hasSuffix("\"")), s.count >= 2 {
             return .string(String(s.dropFirst().dropLast()))
         }

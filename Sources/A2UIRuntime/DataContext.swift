@@ -29,7 +29,7 @@ public struct DataContext: Sendable {
     // MARK: - Resolution (snapshot)
 
     /// Resolve a `DynamicValue` to its current concrete value (or nil = undefined).
-    public func resolve(_ value: DynamicValue) -> AnyCodable? {
+    public func resolve(_ value: DynamicValue) -> StructuredValue? {
         switch value {
         case .string(let s): return .string(s)
         case .number(let n): return numberValue(n)
@@ -74,7 +74,7 @@ public struct DataContext: Sendable {
     @discardableResult
     public func subscribe(
         _ value: DynamicValue,
-        _ onChange: @escaping (AnyCodable?) -> Void
+        _ onChange: @escaping (StructuredValue?) -> Void
     ) -> A2UISubscription {
         switch value {
         case .binding(let b):
@@ -103,11 +103,11 @@ public struct DataContext: Sendable {
     // MARK: - Write
 
     /// Write a value at a (possibly relative) path within this scope. Used by two-way bindings.
-    public func set(_ relativeOrAbsolutePath: String, _ value: AnyCodable?) {
+    public func set(_ relativeOrAbsolutePath: String, _ value: StructuredValue?) {
         dataModel.set(relativeOrAbsolutePath, value, scope: path)
     }
 
-    private func numberValue(_ n: Double) -> AnyCodable {
+    private func numberValue(_ n: Double) -> StructuredValue {
         if n == n.rounded() && abs(n) < 1e15 { return .int(Int(n)) }
         return .double(n)
     }

@@ -10,8 +10,8 @@ struct ResolvedProjectionsTests {
 
     private func make(
         type: String,
-        _ properties: [String: AnyCodable],
-        data: AnyCodable = .object([:]),
+        _ properties: [String: StructuredValue],
+        data: StructuredValue = .object([:]),
         scope: String = ""
     ) -> (ResolvedComponent, DataModel) {
         let dm = DataModel(data)
@@ -73,7 +73,7 @@ struct ResolvedProjectionsTests {
     func resolvedButtonPerform() {
         let dm = DataModel(.object(["formId": .string("f-1")]))
         let fns = BasicFunctions()
-        final class Box: @unchecked Sendable { var name: String?; var ctx: [String: AnyCodable]? }
+        final class Box: @unchecked Sendable { var name: String?; var ctx: [String: StructuredValue]? }
         let box = Box()
         let ctx = ComponentContext(
             componentId: "btn", componentType: "Button",

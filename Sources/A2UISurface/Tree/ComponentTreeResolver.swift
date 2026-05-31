@@ -16,7 +16,7 @@ public enum ComponentTreeResolver {
     /// Build a tree from a flat component dictionary.
     /// The component with id "root" is the required tree root.
     /// Throws `TreeError.missingRoot` when no "root" component is present.
-    public static func resolve(components: [String: AnyCodable]) throws -> ComponentNode {
+    public static func resolve(components: [String: StructuredValue]) throws -> ComponentNode {
         guard let rootComponent = components["root"] else {
             throw TreeError.missingRoot
         }
@@ -37,8 +37,8 @@ public enum ComponentTreeResolver {
 
     private static func buildNode(
         id: String,
-        component: AnyCodable,
-        components: [String: AnyCodable],
+        component: StructuredValue,
+        components: [String: StructuredValue],
         visited: inout Set<String>,
         depth: Int
     ) throws -> ComponentNode {
@@ -75,7 +75,7 @@ public enum ComponentTreeResolver {
 
     /// Extract child component IDs from a component's JSON.
     /// Looks for "child", "children", "trigger", "content", and "tabs" fields.
-    private static func extractChildIds(from component: AnyCodable) -> [String] {
+    private static func extractChildIds(from component: StructuredValue) -> [String] {
         guard case .object(let dict) = component else { return [] }
         var ids: [String] = []
 

@@ -116,8 +116,8 @@ public final class MessageProcessor {
 
     /// Aggregate data models of surfaces with `sendDataModel == true`, keyed by surface id.
     /// The host/transport includes this in client→server message metadata (spec §3).
-    public func getClientDataModel() -> [String: AnyCodable] {
-        var out: [String: AnyCodable] = [:]
+    public func getClientDataModel() -> [String: StructuredValue] {
+        var out: [String: StructuredValue] = [:]
         for (id, surface) in surfaces where surface.sendDataModel {
             out[id] = surface.dataModel.snapshot
         }

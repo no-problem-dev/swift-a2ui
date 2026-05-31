@@ -9,8 +9,9 @@ public extension ResolvedComponent {
     func string(_ key: String) -> String? {
         switch props[key] {
         case .string(let s): return s
-        case .int(let i): return String(i)
-        case .double(let d): return d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : String(d)
+        case .number(let n):
+            let d = n.double
+            return d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : String(d)
         case .bool(let b): return b ? "true" : "false"
         default: return nil
         }
@@ -23,16 +24,14 @@ public extension ResolvedComponent {
         switch props[key] {
         case .bool(let b): return b
         case .string(let s): return s.lowercased() == "true"
-        case .int(let i): return i != 0
-        case .double(let d): return d != 0
+        case .number(let n): return (n.double) != 0
         default: return false
         }
     }
 
     func double(_ key: String) -> Double? {
         switch props[key] {
-        case .double(let d): return d
-        case .int(let i): return Double(i)
+        case .number(let n): return n.double
         case .string(let s): return Double(s)
         default: return nil
         }
@@ -43,9 +42,8 @@ public extension ResolvedComponent {
     /// preserve precision) need.
     func int(_ key: String) -> Int? {
         switch props[key] {
-        case .int(let i): return i
-        case .double(let d):
-            // Reject lossy / non-integral doubles. Doubles can faithfully hold integers up to 2^53.
+        case .number(let n):
+            let d = n.double
             guard d == d.rounded(), abs(d) < 1e15 else { return nil }
             return Int(d)
         case .string(let s): return Int(s)
@@ -64,8 +62,8 @@ public extension ResolvedComponent {
         guard case .array(let arr)? = props[key] else { return [] }
         return arr.compactMap { element in
             switch element {
-            case .int(let i): return i
-            case .double(let d):
+            case .number(let n):
+                let d = n.double
                 guard d == d.rounded(), abs(d) < 1e15 else { return nil }
                 return Int(d)
             case .string(let s): return Int(s)

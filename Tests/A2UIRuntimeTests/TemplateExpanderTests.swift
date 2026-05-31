@@ -102,7 +102,7 @@ struct TemplateExpanderTests {
     @Test("expandRaw decodes a raw children property")
     func expandRaw() {
         let ctx = employeesContext()
-        let raw: AnyCodable = .object(["componentId": .string("card"), "path": .string("/employees")])
+        let raw: StructuredValue = .object(["componentId": .string("card"), "path": .string("/employees")])
         let result = TemplateExpander.expandRaw(raw, in: ctx)
         #expect(result?.count == 3)
         #expect(result?.first == ResolvedChild(componentId: "card", basePath: "/employees/0"))

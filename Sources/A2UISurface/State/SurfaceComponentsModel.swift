@@ -24,13 +24,13 @@ public final class SurfaceComponentsModel {
     }
 
     /// Apply a component definition (raw JSON object). Honors the same-id/different-type rule.
-    public func apply(_ component: AnyCodable) {
+    public func apply(_ component: StructuredValue) {
         guard case .object(let dict) = component,
               case .string(let id)? = dict["id"],
               case .string(let type)? = dict["component"] else {
             return
         }
-        var props = dict
+        var props = dict.dictionary
         props.removeValue(forKey: "id")
         props.removeValue(forKey: "component")
 

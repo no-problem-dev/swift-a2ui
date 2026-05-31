@@ -2,7 +2,7 @@ public enum DynamicValue: Sendable, Equatable {
     case string(String)
     case number(Double)
     case boolean(Bool)
-    case array([AnyCodable])
+    case array([StructuredValue])
     case binding(DataBinding)
     case functionCall(FunctionCall)
 }
@@ -29,7 +29,7 @@ extension DynamicValue: Codable {
             return
         }
 
-        if let array = try? container.decode([AnyCodable].self) {
+        if let array = try? container.decode([StructuredValue].self) {
             self = .array(array)
             return
         }

@@ -7,12 +7,12 @@ import Foundation
 @Suite("BasicFunctions: validation")
 struct BasicFunctionsValidationTests {
 
-    private func ctx(_ data: AnyCodable = .object([:])) -> DataContext {
+    private func ctx(_ data: StructuredValue = .object([:])) -> DataContext {
         let fns = BasicFunctions()
         return DataContext(dataModel: DataModel(data), functions: fns)
     }
 
-    private func eval(_ call: FunctionCall, _ data: AnyCodable = .object([:])) -> AnyCodable? {
+    private func eval(_ call: FunctionCall, _ data: StructuredValue = .object([:])) -> StructuredValue? {
         let fns = BasicFunctions()
         let c = DataContext(dataModel: DataModel(data), functions: fns)
         return fns.evaluate(call, in: c)
@@ -99,7 +99,7 @@ struct BasicFunctionsValidationTests {
 @Suite("BasicFunctions: formatting")
 struct BasicFunctionsFormattingTests {
 
-    private func eval(_ call: FunctionCall, _ data: AnyCodable = .object([:]), locale: Locale = Locale(identifier: "en_US")) -> AnyCodable? {
+    private func eval(_ call: FunctionCall, _ data: StructuredValue = .object([:]), locale: Locale = Locale(identifier: "en_US")) -> StructuredValue? {
         let fns = BasicFunctions(locale: locale)
         let c = DataContext(dataModel: DataModel(data), functions: fns)
         return fns.evaluate(call, in: c)
@@ -139,7 +139,7 @@ struct BasicFunctionsFormattingTests {
 @Suite("FormatStringEngine")
 struct FormatStringEngineTests {
 
-    private func ctx(_ data: AnyCodable) -> DataContext {
+    private func ctx(_ data: StructuredValue) -> DataContext {
         DataContext(dataModel: DataModel(data), functions: BasicFunctions())
     }
 

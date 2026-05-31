@@ -3,64 +3,64 @@ import Testing
 
 @testable import A2UICore
 
-// MARK: - AnyCodable
+// MARK: - StructuredValue
 
-@Suite("AnyCodable")
-struct AnyCodableTests {
+@Suite("StructuredValue")
+struct StructuredValueTests {
     @Test func roundTripNull() throws {
-        let value: AnyCodable = .null
+        let value: StructuredValue = .null
         let data = try JSONEncoder().encode(value)
-        let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+        let decoded = try JSONDecoder().decode(StructuredValue.self, from: data)
         #expect(decoded == .null)
     }
 
     @Test func roundTripBool() throws {
-        let value: AnyCodable = .bool(true)
+        let value: StructuredValue = .bool(true)
         let data = try JSONEncoder().encode(value)
-        let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+        let decoded = try JSONDecoder().decode(StructuredValue.self, from: data)
         #expect(decoded == .bool(true))
     }
 
     @Test func roundTripInt() throws {
-        let value: AnyCodable = .int(42)
+        let value: StructuredValue = .int(42)
         let data = try JSONEncoder().encode(value)
-        let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+        let decoded = try JSONDecoder().decode(StructuredValue.self, from: data)
         #expect(decoded == .int(42))
     }
 
     @Test func roundTripDouble() throws {
-        let value: AnyCodable = .double(3.14)
+        let value: StructuredValue = .double(3.14)
         let data = try JSONEncoder().encode(value)
-        let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+        let decoded = try JSONDecoder().decode(StructuredValue.self, from: data)
         #expect(decoded == .double(3.14))
     }
 
     @Test func roundTripString() throws {
-        let value: AnyCodable = .string("hello")
+        let value: StructuredValue = .string("hello")
         let data = try JSONEncoder().encode(value)
-        let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+        let decoded = try JSONDecoder().decode(StructuredValue.self, from: data)
         #expect(decoded == .string("hello"))
     }
 
     @Test func roundTripNestedObject() throws {
-        let value: AnyCodable = .object([
+        let value: StructuredValue = .object([
             "name": .string("Alice"),
             "age": .int(30),
             "active": .bool(true),
         ])
         let data = try JSONEncoder().encode(value)
-        let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+        let decoded = try JSONDecoder().decode(StructuredValue.self, from: data)
         #expect(decoded == value)
     }
 
     @Test func expressibleByLiterals() {
-        let s: AnyCodable = "hello"
+        let s: StructuredValue = "hello"
         #expect(s == .string("hello"))
-        let n: AnyCodable = 42
+        let n: StructuredValue = 42
         #expect(n == .int(42))
-        let b: AnyCodable = true
+        let b: StructuredValue = true
         #expect(b == .bool(true))
-        let f: AnyCodable = 3.14
+        let f: StructuredValue = 3.14
         #expect(f == .double(3.14))
     }
 }

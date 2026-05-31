@@ -19,7 +19,7 @@ public enum CommonTypesCompactor {
     /// 入力が parse できない場合は元の文字列をそのまま返す（安全側）。
     public static func compact(_ commonTypesJSON: String) -> String {
         guard let data = commonTypesJSON.data(using: .utf8),
-              let value = try? JSONDecoder().decode(AnyCodable.self, from: data),
+              let value = try? JSONDecoder().decode(StructuredValue.self, from: data),
               case .object(var root) = value else {
             return commonTypesJSON
         }
@@ -41,8 +41,8 @@ public enum CommonTypesCompactor {
         return serialize(.object(root)) ?? commonTypesJSON
     }
 
-    /// AnyCodable 値の中から FunctionCall への参照を持つ allOf / $ref 要素を再帰的に除去する。
-    private static func stripFunctionCallReferences(in value: AnyCodable) -> AnyCodable? {
+    /// StructuredValue 値の中から FunctionCall への参照を持つ allOf / $ref 要素を再帰的に除去する。
+    private static func stripFunctionCallReferences(in value: StructuredValue) -> StructuredValue? {
         switch value {
         case .object(var dict):
             // "oneOf": [...] の中身を走査して FunctionCall 参照を含む要素を除去
@@ -71,7 +71,7 @@ public enum CommonTypesCompactor {
     }
 
     /// 与えられた値が FunctionCall への `$ref` を直接 / `allOf` 内に含むかを判定。
-    private static func containsFunctionCallReference(_ value: AnyCodable) -> Bool {
+    private static func containsFunctionCallReference(_ value: StructuredValue) -> Bool {
         switch value {
         case .object(let dict):
             if case .string(let ref)? = dict["$ref"], isFunctionCallRef(ref) {
@@ -90,7 +90,7 @@ public enum CommonTypesCompactor {
         ref == "#/$defs/FunctionCall" || ref.hasSuffix("common_types.json#/$defs/FunctionCall")
     }
 
-    private static func serialize(_ value: AnyCodable) -> String? {
+    private static func serialize(_ value: StructuredValue) -> String? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(value),

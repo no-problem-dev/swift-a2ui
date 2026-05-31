@@ -202,12 +202,12 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - JSON helpers
 
-    private static func parseJSON(_ string: String) -> AnyCodable? {
+    private static func parseJSON(_ string: String) -> StructuredValue? {
         guard let data = string.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(AnyCodable.self, from: data)
+        return try? JSONDecoder().decode(StructuredValue.self, from: data)
     }
 
-    private static func serializeJSON(_ value: AnyCodable) -> String? {
+    private static func serializeJSON(_ value: StructuredValue) -> String? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(value),

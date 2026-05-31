@@ -124,7 +124,7 @@ public struct ResolvedChoicePicker: ResolvedProjection {
         }
         options = opts
         selection = Writable(value: r.stringArray("value"), set: { [weak r] new in
-            r?.write("value", .array(new.map(AnyCodable.string)))
+            r?.write("value", .array(new.map(StructuredValue.string)))
         })
         variant = r.decode(ChoicePickerVariant.self, "variant")
         displayStyle = r.decode(ChoicePickerDisplayStyle.self, "displayStyle")

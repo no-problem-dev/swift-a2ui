@@ -14,17 +14,17 @@ import Foundation
 /// the Binder layer translates path subscriptions into `@Observable` `ResolvedProps`.
 public final class DataModel: @unchecked Sendable {
 
-    private var root: AnyCodable
-    private var listeners: [Int: (path: String, callback: (AnyCodable?) -> Void)] = [:]
+    private var root: StructuredValue
+    private var listeners: [Int: (path: String, callback: (StructuredValue?) -> Void)] = [:]
     private var nextToken = 0
     private let lock = NSRecursiveLock()
 
-    public init(_ initial: AnyCodable = .object([:])) {
+    public init(_ initial: StructuredValue = .object([:])) {
         self.root = initial
     }
 
     /// Snapshot of the entire data model.
-    public var snapshot: AnyCodable {
+    public var snapshot: StructuredValue {
         lock.lock(); defer { lock.unlock() }
         return root
     }
@@ -33,7 +33,7 @@ public final class DataModel: @unchecked Sendable {
 
     /// Resolve a path to its current value. Supports absolute (`/a/b`) and relative (`a/b`) paths.
     /// Returns nil when the path does not resolve (treated as `undefined` by callers).
-    public func get(_ path: String, scope: String = "") -> AnyCodable? {
+    public func get(_ path: String, scope: String = "") -> StructuredValue? {
         lock.lock(); defer { lock.unlock() }
         return JSONPointer.resolve(path: path, scope: scope, in: root)
     }
@@ -45,7 +45,7 @@ public final class DataModel: @unchecked Sendable {
     /// - `value == nil` removes the key (object) / empties the index preserving length (array),
     ///   per the spec's Undefined Handling rule.
     /// - Intermediate containers are auto-created; a numeric next-segment yields an Array.
-    public func set(_ path: String, _ value: AnyCodable?, scope: String = "") {
+    public func set(_ path: String, _ value: StructuredValue?, scope: String = "") {
         lock.lock()
         let absolute = JSONPointer.absolutePath(path, scope: scope)
         if let value {
@@ -55,7 +55,7 @@ public final class DataModel: @unchecked Sendable {
         }
         // Capture affected listeners under lock, fire outside the lock.
         let affected = listeners.values.filter { isAffected(listenerPath: $0.path, changedPath: absolute) }
-        let snapshots = affected.map { listener -> (callback: (AnyCodable?) -> Void, value: AnyCodable?) in
+        let snapshots = affected.map { listener -> (callback: (StructuredValue?) -> Void, value: StructuredValue?) in
             (listener.callback, JSONPointer.resolve(path: listener.path, in: root))
         }
         lock.unlock()
@@ -73,7 +73,7 @@ public final class DataModel: @unchecked Sendable {
     public func subscribe(
         _ path: String,
         scope: String = "",
-        _ onChange: @escaping (AnyCodable?) -> Void
+        _ onChange: @escaping (StructuredValue?) -> Void
     ) -> A2UISubscription {
         lock.lock()
         let absolute = JSONPointer.absolutePath(path, scope: scope)

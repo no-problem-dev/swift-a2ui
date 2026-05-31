@@ -23,9 +23,9 @@ public enum SchemaPruner {
     ///   - allowedMessages: 残すメッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）
     /// - Returns: oneOf が絞られ、到達不能な `$defs` が除去された schema
     public static func pruneMessages(
-        serverToClient: AnyCodable,
+        serverToClient: StructuredValue,
         allowedMessages: Set<String>
-    ) -> AnyCodable {
+    ) -> StructuredValue {
         guard case .object(var root) = serverToClient else { return serverToClient }
 
         // 1. oneOf を allowed の "#/$defs/X" にマッチするもののみ残す
@@ -64,9 +64,9 @@ public enum SchemaPruner {
     ///   - reachableFrom: 参照元になる schema 配列（catalog と server_to_client を渡すのが典型）
     /// - Returns: 到達可能な `$defs` だけが残った schema
     public static func pruneCommonTypes(
-        commonTypes: AnyCodable,
-        reachableFrom externalSchemas: [AnyCodable]
-    ) -> AnyCodable {
+        commonTypes: StructuredValue,
+        reachableFrom externalSchemas: [StructuredValue]
+    ) -> StructuredValue {
         guard case .object(var root) = commonTypes,
               case .object(let defs)? = root["$defs"] else {
             return commonTypes
@@ -95,12 +95,12 @@ public enum SchemaPruner {
                 }
             }
         }
-        root["$defs"] = .object(defs.filter { visited.contains($0.key) })
+        root["$defs"] = .object(OrderedObject(defs.filter { visited.contains($0.key) }))
         return .object(root)
     }
 
     /// JSON 構造の中から全ての `$ref` 値を再帰的に集める。
-    public static func collectRefs(in value: AnyCodable) -> Set<String> {
+    public static func collectRefs(in value: StructuredValue) -> Set<String> {
         var refs: Set<String> = []
         collectRefsInternal(value, into: &refs)
         return refs
@@ -110,10 +110,10 @@ public enum SchemaPruner {
 
     /// 与えられた `$defs` を、`roots` から `internalRefPrefix` 経由で到達可能なエントリのみに絞る。
     static func pruneByReachability(
-        defs: [String: AnyCodable],
+        defs: OrderedObject,
         roots: Set<String>,
         internalRefPrefix: String
-    ) -> [String: AnyCodable] {
+    ) -> OrderedObject {
         var visited: Set<String> = []
         var queue: [String] = Array(roots)
 
@@ -128,10 +128,10 @@ public enum SchemaPruner {
             }
         }
 
-        return defs.filter { visited.contains($0.key) }
+        return OrderedObject(defs.filter { visited.contains($0.key) })
     }
 
-    private static func collectRefsInternal(_ value: AnyCodable, into refs: inout Set<String>) {
+    private static func collectRefsInternal(_ value: StructuredValue, into refs: inout Set<String>) {
         switch value {
         case .object(let dict):
             for (key, child) in dict {

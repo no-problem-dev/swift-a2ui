@@ -47,14 +47,14 @@ public struct PropertySchema: Sendable, Equatable {
     public let isRequired: Bool
     public let description: String?
     /// Optional default value rendered as the schema `default` (e.g. enum default "body").
-    public let defaultValue: AnyCodable?
+    public let defaultValue: StructuredValue?
 
     public init(
         _ name: String,
         _ type: PropertyType,
         required: Bool = false,
         description: String? = nil,
-        default defaultValue: AnyCodable? = nil
+        default defaultValue: StructuredValue? = nil
     ) {
         self.name = name
         self.type = type
@@ -68,7 +68,7 @@ public struct PropertySchema: Sendable, Equatable {
         PropertySchema(name, type, required: true, description: description)
     }
 
-    public static func optional(_ name: String, _ type: PropertyType, _ description: String? = nil, default defaultValue: AnyCodable? = nil) -> PropertySchema {
+    public static func optional(_ name: String, _ type: PropertyType, _ description: String? = nil, default defaultValue: StructuredValue? = nil) -> PropertySchema {
         PropertySchema(name, type, required: false, description: description, default: defaultValue)
     }
 }

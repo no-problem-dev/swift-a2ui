@@ -15,11 +15,11 @@ public struct BasicFunctions: FunctionResolving {
         self.locale = locale
     }
 
-    public func evaluate(_ call: FunctionCall, in context: DataContext) -> AnyCodable? {
+    public func evaluate(_ call: FunctionCall, in context: DataContext) -> StructuredValue? {
         let args = call.args ?? [:]
         func argString(_ key: String) -> String { ArgResolver.string(args[key], in: context, functions: self) }
         func argNumber(_ key: String) -> Double { ArgResolver.number(args[key], in: context, functions: self) }
-        func argResolved(_ key: String) -> AnyCodable? {
+        func argResolved(_ key: String) -> StructuredValue? {
             guard let v = args[key] else { return nil }
             return ArgResolver.resolve(v, in: context, functions: self)
         }
@@ -96,7 +96,7 @@ public struct BasicFunctions: FunctionResolving {
 
     // MARK: - Logic helpers
 
-    private func isPresent(_ value: AnyCodable?) -> Bool {
+    private func isPresent(_ value: StructuredValue?) -> Bool {
         guard let value else { return false }
         switch value {
         case .null: return false
@@ -106,7 +106,7 @@ public struct BasicFunctions: FunctionResolving {
         }
     }
 
-    private func patternString(_ value: AnyCodable?) -> String {
+    private func patternString(_ value: StructuredValue?) -> String {
         if case .string(let s)? = value { return s }
         return ""
     }
@@ -118,16 +118,15 @@ public struct BasicFunctions: FunctionResolving {
         return regex.firstMatch(in: value, range: range) != nil
     }
 
-    private func parseNumber(_ value: AnyCodable?) -> Double? {
+    private func parseNumber(_ value: StructuredValue?) -> Double? {
         switch value {
-        case .int(let i): return Double(i)
-        case .double(let d): return d
+        case .number(let n): return n.double
         case .string(let s): return Double(s)
         default: return nil
         }
     }
 
-    private func boolList(_ value: AnyCodable?, in context: DataContext) -> [Bool] {
+    private func boolList(_ value: StructuredValue?, in context: DataContext) -> [Bool] {
         guard let resolved = value.flatMap({ ArgResolver.resolve($0, in: context, functions: self) }),
               case .array(let arr) = resolved else { return [] }
         return arr.map { TypeCoercion.toBool($0) }
@@ -153,15 +152,13 @@ public struct BasicFunctions: FunctionResolving {
         return f.string(from: NSNumber(value: n)) ?? String(n)
     }
 
-    private func formatDate(_ value: AnyCodable?, pattern: String) -> String {
+    private func formatDate(_ value: StructuredValue?, pattern: String) -> String {
         let date: Date?
         switch value {
         case .string(let s):
             date = ISO8601DateFormatter().date(from: s) ?? flexibleParse(s)
-        case .double(let d):
-            date = Date(timeIntervalSince1970: d)
-        case .int(let i):
-            date = Date(timeIntervalSince1970: Double(i))
+        case .number(let n):
+            date = Date(timeIntervalSince1970: n.double)
         default:
             date = nil
         }
@@ -181,7 +178,7 @@ public struct BasicFunctions: FunctionResolving {
         return f.date(from: s)
     }
 
-    private func pluralize(_ n: Double, args: [String: AnyCodable], context: DataContext) -> String {
+    private func pluralize(_ n: Double, args: [String: StructuredValue], context: DataContext) -> String {
         let category = pluralCategory(for: n)
         if let s = args[category], case .string(let str)? = Optional(ArgResolver.resolve(s, in: context, functions: self)) {
             return str

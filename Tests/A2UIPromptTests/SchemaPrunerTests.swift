@@ -122,6 +122,6 @@ struct PruneCommonTypesTests {
 
 // MARK: - Helpers
 
-private func decode(_ json: String) throws -> AnyCodable {
-    try JSONDecoder().decode(AnyCodable.self, from: Data(json.utf8))
+private func decode(_ json: String) throws -> StructuredValue {
+    try JSONDecoder().decode(StructuredValue.self, from: Data(json.utf8))
 }

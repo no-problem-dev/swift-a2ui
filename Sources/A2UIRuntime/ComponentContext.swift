@@ -15,22 +15,22 @@ public struct ComponentContext: Sendable {
     /// The component's component-type name (e.g. "Button").
     public let componentType: String
     /// The raw component properties (the flat JSON object minus `id`/`component`).
-    public let properties: [String: AnyCodable]
+    public let properties: [String: StructuredValue]
     /// The scoped data window for resolving this component's bindings.
     public let dataContext: DataContext
     /// Escape hatch: look up another component's raw config in the same surface (e.g. a Row
     /// inspecting children's `weight`). Discouraged but sometimes necessary for layout.
-    public let lookupComponent: @Sendable (String) -> [String: AnyCodable]?
+    public let lookupComponent: @Sendable (String) -> [String: StructuredValue]?
     /// Dispatch a user action (e.g. button tap). Wired to the surface's action stream by the host.
-    public let dispatch: @Sendable (_ name: String, _ context: [String: AnyCodable]) -> Void
+    public let dispatch: @Sendable (_ name: String, _ context: [String: StructuredValue]) -> Void
 
     public init(
         componentId: String,
         componentType: String,
-        properties: [String: AnyCodable],
+        properties: [String: StructuredValue],
         dataContext: DataContext,
-        lookupComponent: @escaping @Sendable (String) -> [String: AnyCodable]? = { _ in nil },
-        dispatch: @escaping @Sendable (_ name: String, _ context: [String: AnyCodable]) -> Void = { _, _ in }
+        lookupComponent: @escaping @Sendable (String) -> [String: StructuredValue]? = { _ in nil },
+        dispatch: @escaping @Sendable (_ name: String, _ context: [String: StructuredValue]) -> Void = { _, _ in }
     ) {
         self.componentId = componentId
         self.componentType = componentType
@@ -43,17 +43,17 @@ public struct ComponentContext: Sendable {
     /// Build a `ComponentContext` from a raw component object (`{ "id", "component", ... }`).
     /// Returns nil if the object lacks a string `id` or `component`.
     public static func from(
-        component: AnyCodable,
+        component: StructuredValue,
         dataContext: DataContext,
-        lookupComponent: @escaping @Sendable (String) -> [String: AnyCodable]? = { _ in nil },
-        dispatch: @escaping @Sendable (_ name: String, _ context: [String: AnyCodable]) -> Void = { _, _ in }
+        lookupComponent: @escaping @Sendable (String) -> [String: StructuredValue]? = { _ in nil },
+        dispatch: @escaping @Sendable (_ name: String, _ context: [String: StructuredValue]) -> Void = { _, _ in }
     ) -> ComponentContext? {
         guard case .object(let dict) = component,
               case .string(let id)? = dict["id"],
               case .string(let type)? = dict["component"] else {
             return nil
         }
-        var props = dict
+        var props = dict.dictionary
         props.removeValue(forKey: "id")
         props.removeValue(forKey: "component")
         return ComponentContext(

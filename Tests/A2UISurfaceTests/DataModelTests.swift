@@ -28,7 +28,7 @@ struct JSONPointerExtensionsTests {
 
     @Test("spec example: relative 'name' in /employees/0 scope resolves to employee name")
     func specScopeExample() {
-        let data: AnyCodable = .object([
+        let data: StructuredValue = .object([
             "company": .string("Acme Corp"),
             "employees": .array([
                 .object(["name": .string("Alice"), "role": .string("Engineer")]),
@@ -47,7 +47,7 @@ struct JSONPointerExtensionsTests {
 
     @Test("auto-viv: numeric segment creates Array")
     func autoVivNumericCreatesArray() {
-        var data: AnyCodable = .object([:])
+        var data: StructuredValue = .object([:])
         JSONPointer.set(path: "/items/0", value: .string("a"), in: &data)
         // /items must be an Array, not an Object keyed by "0"
         #expect(JSONPointer.resolve(path: "/items", in: data) == .array([.string("a")]))
@@ -55,14 +55,14 @@ struct JSONPointerExtensionsTests {
 
     @Test("auto-viv: non-numeric segment creates Object")
     func autoVivStringCreatesObject() {
-        var data: AnyCodable = .object([:])
+        var data: StructuredValue = .object([:])
         JSONPointer.set(path: "/user/name", value: .string("Alice"), in: &data)
         #expect(JSONPointer.resolve(path: "/user", in: data) == .object(["name": .string("Alice")]))
     }
 
     @Test("auto-viv: deep mixed path /a/b/0/c")
     func autoVivDeepMixed() {
-        var data: AnyCodable = .object([:])
+        var data: StructuredValue = .object([:])
         JSONPointer.set(path: "/a/b/0/c", value: .string("deep"), in: &data)
         #expect(JSONPointer.resolve(path: "/a/b/0/c", in: data) == .string("deep"))
         // /a/b must be an Array whose element 0 is an Object
@@ -71,7 +71,7 @@ struct JSONPointerExtensionsTests {
 
     @Test("auto-viv: growing an array pads with sparse nulls")
     func autoVivGrowArrayPadsNulls() {
-        var data: AnyCodable = .object([:])
+        var data: StructuredValue = .object([:])
         JSONPointer.set(path: "/list/2", value: .string("third"), in: &data)
         #expect(JSONPointer.resolve(path: "/list", in: data) == .array([.null, .null, .string("third")]))
     }
@@ -158,7 +158,7 @@ struct DataModelTests {
     @Test("subscribe fires current value synchronously")
     func subscribeFiresInitial() {
         let dm = DataModel(.object(["name": .string("Alice")]))
-        var received: [AnyCodable?] = []
+        var received: [StructuredValue?] = []
         let sub = dm.subscribe("/name") { received.append($0) }
         // Must have fired exactly once, synchronously, with the current value.
         #expect(received == [.string("Alice")])
@@ -168,7 +168,7 @@ struct DataModelTests {
     @Test("subscribe notified on direct write")
     func subscribeDirectWrite() {
         let dm = DataModel(.object(["name": .string("Alice")]))
-        var received: [AnyCodable?] = []
+        var received: [StructuredValue?] = []
         let sub = dm.subscribe("/name") { received.append($0) }
         dm.set("/name", .string("Bob"))
         #expect(received == [.string("Alice"), .string("Bob")])
@@ -178,7 +178,7 @@ struct DataModelTests {
     @Test("bubble: writing a child notifies an ancestor subscriber")
     func bubbleToAncestor() {
         let dm = DataModel(.object(["user": .object(["name": .string("Alice")])]))
-        var received: [AnyCodable?] = []
+        var received: [StructuredValue?] = []
         let sub = dm.subscribe("/user") { received.append($0) }
         dm.set("/user/name", .string("Bob"))
         // The /user subscriber should be notified with the updated subtree.
@@ -190,7 +190,7 @@ struct DataModelTests {
     @Test("cascade: writing a parent notifies a descendant subscriber")
     func cascadeToDescendant() {
         let dm = DataModel(.object(["user": .object(["name": .string("Alice")])]))
-        var received: [AnyCodable?] = []
+        var received: [StructuredValue?] = []
         let sub = dm.subscribe("/user/name") { received.append($0) }
         // Replace the whole /user subtree.
         dm.set("/user", .object(["name": .string("Carol")]))
@@ -202,7 +202,7 @@ struct DataModelTests {
     @Test("unrelated path is not notified")
     func unrelatedNotNotified() {
         let dm = DataModel(.object(["a": .int(1), "b": .int(2)]))
-        var received: [AnyCodable?] = []
+        var received: [StructuredValue?] = []
         let sub = dm.subscribe("/a") { received.append($0) }
         dm.set("/b", .int(99))
         // Only the initial synchronous fire; /b is unrelated to /a.
@@ -213,7 +213,7 @@ struct DataModelTests {
     @Test("cancel stops further notifications")
     func cancelStops() {
         let dm = DataModel(.object(["x": .int(0)]))
-        var received: [AnyCodable?] = []
+        var received: [StructuredValue?] = []
         let sub = dm.subscribe("/x") { received.append($0) }
         sub.cancel()
         dm.set("/x", .int(1))

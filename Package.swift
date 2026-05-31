@@ -13,8 +13,14 @@ let package = Package(
         .library(name: "A2UISurface", targets: ["A2UISurface"]),
         .library(name: "A2UIRuntime", targets: ["A2UIRuntime"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
+    ],
     targets: [
-        .target(name: "A2UICore"),
+        .target(name: "A2UICore", dependencies: [
+            .product(name: "StructuredDataCore", package: "swift-structured-data"),
+            .product(name: "JSONParsing", package: "swift-structured-data"),
+        ]),
         // No resources: the catalog schema is generated from Swift types (BasicCatalogSchema).
         .target(name: "A2UICatalog", dependencies: ["A2UICore"]),
         .target(name: "A2UIPrompt", dependencies: ["A2UICore", "A2UICatalog"],

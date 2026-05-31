@@ -19,7 +19,7 @@ struct CommonTypesCompactorTests {
         }
         """
         let compact = CommonTypesCompactor.compact(input)
-        let value = try JSONDecoder().decode(AnyCodable.self, from: Data(compact.utf8))
+        let value = try JSONDecoder().decode(StructuredValue.self, from: Data(compact.utf8))
         guard case .object(let root) = value,
               case .object(let defs)? = root["$defs"] else {
             Issue.record("unexpected shape")
@@ -47,7 +47,7 @@ struct CommonTypesCompactorTests {
         }
         """
         let compact = CommonTypesCompactor.compact(input)
-        let value = try JSONDecoder().decode(AnyCodable.self, from: Data(compact.utf8))
+        let value = try JSONDecoder().decode(StructuredValue.self, from: Data(compact.utf8))
         guard case .object(let root) = value,
               case .object(let defs)? = root["$defs"],
               case .object(let dynStr)? = defs["DynamicString"],
@@ -80,7 +80,7 @@ struct CommonTypesCompactorTests {
         }
         """
         let compact = CommonTypesCompactor.compact(input)
-        let value = try JSONDecoder().decode(AnyCodable.self, from: Data(compact.utf8))
+        let value = try JSONDecoder().decode(StructuredValue.self, from: Data(compact.utf8))
         guard case .object(let root) = value,
               case .object(let defs)? = root["$defs"],
               case .object(let dynNum)? = defs["DynamicNumber"],

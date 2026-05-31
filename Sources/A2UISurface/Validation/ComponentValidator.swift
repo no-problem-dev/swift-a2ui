@@ -12,7 +12,7 @@ public enum ComponentValidator {
 
     /// Validate component topology using the tree resolver.
     /// Checks for: missing root, circular references, depth limit.
-    public static func validateTopology(components: [String: AnyCodable]) throws {
+    public static func validateTopology(components: [String: StructuredValue]) throws {
         guard components["root"] != nil else {
             throw ValidationError.missingRoot
         }
@@ -28,9 +28,9 @@ public enum ComponentValidator {
         }
     }
 
-    /// Validate that all component IDs within a flat AnyCodable array are unique.
+    /// Validate that all component IDs within a flat StructuredValue array are unique.
     /// Each element is expected to be an object with an "id" string field.
-    public static func validateUniqueIds(components: [AnyCodable]) throws {
+    public static func validateUniqueIds(components: [StructuredValue]) throws {
         var seen: Set<String> = []
         for component in components {
             if case .object(let dict) = component,

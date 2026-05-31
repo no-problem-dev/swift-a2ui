@@ -11,14 +11,14 @@ public final class ComponentModel: Identifiable {
     /// Component-type name (e.g. "Button").
     public let type: String
 
-    public var properties: [String: AnyCodable] {
+    public var properties: [String: StructuredValue] {
         didSet { onUpdated.emit(self) }
     }
 
     @ObservationIgnored
     public let onUpdated = EventSource<ComponentModel>()
 
-    public init(id: String, type: String, properties: [String: AnyCodable] = [:]) {
+    public init(id: String, type: String, properties: [String: StructuredValue] = [:]) {
         self.id = id
         self.type = type
         self.properties = properties
@@ -26,13 +26,13 @@ public final class ComponentModel: Identifiable {
 
     /// Build from a raw component object (`{ "id", "component", ...props }`). Returns nil if it
     /// lacks a string `id` or `component`.
-    public static func from(_ component: AnyCodable) -> ComponentModel? {
+    public static func from(_ component: StructuredValue) -> ComponentModel? {
         guard case .object(let dict) = component,
               case .string(let id)? = dict["id"],
               case .string(let type)? = dict["component"] else {
             return nil
         }
-        var props = dict
+        var props = dict.dictionary
         props.removeValue(forKey: "id")
         props.removeValue(forKey: "component")
         return ComponentModel(id: id, type: type, properties: props)

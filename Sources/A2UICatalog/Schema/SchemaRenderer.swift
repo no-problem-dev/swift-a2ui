@@ -19,17 +19,17 @@ public enum SchemaRenderer {
         components: [ComponentSchema],
         functions: [FunctionSchema]
     ) -> String {
-        var componentDefs: [String: AnyCodable] = [:]
+        var componentDefs: OrderedObject = [:]
         for component in components {
             componentDefs[component.name] = renderComponent(component)
         }
 
-        var functionDefs: [String: AnyCodable] = [:]
+        var functionDefs: OrderedObject = [:]
         for fn in functions {
             functionDefs[fn.name] = renderFunction(fn)
         }
 
-        let doc: AnyCodable = .object([
+        let doc: StructuredValue = .object([
             "$schema": .string("https://json-schema.org/draft/2020-12/schema"),
             "$id": .string(catalogId),
             "title": .string(title),
@@ -44,8 +44,8 @@ public enum SchemaRenderer {
 
     // MARK: - Component rendering
 
-    static func renderComponent(_ component: ComponentSchema) -> AnyCodable {
-        var allOf: [AnyCodable] = [
+    static func renderComponent(_ component: ComponentSchema) -> StructuredValue {
+        var allOf: [StructuredValue] = [
             ref("ComponentCommon"),
             .object(["$ref": .string("#/$defs/CatalogComponentCommon")]),
         ]
@@ -56,17 +56,17 @@ public enum SchemaRenderer {
             }
         }
 
-        var properties: [String: AnyCodable] = [
+        var properties: OrderedObject = [
             "component": .object(["const": .string(component.name)]),
         ]
         for prop in component.properties {
             properties[prop.name] = renderProperty(prop)
         }
 
-        var inner: [String: AnyCodable] = [
+        var inner: OrderedObject = [
             "type": .string("object"),
             "properties": .object(properties),
-            "required": .array(component.requiredPropertyNames.map(AnyCodable.string)),
+            "required": .array(component.requiredPropertyNames.map(StructuredValue.string)),
         ]
         if let description = component.description {
             inner["description"] = .string(description)
@@ -79,7 +79,7 @@ public enum SchemaRenderer {
         ])
     }
 
-    static func renderProperty(_ prop: PropertySchema) -> AnyCodable {
+    static func renderProperty(_ prop: PropertySchema) -> StructuredValue {
         var node = renderType(prop.type)
         if case .object(var dict) = node {
             if let description = prop.description { dict["description"] = .string(description) }
@@ -89,7 +89,7 @@ public enum SchemaRenderer {
         return node
     }
 
-    static func renderType(_ type: PropertyType) -> AnyCodable {
+    static func renderType(_ type: PropertyType) -> StructuredValue {
         switch type {
         case .dynamicString: return ref("DynamicString")
         case .dynamicNumber: return ref("DynamicNumber")
@@ -105,18 +105,18 @@ public enum SchemaRenderer {
         case .enumeration(let cases):
             return .object([
                 "type": .string("string"),
-                "enum": .array(cases.map(AnyCodable.string)),
+                "enum": .array(cases.map(StructuredValue.string)),
             ])
         case .array(let element):
             return .object(["type": .string("array"), "items": renderType(element)])
         case .object(let props):
-            var properties: [String: AnyCodable] = [:]
-            var required: [AnyCodable] = []
+            var properties: OrderedObject = [:]
+            var required: [StructuredValue] = []
             for p in props {
                 properties[p.name] = renderProperty(p)
                 if p.isRequired { required.append(.string(p.name)) }
             }
-            var obj: [String: AnyCodable] = ["type": .string("object"), "properties": .object(properties)]
+            var obj: OrderedObject = ["type": .string("object"), "properties": .object(properties)]
             if !required.isEmpty { obj["required"] = .array(required) }
             return .object(obj)
         }
@@ -124,27 +124,27 @@ public enum SchemaRenderer {
 
     // MARK: - Function rendering
 
-    static func renderFunction(_ fn: FunctionSchema) -> AnyCodable {
-        var argProps: [String: AnyCodable] = [:]
-        var argRequired: [AnyCodable] = []
+    static func renderFunction(_ fn: FunctionSchema) -> StructuredValue {
+        var argProps: OrderedObject = [:]
+        var argRequired: [StructuredValue] = []
         for arg in fn.arguments {
             argProps[arg.name] = renderProperty(arg)
             if arg.isRequired { argRequired.append(.string(arg.name)) }
         }
-        var argsObject: [String: AnyCodable] = [
+        var argsObject: OrderedObject = [
             "type": .string("object"),
             "properties": .object(argProps),
         ]
         if !argRequired.isEmpty { argsObject["required"] = .array(argRequired) }
 
-        var properties: [String: AnyCodable] = [
+        var properties: OrderedObject = [
             "call": .object(["const": .string(fn.name)]),
             "args": .object(argsObject),
             "returnType": .object(["const": .string(fn.returnType)]),
         ]
         _ = properties  // keep order deterministic via sortedKeys minify
 
-        var node: [String: AnyCodable] = [
+        var node: OrderedObject = [
             "type": .string("object"),
             "properties": .object(properties),
             "required": .array([.string("call"), .string("args")]),
@@ -155,11 +155,11 @@ public enum SchemaRenderer {
 
     // MARK: - Helpers
 
-    private static func ref(_ name: String) -> AnyCodable {
+    private static func ref(_ name: String) -> StructuredValue {
         .object(["$ref": .string(commonTypesBase + name)])
     }
 
-    static func minify(_ value: AnyCodable) -> String {
+    static func minify(_ value: StructuredValue) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(value), let str = String(data: data, encoding: .utf8) else {

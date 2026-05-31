@@ -53,14 +53,14 @@ public enum TemplateExpander {
         }
     }
 
-    /// Convenience: decode a raw `children` property (`AnyCodable`) into a `ChildList` and expand.
+    /// Convenience: decode a raw `children` property (`StructuredValue`) into a `ChildList` and expand.
     /// Returns nil if the property isn't a valid `ChildList`.
-    public static func expandRaw(_ childrenProperty: AnyCodable, in context: DataContext) -> [ResolvedChild]? {
+    public static func expandRaw(_ childrenProperty: StructuredValue, in context: DataContext) -> [ResolvedChild]? {
         guard let childList = decodeChildList(childrenProperty) else { return nil }
         return expand(childList, in: context)
     }
 
-    private static func decodeChildList(_ value: AnyCodable) -> ChildList? {
+    private static func decodeChildList(_ value: StructuredValue) -> ChildList? {
         let data = try? JSONEncoder().encode(value)
         return data.flatMap { try? JSONDecoder().decode(ChildList.self, from: $0) }
     }

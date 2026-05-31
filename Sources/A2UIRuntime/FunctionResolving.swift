@@ -7,12 +7,12 @@ import A2UICore
 /// (binding resolution) and Step 3 (functions) stay decoupled.
 public protocol FunctionResolving: Sendable {
     /// Evaluate a function call within the given data context, returning its result (or nil).
-    func evaluate(_ call: FunctionCall, in context: DataContext) -> AnyCodable?
+    func evaluate(_ call: FunctionCall, in context: DataContext) -> StructuredValue?
 }
 
 /// A no-op resolver: every function call resolves to nil.
 /// Used as the default until the Basic Catalog function registry is wired in (Step 3).
 public struct NoFunctionResolver: FunctionResolving {
     public init() {}
-    public func evaluate(_ call: FunctionCall, in context: DataContext) -> AnyCodable? { nil }
+    public func evaluate(_ call: FunctionCall, in context: DataContext) -> StructuredValue? { nil }
 }

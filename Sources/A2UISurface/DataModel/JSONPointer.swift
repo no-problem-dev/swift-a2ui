@@ -1,6 +1,6 @@
 import A2UICore
 
-/// RFC 6901 JSON Pointer implementation for AnyCodable.
+/// RFC 6901 JSON Pointer implementation for StructuredValue.
 ///
 /// Supports absolute paths starting with "/", e.g. "/user/name" or "/items/0".
 /// Escaping sequences are handled: ~1 → / and ~0 → ~.
@@ -16,7 +16,7 @@ public enum JSONPointer {
     ///   - path: absolute (`/a/b`) or relative (`a/b`) pointer.
     ///   - scope: the base path for relative resolution (default root `""`).
     ///   - data: the document root.
-    public static func resolve(path: String, scope: String, in data: AnyCodable) -> AnyCodable? {
+    public static func resolve(path: String, scope: String, in data: StructuredValue) -> StructuredValue? {
         resolve(path: absolutePath(path, scope: scope), in: data)
     }
 
@@ -30,9 +30,9 @@ public enum JSONPointer {
         return "\(base)/\(path)"
     }
 
-    /// Resolve a JSON Pointer path in an AnyCodable value.
+    /// Resolve a JSON Pointer path in an StructuredValue value.
     /// Returns nil if the path doesn't exist or any intermediate node is the wrong type.
-    public static func resolve(path: String, in data: AnyCodable) -> AnyCodable? {
+    public static func resolve(path: String, in data: StructuredValue) -> StructuredValue? {
         let tokens = parseTokens(path)
         var current = data
 
@@ -53,7 +53,7 @@ public enum JSONPointer {
     }
 
     /// Set a value at a JSON Pointer path, creating intermediate objects as needed.
-    public static func set(path: String, value: AnyCodable, in data: inout AnyCodable) {
+    public static func set(path: String, value: StructuredValue, in data: inout StructuredValue) {
         let tokens = parseTokens(path)
         guard !tokens.isEmpty else {
             data = value
@@ -65,7 +65,7 @@ public enum JSONPointer {
 
     /// Remove the node at the given JSON Pointer path.
     /// No-op if the path doesn't exist.
-    public static func remove(path: String, in data: inout AnyCodable) {
+    public static func remove(path: String, in data: inout StructuredValue) {
         let tokens = parseTokens(path)
         guard !tokens.isEmpty else { return }
 
@@ -133,7 +133,7 @@ public enum JSONPointer {
         return result
     }
 
-    private static func setRecursive(tokens: ArraySlice<String>, value: AnyCodable, in data: inout AnyCodable) {
+    private static func setRecursive(tokens: ArraySlice<String>, value: StructuredValue, in data: inout StructuredValue) {
         guard let first = tokens.first else {
             data = value
             return
@@ -147,7 +147,7 @@ public enum JSONPointer {
         if remaining.isEmpty {
             // Leaf assignment.
             if firstIsIndex, let index = Int(first) {
-                var arr: [AnyCodable] = {
+                var arr: [StructuredValue] = {
                     if case .array(let existing) = data { return existing }
                     return []
                 }()
@@ -155,7 +155,7 @@ public enum JSONPointer {
                 arr[index] = value
                 data = .array(arr)
             } else {
-                var dict: [String: AnyCodable] = {
+                var dict: OrderedObject = {
                     if case .object(let existing) = data { return existing }
                     return [:]
                 }()
@@ -165,10 +165,10 @@ public enum JSONPointer {
         } else {
             // Intermediate: decide the child container type from the NEXT token.
             let nextIsIndex = isArrayIndex(remaining.first!)
-            let emptyChild: AnyCodable = nextIsIndex ? .array([]) : .object([:])
+            let emptyChild: StructuredValue = nextIsIndex ? .array([]) : .object([:])
 
             if firstIsIndex, let index = Int(first) {
-                var arr: [AnyCodable] = {
+                var arr: [StructuredValue] = {
                     if case .array(let existing) = data { return existing }
                     return []
                 }()
@@ -179,7 +179,7 @@ public enum JSONPointer {
                 arr[index] = child
                 data = .array(arr)
             } else {
-                var dict: [String: AnyCodable] = {
+                var dict: OrderedObject = {
                     if case .object(let existing) = data { return existing }
                     return [:]
                 }()
@@ -198,7 +198,7 @@ public enum JSONPointer {
     }
 
     /// Grow an array with `.null` (sparse) entries so that `index` is addressable.
-    private static func growArray(_ arr: inout [AnyCodable], toInclude index: Int) {
+    private static func growArray(_ arr: inout [StructuredValue], toInclude index: Int) {
         if index >= arr.count {
             arr.append(contentsOf: Array(repeating: .null, count: index - arr.count + 1))
         }

@@ -19,9 +19,9 @@ public final class ResolvedComponent {
     public let id: String
     public let type: String
 
-    /// Data props with all `Dynamic*` values resolved to concrete `AnyCodable`.
+    /// Data props with all `Dynamic*` values resolved to concrete `StructuredValue`.
     /// Updates reactively whenever a bound data-model path changes.
-    public private(set) var props: [String: AnyCodable] = [:]
+    public private(set) var props: [String: StructuredValue] = [:]
 
     /// Structural children (resolved from `child`/`children`/`trigger`/`content`/`tabs`).
     /// For template `children`, this expands to one slot per data element.
@@ -45,7 +45,7 @@ public final class ResolvedComponent {
     /// that need static-only fields the runtime did not subscribe to (e.g. Tabs titles). For
     /// anything dynamic, prefer the resolved `props`.
     @ObservationIgnored
-    public let rawProps: [String: AnyCodable]
+    public let rawProps: [String: StructuredValue]
 
     public init(context: ComponentContext, functions: any FunctionResolving = NoFunctionResolver()) {
         self.id = context.componentId
@@ -71,7 +71,7 @@ public final class ResolvedComponent {
     }
 
     /// Dispatch a user action declared by this component (e.g. a Button's `action.event`).
-    public func dispatch(name: String, context actionContext: [String: AnyCodable]) {
+    public func dispatch(name: String, context actionContext: [String: StructuredValue]) {
         context.dispatch(name, actionContext)
     }
 
@@ -79,12 +79,13 @@ public final class ResolvedComponent {
     /// `options[i].label`) against this node's data scope. Returns the coerced string.
     /// Use this from a projection when a structural prop carries `DynamicString`s the runtime
     /// did not subscribe to at the top level.
-    public func resolveDynamicString(_ raw: AnyCodable?) -> String {
+    public func resolveDynamicString(_ raw: StructuredValue?) -> String {
         guard let raw else { return "" }
         switch raw {
         case .string(let s): return s
-        case .int(let i): return String(i)
-        case .double(let d): return d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : String(d)
+        case .number(let n):
+            let d = n.double
+            return d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : String(d)
         case .bool(let b): return b ? "true" : "false"
         case .object(let dict):
             if case .string(let path)? = dict["path"], dict.count == 1 {
@@ -116,7 +117,7 @@ public final class ResolvedComponent {
                 return ""
             }()
             guard !name.isEmpty else { return }
-            var resolved: [String: AnyCodable] = [:]
+            var resolved: [String: StructuredValue] = [:]
             if case .object(let ctx)? = event["context"] {
                 for (key, raw) in ctx {
                     resolved[key] = resolveActionArg(raw) ?? .null
@@ -132,7 +133,7 @@ public final class ResolvedComponent {
 
     /// Resolve an action context value, which may itself contain `{path}` bindings or `{call}`
     /// function calls. Mirrors the runtime's general arg resolution but scoped to this node.
-    private func resolveActionArg(_ value: AnyCodable) -> AnyCodable? {
+    private func resolveActionArg(_ value: StructuredValue) -> StructuredValue? {
         switch value {
         case .object(let dict):
             if case .string(let path)? = dict["path"], dict.count == 1 {
@@ -143,7 +144,7 @@ public final class ResolvedComponent {
                let call = try? JSONDecoder().decode(FunctionCall.self, from: data) {
                 return functions.evaluate(call, in: context.dataContext)
             }
-            var out: [String: AnyCodable] = [:]
+            var out = OrderedObject()
             for (k, v) in dict { out[k] = resolveActionArg(v) ?? .null }
             return .object(out)
         case .array(let arr):
@@ -168,7 +169,7 @@ public final class ResolvedComponent {
     /// Write a new value for a two-way-bound prop back into the data model (View → Model).
     /// No-op when the prop is not a binding. Resolves the path against this node's scope, so the
     /// data model updates and all subscribers (incl. sibling Text labels) re-render reactively.
-    public func write(_ key: String, _ value: AnyCodable?) {
+    public func write(_ key: String, _ value: StructuredValue?) {
         guard let path = bindingPath(key) else { return }
         context.dataContext.set(path, value)
     }
@@ -250,7 +251,7 @@ public final class ResolvedComponent {
     // MARK: - Helpers
 
     /// Subscribe to a raw property that contains a binding or function call, delivering resolved values.
-    private func subscribeResolved(_ raw: AnyCodable, _ onChange: @escaping (AnyCodable) -> Void) -> A2UISubscription {
+    private func subscribeResolved(_ raw: StructuredValue, _ onChange: @escaping (StructuredValue) -> Void) -> A2UISubscription {
         // Direct binding object: subscribe to the path.
         if case .object(let dict) = raw, case .string(let path)? = dict["path"], dict.count == 1 {
             return context.dataContext.dataModel.subscribe(path, scope: context.dataContext.path) { value in
@@ -264,11 +265,11 @@ public final class ResolvedComponent {
         return .inert
     }
 
-    private func containsDynamic(_ value: AnyCodable) -> Bool {
+    private func containsDynamic(_ value: StructuredValue) -> Bool {
         switch value {
         case .object(let dict):
             if dict["path"] != nil || dict["call"] != nil { return true }
-            return dict.values.contains(where: containsDynamic)
+            return dict.entries.contains(where: { containsDynamic($0.value) })
         case .array(let arr):
             return arr.contains(where: containsDynamic)
         default:
@@ -276,7 +277,7 @@ public final class ResolvedComponent {
         }
     }
 
-    private func decodeChecks(_ raw: [AnyCodable]) -> [CheckRule] {
+    private func decodeChecks(_ raw: [StructuredValue]) -> [CheckRule] {
         raw.compactMap { item in
             guard let data = try? JSONEncoder().encode(item) else { return nil }
             return try? JSONDecoder().decode(CheckRule.self, from: data)
@@ -284,13 +285,13 @@ public final class ResolvedComponent {
     }
 
     /// Collect data-model paths referenced anywhere inside the checks, so we can re-evaluate on change.
-    private func referencedPaths(in raw: [AnyCodable]) -> Set<String> {
+    private func referencedPaths(in raw: [StructuredValue]) -> Set<String> {
         var paths: Set<String> = []
-        func walk(_ value: AnyCodable) {
+        func walk(_ value: StructuredValue) {
             switch value {
             case .object(let dict):
                 if case .string(let p)? = dict["path"] { paths.insert(p) }
-                for v in dict.values { walk(v) }
+                for (_, v) in dict { walk(v) }
             case .array(let arr):
                 for v in arr { walk(v) }
             default:
