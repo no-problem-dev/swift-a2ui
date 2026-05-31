@@ -23,8 +23,10 @@ let package = Package(
         ]),
         // No resources: the catalog schema is generated from Swift types (BasicCatalogSchema).
         .target(name: "A2UICatalog", dependencies: ["A2UICore"]),
-        .target(name: "A2UIPrompt", dependencies: ["A2UICore", "A2UICatalog"],
-                resources: [.process("Resources")]),
+        .target(name: "A2UIPrompt", dependencies: [
+            "A2UICore", "A2UICatalog",
+            .product(name: "JSONParsing", package: "swift-structured-data"),
+        ], resources: [.process("Resources")]),
         .target(name: "A2UIPromptCompact", dependencies: ["A2UICore", "A2UICatalog", "A2UIPrompt"]),
         .target(name: "A2UIParser", dependencies: ["A2UICore"]),
         .target(name: "A2UISurface", dependencies: ["A2UICore"]),

@@ -1,6 +1,7 @@
 import Foundation
 import A2UICatalog
 import A2UICore
+import JSONParsing
 
 /// Builds LLM system prompts in the official Google A2UI format.
 ///
@@ -203,18 +204,11 @@ public struct A2UIPromptBuilder: Sendable {
     // MARK: - JSON helpers
 
     private static func parseJSON(_ string: String) -> StructuredValue? {
-        guard let data = string.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(StructuredValue.self, from: data)
+        try? JSONParser().parse(string)
     }
 
     private static func serializeJSON(_ value: StructuredValue) -> String? {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        guard let data = try? encoder.encode(value),
-              let string = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return string
+        JSONSerializer(options: .init(sortKeys: true)).string(from: value)
     }
 
     /// Load a JSON file from A2UIPrompt's own resource bundle.
@@ -236,16 +230,10 @@ public struct A2UIPromptBuilder: Sendable {
     }
 
     /// Bundled JSON resources をプロンプト埋め込み用に minify する。
-    /// Python 公式 (`json.dumps(..., separators=(",", ":"))`) と同等の出力を狙う。
-    /// `.sortedKeys` を採用してプロンプトキャッシュヒット率を安定化させる。
+    /// sortKeys でキー順序を決定的にしプロンプトキャッシュヒット率を安定化させる。
+    /// スラッシュは非エスケープ(JSONSerializer の既定挙動)。
     private static func minifyJSON(_ data: Data) -> String? {
-        guard let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
-              let minified = try? JSONSerialization.data(
-                  withJSONObject: object,
-                  options: [.sortedKeys, .withoutEscapingSlashes]
-              ) else {
-            return nil
-        }
-        return String(data: minified, encoding: .utf8)
+        guard let value = try? JSONParser().parse(data) else { return nil }
+        return JSONSerializer(options: .init(sortKeys: true)).string(from: value)
     }
 }
