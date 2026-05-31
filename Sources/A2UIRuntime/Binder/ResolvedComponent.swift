@@ -93,8 +93,7 @@ public final class ResolvedComponent {
                 return resolveDynamicString(value)
             }
             if case .string? = dict["call"],
-               let data = try? JSONEncoder().encode(raw),
-               let call = try? JSONDecoder().decode(FunctionCall.self, from: data) {
+               let call = try? raw.decode(FunctionCall.self) {
                 let value = functions.evaluate(call, in: context.dataContext)
                 return resolveDynamicString(value)
             }
@@ -140,8 +139,7 @@ public final class ResolvedComponent {
                 return context.dataContext.dataModel.get(path, scope: context.dataContext.path)
             }
             if case .string? = dict["call"],
-               let data = try? JSONEncoder().encode(value),
-               let call = try? JSONDecoder().decode(FunctionCall.self, from: data) {
+               let call = try? value.decode(FunctionCall.self) {
                 return functions.evaluate(call, in: context.dataContext)
             }
             var out = OrderedObject()
@@ -279,8 +277,7 @@ public final class ResolvedComponent {
 
     private func decodeChecks(_ raw: [StructuredValue]) -> [CheckRule] {
         raw.compactMap { item in
-            guard let data = try? JSONEncoder().encode(item) else { return nil }
-            return try? JSONDecoder().decode(CheckRule.self, from: data)
+            return try? item.decode(CheckRule.self)
         }
     }
 

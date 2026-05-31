@@ -160,11 +160,6 @@ public enum SchemaRenderer {
     }
 
     static func minify(_ value: StructuredValue) -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        guard let data = try? encoder.encode(value), let str = String(data: data, encoding: .utf8) else {
-            return "{}"
-        }
-        return str
+        return JSONSerializer(options: .init(sortKeys: true)).string(from: value)
     }
 }

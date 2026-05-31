@@ -72,9 +72,9 @@ public final class A2UIStreamingParser: @unchecked Sendable {
             let sanitized = JSONSanitizer.sanitize(jsonString)
 
             if let data = sanitized.data(using: .utf8) {
-                if let messages = try? JSONDecoder().decode([ServerMessage].self, from: data) {
+                if let messages = try? JSONParser().parse(data).decode([ServerMessage].self) {
                     parts.append(.messages(messages))
-                } else if let message = try? JSONDecoder().decode(ServerMessage.self, from: data) {
+                } else if let message = try? JSONParser().parse(data).decode(ServerMessage.self) {
                     parts.append(.messages([message]))
                 }
             }

@@ -57,7 +57,6 @@ enum ArgResolver {
     }
 
     private static func decodeFunctionCall(_ dict: OrderedObject) throws -> FunctionCall {
-        let data = try JSONEncoder().encode(StructuredValue.object(dict))
-        return try JSONDecoder().decode(FunctionCall.self, from: data)
+        return try StructuredValue.object(dict).decode(FunctionCall.self)
     }
 }

@@ -19,7 +19,7 @@ public enum CommonTypesCompactor {
     /// 入力が parse できない場合は元の文字列をそのまま返す（安全側）。
     public static func compact(_ commonTypesJSON: String) -> String {
         guard let data = commonTypesJSON.data(using: .utf8),
-              let value = try? JSONDecoder().decode(StructuredValue.self, from: data),
+              let value = try? JSONParser().parse(data),
               case .object(var root) = value else {
             return commonTypesJSON
         }
@@ -91,12 +91,6 @@ public enum CommonTypesCompactor {
     }
 
     private static func serialize(_ value: StructuredValue) -> String? {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        guard let data = try? encoder.encode(value),
-              let string = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return string
+        return JSONSerializer(options: .init(sortKeys: true)).string(from: value)
     }
 }

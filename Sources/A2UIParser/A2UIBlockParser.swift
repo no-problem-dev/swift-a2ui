@@ -67,12 +67,12 @@ public enum A2UIBlockParser {
         guard let data = json.data(using: .utf8) else { return nil }
 
         // Try array first (the common LLM output format)
-        if let messages = try? JSONDecoder().decode([ServerMessage].self, from: data) {
+        if let messages = try? JSONParser().parse(data).decode([ServerMessage].self) {
             return messages
         }
 
         // Fall back to a single message
-        if let message = try? JSONDecoder().decode(ServerMessage.self, from: data) {
+        if let message = try? JSONParser().parse(data).decode(ServerMessage.self) {
             return [message]
         }
 

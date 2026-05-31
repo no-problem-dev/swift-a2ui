@@ -61,7 +61,6 @@ public enum TemplateExpander {
     }
 
     private static func decodeChildList(_ value: StructuredValue) -> ChildList? {
-        let data = try? JSONEncoder().encode(value)
-        return data.flatMap { try? JSONDecoder().decode(ChildList.self, from: $0) }
+        return try? value.decode(ChildList.self)
     }
 }
