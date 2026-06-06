@@ -22,8 +22,12 @@ extension ServerMessage: Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let version = try container.decode(String.self, forKey: .version)
-        guard version == A2UIVersion.current else {
+        // Postel: encode always writes `version`; decode tolerates a missing one (assume current).
+        // LLMs occasionally misplace `version` inside the payload — dropping the whole message for
+        // that (and failing the turn as "no surface produced") costs a full regeneration round-trip.
+        // A present-but-different version is still rejected: that is a genuine incompatibility.
+        if let version = try container.decodeIfPresent(String.self, forKey: .version),
+           version != A2UIVersion.current {
             throw DecodingError.dataCorruptedError(
                 forKey: .version, in: container,
                 debugDescription: "Unsupported A2UI version: \(version)"

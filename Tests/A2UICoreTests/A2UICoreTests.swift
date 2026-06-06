@@ -477,6 +477,31 @@ struct ServerMessageTests {
         }
     }
 
+    @Test func toleratesMissingVersion() throws {
+        let json = """
+        {"createSurface": {"surfaceId": "s1", "catalogId": "x"}}
+        """
+        let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+        if case .createSurface(let cs) = decoded {
+            #expect(cs.surfaceId == "s1")
+        } else {
+            Issue.record("Expected .createSurface case")
+        }
+    }
+
+    @Test func toleratesVersionMisplacedInsidePayload() throws {
+        // LLM が envelope ではなく payload 内に version を置く誤りに耐える（payload 内の余分キーは無視）。
+        let json = """
+        {"createSurface": {"surfaceId": "s1", "catalogId": "x", "dataModel": {"a": 1}, "version": "v0.10"}}
+        """
+        let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+        if case .createSurface(let cs) = decoded {
+            #expect(cs.surfaceId == "s1")
+            #expect(cs.dataModel != nil)
+        } else {
+            Issue.record("Expected .createSurface case")
+        }
+    }
 }
 
 // MARK: - ClientMessage
