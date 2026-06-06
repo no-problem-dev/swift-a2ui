@@ -17,11 +17,15 @@ let package = Package(
         .library(name: "A2UITyped", targets: ["A2UITyped"]),
         // Generic, type-safe SwiftUI renderer over any A2UICatalog (zero type erasure).
         .library(name: "A2UITypedRenderer", targets: ["A2UITypedRenderer"]),
+        // Official tool-call generation pattern (mirror of the Python SDK's a2ui.adk):
+        // the send_a2ui_json_to_client tool + the tool-result → ServerMessage extractor.
+        .library(name: "A2UIAgentTool", targets: ["A2UIAgentTool"]),
     ],
     dependencies: [
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "1.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", branch: "main"),
+        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.2.1"),
     ],
     targets: [
         .target(name: "A2UICore", dependencies: [
@@ -39,13 +43,20 @@ let package = Package(
         .target(name: "A2UISurface", dependencies: ["A2UICore"]),
         .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface", "A2UICatalog"]),
         // Generic catalog/node layer. No SwiftUI — builds on macOS for fast type-level iteration.
-        .target(name: "A2UITyped", dependencies: ["A2UICore", "A2UICatalog"]),
+        .target(name: "A2UITyped", dependencies: ["A2UICore", "A2UICatalog", "A2UISurface"]),
         // Generic SwiftUI renderer: A2UISurfaceView<Catalog> dispatches CatalogNode via a recursive
         // generic NodeView<Catalog> with no AnyView/type erasure. Builds on macOS (plain SwiftUI).
         .target(name: "A2UITypedRenderer", dependencies: [
             "A2UICore", "A2UICatalog", "A2UISurface", "A2UIRuntime", "A2UITyped",
             .product(name: "DesignSystem", package: "swift-design-system"),
             .product(name: "SwiftMarkdownView", package: "swift-markdown-view"),
+        ]),
+        // Tool-call generation pattern. Depends on the LLM tool layer the same way the Python
+        // SDK's a2ui.adk depends on google-adk. UI-free — tests run on the CLI.
+        .target(name: "A2UIAgentTool", dependencies: [
+            "A2UICore", "A2UIParser", "A2UIPrompt", "A2UITyped",
+            .product(name: "LLMClient", package: "swift-llm-client"),
+            .product(name: "LLMTool", package: "swift-llm-client"),
         ]),
         .testTarget(name: "A2UICoreTests", dependencies: ["A2UICore"],
                     resources: [.copy("Fixtures")]),
@@ -58,5 +69,6 @@ let package = Package(
         .testTarget(name: "A2UIRuntimeTests", dependencies: ["A2UIRuntime"]),
         .testTarget(name: "A2UITypedTests", dependencies: ["A2UITyped"]),
         .testTarget(name: "A2UITypedRendererTests", dependencies: ["A2UITypedRenderer"]),
+        .testTarget(name: "A2UIAgentToolTests", dependencies: ["A2UIAgentTool"]),
     ]
 )

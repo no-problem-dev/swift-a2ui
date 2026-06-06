@@ -19,6 +19,25 @@ public enum A2UIWorkflowRules {
         This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.
     """
 
+    /// Workflow rules for the **tool-call** generation pattern (the official
+    /// `send_a2ui_json_to_client` tool, mirroring the Python SDK's `SendA2uiToClientToolset`).
+    ///
+    /// Replaces the tag-wrapping clauses of `default` with tool-call clauses; ordering and
+    /// validation constraints are unchanged. The validation/apology clauses match the official
+    /// rizzcharts sample's workflow instructions.
+    public static let toolCall = """
+    The generated response MUST follow these rules:
+    - You MUST send UI to the client by calling the `send_a2ui_json_to_client` tool with the `a2ui_json` argument set to the A2UI JSON payload.
+    - The `a2ui_json` argument MUST be a single, raw JSON array of A2UI messages and MUST validate against the provided A2UI JSON SCHEMA.
+    - The tool can be called multiple times in the same turn to render multiple UI surfaces.
+    - Around tool calls, you can provide conversational text.
+    - Top-Down Component Ordering: Within the `components` list of a message:
+        - The 'root' component MUST be the FIRST element.
+        - Parent components MUST appear before their child components.
+    - The payload will be validated against the A2UI JSON SCHEMA and rejected if it does not conform.
+    - If you get an error in the tool response apologize to the user and let them know they should try again.
+    """
+
     /// Required-property reminders for the **basic catalog** components.
     ///
     /// These mirror the natural-language hints the Google Python SDK includes alongside the basic

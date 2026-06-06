@@ -2,8 +2,7 @@ import Testing
 import Foundation
 import A2UICore
 import A2UICatalog
-import A2UITyped
-@testable import A2UITypedRenderer
+@testable import A2UITyped
 
 @Suite("A2UIValidation (catalog validation before render)")
 struct A2UIValidationTests {
