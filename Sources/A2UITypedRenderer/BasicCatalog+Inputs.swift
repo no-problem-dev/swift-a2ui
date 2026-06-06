@@ -15,14 +15,19 @@ struct ButtonNodeView: View {
     let ctx: RenderContext<BasicCatalog>
 
     var body: some View {
+        // Spec: a Button whose `checks` fail is automatically disabled.
+        content.disabled(!ctx.checksPass(component.checks))
+    }
+
+    @ViewBuilder private var content: some View {
         switch component.variant {
         case .primary:
-            Button { ctx.dispatch(component.action) } label: {
+            Button { ctx.dispatch(component.action, from: component.id) } label: {
                 ctx.child(component.child).frame(maxWidth: .infinity)
             }
             .buttonStyle(PrimaryButtonStyle())
         case .borderless:
-            Button { ctx.dispatch(component.action) } label: {
+            Button { ctx.dispatch(component.action, from: component.id) } label: {
                 ctx.child(component.child)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -33,7 +38,7 @@ struct ButtonNodeView: View {
             }
             .buttonStyle(.plain)
         case .default, .none:
-            Button { ctx.dispatch(component.action) } label: {
+            Button { ctx.dispatch(component.action, from: component.id) } label: {
                 ctx.child(component.child)
             }
             .buttonStyle(SecondaryButtonStyle())
@@ -48,12 +53,13 @@ struct TextFieldNodeView: View {
 
     var body: some View {
         let label = ctx.resolve(component.label)
+        let placeholder = component.placeholder.map { ctx.resolve($0) } ?? label
         let field = DSTextField(
             label,
             text: ctx.binding(component.value),
-            placeholder: label,
+            placeholder: placeholder,
             axis: component.variant == .longText ? .vertical : .horizontal,
-            error: nil
+            error: ctx.firstCheckFailure(component.checks)
         )
         #if os(iOS)
         field.keyboardType(component.variant == .number ? .decimalPad : .default)
@@ -90,8 +96,14 @@ struct SliderNodeView: View {
                 Text(ctx.resolve(label)).typography(.labelMedium).foregroundStyle(colors.onSurfaceVariant)
             }
             let lo = component.min ?? 0
-            Slider(value: ctx.binding(component.value), in: lo...Swift.max(component.max, lo + 0.0001))
-                .tint(colors.primary)
+            let hi = Swift.max(component.max, lo + 0.0001)
+            if let steps = component.steps, steps >= 1 {
+                Slider(value: ctx.binding(component.value), in: lo...hi, step: (hi - lo) / Double(steps))
+                    .tint(colors.primary)
+            } else {
+                Slider(value: ctx.binding(component.value), in: lo...hi)
+                    .tint(colors.primary)
+            }
         }
     }
 }

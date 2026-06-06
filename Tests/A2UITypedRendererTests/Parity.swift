@@ -99,8 +99,8 @@ struct ParityTests {
 
     static let cardCorpus = """
     [
-      {"version":"v0.9","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.9","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Card","child":"col"},
         {"id":"col","component":"Column","children":["t1","d1","t2"]},
         {"id":"t1","component":"Text","text":"見出し","variant":"h3"},
@@ -112,8 +112,8 @@ struct ParityTests {
 
     static let richCorpus = """
     [
-      {"version":"v0.9","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.9","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Card","child":"col"},
         {"id":"col","component":"Column","children":["header","summary","div1","list1","div2","actions"]},
         {"id":"header","component":"Row","align":"center","children":["hicon","htitle"]},

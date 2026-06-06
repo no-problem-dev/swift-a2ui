@@ -10,7 +10,7 @@ public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equa
     public let label: DynamicString
     public let value: DynamicString?
     public let variant: TextFieldVariant?
-    public let validationRegexp: String?
+    public let placeholder: DynamicString?
     public let checks: [CheckRule]?
 
     public init(
@@ -18,7 +18,7 @@ public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equa
         label: DynamicString,
         value: DynamicString? = nil,
         variant: TextFieldVariant? = nil,
-        validationRegexp: String? = nil,
+        placeholder: DynamicString? = nil,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
         weight: Double? = nil
@@ -28,7 +28,7 @@ public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equa
         self.label = label
         self.value = value
         self.variant = variant
-        self.validationRegexp = validationRegexp
+        self.placeholder = placeholder
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight

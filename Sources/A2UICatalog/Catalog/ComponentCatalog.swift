@@ -15,7 +15,7 @@ public protocol ComponentCatalog: Sendable {
 /// A2UI v0.9 specification.
 public struct BasicComponentCatalog: ComponentCatalog, Sendable {
     /// The canonical catalog identifier URI.
-    public static let catalogId = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+    public static let catalogId = "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"
 
     public var catalogId: String { Self.catalogId }
 

@@ -89,6 +89,7 @@ public enum PropertyType: Sendable, Equatable {
     // Inline scalars.
     case string
     case number
+    case integer
     case boolean
     /// An inline string enum with its allowed cases.
     case enumeration([String])
@@ -96,4 +97,8 @@ public enum PropertyType: Sendable, Equatable {
     indirect case array(PropertyType)
     /// An inline object with named sub-properties (e.g. a tab entry { title, child }).
     case object([PropertySchema])
+    /// A verbatim JSON-Schema fragment for irregular properties that don't fit the closed kinds
+    /// above (e.g. Icon's `oneOf`, DateTimeInput's `allOf`+`if/then`). The fragment is emitted as-is,
+    /// so it MUST already include its own `description` — `renderProperty` does not add one.
+    case raw(StructuredValue)
 }

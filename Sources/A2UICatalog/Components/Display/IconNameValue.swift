@@ -1,9 +1,12 @@
 import A2UICore
 
+/// An Icon's `name` (A2UI v0.10): either a preset icon, or a custom SVG path object `{ "path": "…" }`.
+///
+/// v0.10 removed the `DataBinding` branch from the Icon `name` oneOf and renamed the custom-icon key
+/// from `svgPath` to `path`, so `{ "path": "…" }` is now an unambiguous inline SVG path.
 public enum IconNameValue: Codable, Sendable, Equatable {
     case preset(IconName)
     case svgPath(String)
-    case binding(DataBinding)
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -18,10 +21,8 @@ public enum IconNameValue: Codable, Sendable, Equatable {
         }
 
         let keyed = try decoder.container(keyedBy: CodingKeys.self)
-        if keyed.allKeys.contains(.svgPath) {
-            self = .svgPath(try keyed.decode(String.self, forKey: .svgPath))
-        } else if keyed.allKeys.contains(.path) {
-            self = .binding(try DataBinding(from: decoder))
+        if keyed.allKeys.contains(.path) {
+            self = .svgPath(try keyed.decode(String.self, forKey: .path))
         } else {
             throw DecodingError.dataCorruptedError(
                 in: container,
@@ -37,13 +38,11 @@ public enum IconNameValue: Codable, Sendable, Equatable {
             try container.encode(value.rawValue)
         case .svgPath(let value):
             var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(value, forKey: .svgPath)
-        case .binding(let value):
-            try value.encode(to: encoder)
+            try container.encode(value, forKey: .path)
         }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case svgPath, path
+        case path
     }
 }

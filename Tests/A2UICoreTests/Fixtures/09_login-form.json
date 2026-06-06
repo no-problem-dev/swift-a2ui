@@ -3,15 +3,15 @@
   "description": "Example of login form demonstrating validation checks and logic.",
   "messages": [
     {
-      "version": "v0.9",
+      "version": "v0.10",
       "createSurface": {
         "surfaceId": "gallery-login-form",
-        "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+        "catalogId": "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json",
         "sendDataModel": true
       }
     },
     {
-      "version": "v0.9",
+      "version": "v0.10",
       "updateComponents": {
         "surfaceId": "gallery-login-form",
         "components": [
@@ -201,7 +201,7 @@
       }
     },
     {
-      "version": "v0.9",
+      "version": "v0.10",
       "updateDataModel": {
         "surfaceId": "gallery-login-form",
         "value": {

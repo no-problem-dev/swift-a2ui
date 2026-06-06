@@ -30,6 +30,20 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         }
     }
 
+    /// Decode a component **leniently**: a known name with malformed props degrades to an `.unknown`
+    /// placeholder (carrying the raw payload) instead of throwing. Used by the live message processor
+    /// so one bad component renders a visible "Not Supported" marker rather than silently vanishing —
+    /// the gap is diagnosable, and the rest of the surface still renders.
+    public static func lenientDecode(_ value: StructuredValue) -> CatalogNode<Known> {
+        if let node = try? value.decode(CatalogNode<Known>.self) {
+            return node
+        }
+        let probe = try? value.decode(Probe.self)
+        return .unknown(name: probe?.component ?? "Unknown", id: probe?.id ?? "", raw: value)
+    }
+
+    private struct Probe: Decodable { let component: String?; let id: String? }
+
     /// The instance id, whichever variant. Unknown components still carry an id on the wire.
     public var id: ComponentId {
         switch self {

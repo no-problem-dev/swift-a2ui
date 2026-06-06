@@ -21,8 +21,9 @@ public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
     public let catalogId: String
     public let rootId: ComponentId
     public let dataModel: DataModel
-    /// Host sink for user-dispatched events (Button `action.event` etc.). Default no-op.
-    let onEvent: (String, [String: StructuredValue]) -> Void
+    /// Host sink for user-dispatched events (Button `action.event` etc.): `(name, context, sourceComponentId)`.
+    /// Default no-op.
+    let onEvent: (String, [String: StructuredValue], ComponentId) -> Void
 
     private var nodes: [ComponentId: CatalogNode<Catalog.Node>]
     /// Bumped on every data-model write; binding readers depend on it for reactivity.
@@ -33,7 +34,7 @@ public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
         rootId: ComponentId = "root",
         nodes: [CatalogNode<Catalog.Node>],
         dataModel: DataModel = DataModel(),
-        onEvent: @escaping (String, [String: StructuredValue]) -> Void = { _, _ in }
+        onEvent: @escaping (String, [String: StructuredValue], ComponentId) -> Void = { _, _, _ in }
     ) {
         self.id = id ?? rootId
         self.catalogId = Catalog.catalogId

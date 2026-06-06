@@ -11,6 +11,7 @@ public struct SliderComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
     public let max: Double
     public let label: DynamicString?
     public let min: Double?
+    public let steps: Int?
     public let checks: [CheckRule]?
 
     public init(
@@ -19,6 +20,7 @@ public struct SliderComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
         max: Double,
         label: DynamicString? = nil,
         min: Double? = nil,
+        steps: Int? = nil,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
         weight: Double? = nil
@@ -29,6 +31,7 @@ public struct SliderComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
         self.max = max
         self.label = label
         self.min = min
+        self.steps = steps
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight

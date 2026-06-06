@@ -61,19 +61,32 @@ public enum A2UIBlockParser {
 
     // MARK: - Private
 
-    /// Attempt to decode a JSON string as an array of `ServerMessage` values,
-    /// falling back to a single `ServerMessage` if the array decode fails.
-    private static func decodeMessages(from json: String) -> [ServerMessage]? {
+    /// Decode a JSON string into `ServerMessage`s, **resiliently**: a single malformed message must
+    /// not discard the whole surface (LLM output is frequently partially-invalid).
+    ///
+    /// 1. Fast path — decode the whole `[ServerMessage]` array.
+    /// 2. Single-message fallback.
+    /// 3. Resilient path — parse the top-level array and decode **each element independently**,
+    ///    keeping the valid messages and skipping the bad ones (e.g. one wrong `version`).
+    static func decodeMessages(from json: String) -> [ServerMessage]? {
         guard let data = json.data(using: .utf8) else { return nil }
 
-        // Try array first (the common LLM output format)
+        // 1) Whole-array fast path.
         if let messages = try? JSONParser().parse(data).decode([ServerMessage].self) {
             return messages
         }
 
-        // Fall back to a single message
-        if let message = try? JSONParser().parse(data).decode(ServerMessage.self) {
+        guard let root = try? JSONParser().parse(data) else { return nil }
+
+        // 2) Single message.
+        if let message = try? root.decode(ServerMessage.self) {
             return [message]
+        }
+
+        // 3) Resilient per-element decode — keep whatever is valid.
+        if case .array(let elements) = root {
+            let decoded = elements.compactMap { try? $0.decode(ServerMessage.self) }
+            if !decoded.isEmpty { return decoded }
         }
 
         return nil

@@ -6,15 +6,15 @@ import Testing
 // MARK: - Helpers
 
 private let createSurfaceJSON = """
-{"version":"v0.9","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
+{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
 """
 
 private let deleteSurfaceJSON = """
-{"version":"v0.9","deleteSurface":{"surfaceId":"s1"}}
+{"version":"v0.10","deleteSurface":{"surfaceId":"s1"}}
 """
 
 private let updateDataModelJSON = """
-{"version":"v0.9","updateDataModel":{"surfaceId":"s1","path":"/name","value":"Alice"}}
+{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/name","value":"Alice"}}
 """
 
 private let createSurfaceArrayJSON = """
@@ -220,7 +220,7 @@ struct StreamingParserTests {
     @Test func handlesChunkedJSON() {
         // JSON split across multiple feed calls
         let parser = A2UIStreamingParser()
-        var parts = parser.feed("<a2ui-json>{\"version\":\"v0.9\",")
+        var parts = parser.feed("<a2ui-json>{\"version\":\"v0.10\",")
         #expect(parts.isEmpty)
         parts = parser.feed("\"createSurface\":{\"surfaceId\":\"s1\",")
         #expect(parts.isEmpty)
@@ -272,7 +272,7 @@ struct JSONSanitizerTests {
     }
 
     @Test func passesCleanJSONUnchanged() {
-        let input = #"{"version":"v0.9","createSurface":{"surfaceId":"s1","catalogId":"basic"}}"#
+        let input = #"{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}}"#
         let result = JSONSanitizer.sanitize(input)
         #expect(result == input)
     }
@@ -287,5 +287,56 @@ struct JSONSanitizerTests {
         let input = "```json\n{\"a\":1,}\n```"
         let result = JSONSanitizer.sanitize(input)
         #expect(result == #"{"a":1}"#)
+    }
+
+    // MARK: - Comment stripping (LLMs frequently emit `//` and `/* */` in a2ui-json blocks)
+
+    @Test func stripsBlockComment() {
+        let result = JSONSanitizer.stripComments(#"{"a":1 /* note */, "b":2}"#)
+        #expect(!result.contains("/* note */"))
+        #expect(result.contains("\"a\":1"))
+        #expect(result.contains("\"b\":2"))
+    }
+
+    @Test func stripsLineComment() {
+        let result = JSONSanitizer.stripComments("{\n  \"a\": 1 // hi\n}")
+        #expect(!result.contains("// hi"))
+        #expect(result.contains("\"a\": 1"))
+    }
+
+    @Test func preservesSlashesInsideStrings() {
+        // `//` inside a string (e.g. a URL) must NOT be treated as a comment.
+        let result = JSONSanitizer.stripComments(#"{"url":"https://example.com/a//b"}"#)
+        #expect(result.contains("https://example.com/a//b"))
+    }
+
+    @Test func resilientDecodeKeepsValidMessagesWhenOneIsBad() {
+        // Middle message has an unsupported version → must be skipped, NOT discard the whole surface.
+        let input = """
+        <a2ui-json>
+        [
+          { "version": "v0.10", "createSurface": { "surfaceId": "s1", "catalogId": "basic" } },
+          { "version": "v0.8",  "createSurface": { "surfaceId": "bad", "catalogId": "basic" } },
+          { "version": "v0.10", "updateDataModel": { "surfaceId": "s1", "value": { "k": "v" } } }
+        ]
+        </a2ui-json>
+        """
+        let parts = A2UIBlockParser.parse(input)
+        #expect(parts.first?.messages?.count == 2)  // the two v0.10 messages survive
+    }
+
+    @Test func commentedBlockParsesIntoMessages() {
+        let input = """
+        <a2ui-json>
+        [
+          /* --- surface --- */
+          { "version": "v0.10", "createSurface": { "surfaceId": "s1", "catalogId": "basic" } }, // line comment
+          { "version": "v0.10", "updateDataModel": { "surfaceId": "s1", "value": { "url": "https://example.com/a//b" } } }
+        ]
+        </a2ui-json>
+        """
+        let parts = A2UIBlockParser.parse(input)
+        #expect(parts.count == 1)
+        #expect(parts.first?.messages?.count == 2)
     }
 }

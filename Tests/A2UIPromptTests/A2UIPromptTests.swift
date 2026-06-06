@@ -267,8 +267,8 @@ struct A2UIPromptBuilderBundledTests {
         let minimalCatalog = """
         {
             "components": {
-                "Text": {"$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"},
-                "Column": {"$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList"}
+                "Text": {"$ref": "https://a2ui.org/specification/v0_10/common_types.json#/$defs/DynamicString"},
+                "Column": {"$ref": "https://a2ui.org/specification/v0_10/common_types.json#/$defs/ChildList"}
             }
         }
         """

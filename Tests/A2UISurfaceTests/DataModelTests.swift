@@ -2,7 +2,7 @@ import Testing
 @testable import A2UISurface
 import A2UICore
 
-// MARK: - JSONPointer: relative paths & auto-vivification (A2UI v0.9 extensions)
+// MARK: - JSONPointer: relative paths & auto-vivification (A2UI v0.10 extensions)
 
 @Suite("JSONPointer relative & auto-vivification")
 struct JSONPointerExtensionsTests {

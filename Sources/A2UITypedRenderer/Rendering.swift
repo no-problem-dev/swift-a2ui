@@ -41,7 +41,28 @@ public struct RenderContext<Catalog: RenderableCatalog> {
         self.openURL = openURL
     }
 
-    var dataContext: DataContext { DataContext(dataModel: surface.dataModel, path: scope) }
+    /// Data context for the current scope, with the Basic Catalog function registry wired in so
+    /// `{call: …}` dynamic values AND `checks` (which are function calls) actually resolve.
+    var dataContext: DataContext {
+        DataContext(dataModel: surface.dataModel, path: scope, functions: BasicFunctions())
+    }
+
+    // MARK: - Client-side validation (`checks` / Checkable)
+
+    /// True when every check passes (or there are none). Spec: a Button with failing checks is
+    /// disabled. Tracks the data version so edits re-evaluate the checks reactively.
+    public func checksPass(_ checks: [CheckRule]?) -> Bool {
+        guard let checks, !checks.isEmpty else { return true }
+        trackData()
+        return ChecksEvaluator.allPass(checks, in: dataContext)
+    }
+
+    /// The first failing check's message (the active validation error), or nil. Reactive.
+    public func firstCheckFailure(_ checks: [CheckRule]?) -> String? {
+        guard let checks, !checks.isEmpty else { return nil }
+        trackData()
+        return ChecksEvaluator.firstFailure(checks, in: dataContext)
+    }
 
     /// Resolve a bindable string (`literal` / `{path}` / `{call}`) against the current scope.
     /// Non-literal values track `dataVersion` so a data-model update re-renders the reader.
@@ -64,12 +85,12 @@ public struct RenderContext<Catalog: RenderableCatalog> {
     /// Dispatch a component `action`:
     /// - `.event` → resolve its context args against scope and hand to the host (`onEvent`).
     /// - `.functionCall openUrl` → resolve the `url` arg and open it via the environment opener.
-    public func dispatch(_ action: Action) {
+    public func dispatch(_ action: Action, from sourceId: ComponentId = "") {
         switch action {
         case .event(let event):
             var resolved: [String: StructuredValue] = [:]
             for (key, value) in event.context ?? [:] { resolved[key] = dataContext.resolve(value) ?? .null }
-            surface.onEvent(event.name, resolved)
+            surface.onEvent(event.name, resolved, sourceId)
         case .functionCall(let call):
             if call.call == "openUrl",
                case .string(let raw)? = resolveArg(call.args?["url"]),

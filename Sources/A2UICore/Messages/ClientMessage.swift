@@ -1,6 +1,8 @@
 public enum ClientMessage: Sendable, Equatable {
     case action(UserAction)
     case error(ClientError)
+    /// v0.10: client returns the result of a server-initiated function call.
+    case functionResponse(FunctionResponse)
 }
 
 extension ClientMessage: Codable {
@@ -8,6 +10,7 @@ extension ClientMessage: Codable {
         case version
         case action
         case error
+        case functionResponse
     }
 
     public init(from decoder: Decoder) throws {
@@ -21,6 +24,8 @@ extension ClientMessage: Codable {
         }
         if container.contains(.action) {
             self = .action(try container.decode(UserAction.self, forKey: .action))
+        } else if container.contains(.functionResponse) {
+            self = .functionResponse(try container.decode(FunctionResponse.self, forKey: .functionResponse))
         } else if container.contains(.error) {
             self = .error(try container.decode(ClientError.self, forKey: .error))
         } else {
@@ -39,6 +44,8 @@ extension ClientMessage: Codable {
         switch self {
         case .action(let msg):
             try container.encode(msg, forKey: .action)
+        case .functionResponse(let msg):
+            try container.encode(msg, forKey: .functionResponse)
         case .error(let msg):
             try container.encode(msg, forKey: .error)
         }

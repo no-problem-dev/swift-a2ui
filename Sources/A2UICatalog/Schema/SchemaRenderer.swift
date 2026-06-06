@@ -8,7 +8,7 @@ import Foundation
 /// but it is GENERATED from Swift types, so there is no hand-written catalog JSON to drift.
 public enum SchemaRenderer {
 
-    private static let commonTypesBase = "https://a2ui.org/specification/v0_9/common_types.json#/$defs/"
+    private static let commonTypesBase = "https://a2ui.org/specification/v0_10/common_types.json#/$defs/"
 
     /// Render the full catalog document for the given catalog id + component schemas + functions.
     /// Returns a minified JSON string suitable for embedding in the LLM system prompt.
@@ -37,9 +37,56 @@ public enum SchemaRenderer {
             "catalogId": .string(catalogId),
             "components": .object(componentDefs),
             "functions": .object(functionDefs),
+            "$defs": renderDefs(componentNames: components.map(\.name), functionNames: functions.map(\.name)),
         ])
 
         return minify(doc)
+    }
+
+    // MARK: - Catalog `$defs` (shared fragments referenced by components / s2c / common_types)
+
+    /// The catalog's `$defs` block, reproduced verbatim from the official `catalog.json`:
+    /// `CatalogComponentCommon` (the shared `weight` prop), `theme`, and the `anyComponent` /
+    /// `anyFunction` discriminated unions (order follows the catalog's component / function order).
+    static func renderDefs(componentNames: [String], functionNames: [String]) -> StructuredValue {
+        .object([
+            "CatalogComponentCommon": .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "weight": .object([
+                        "type": .string("number"),
+                        "description": .string("The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."),
+                    ]),
+                ]),
+            ]),
+            "theme": .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "primaryColor": .object([
+                        "type": .string("string"),
+                        "description": .string("The primary brand color used for highlights (e.g., primary buttons, active borders). Renderers may generate variants of this color for different contexts. Format: Hexadecimal code (e.g., '#00BFFF')."),
+                        "pattern": .string("^#[0-9a-fA-F]{6}$"),
+                    ]),
+                    "iconUrl": .object([
+                        "type": .string("string"),
+                        "format": .string("uri"),
+                        "description": .string("A URL for an image that identifies the agent or tool associated with the surface."),
+                    ]),
+                    "agentDisplayName": .object([
+                        "type": .string("string"),
+                        "description": .string("Text to be displayed next to the surface to identify the agent or tool that created it."),
+                    ]),
+                ]),
+                "additionalProperties": .bool(true),
+            ]),
+            "anyComponent": .object([
+                "oneOf": .array(componentNames.map { .object(["$ref": .string("#/components/\($0)")]) }),
+                "discriminator": .object(["propertyName": .string("component")]),
+            ]),
+            "anyFunction": .object([
+                "oneOf": .array(functionNames.map { .object(["$ref": .string("#/functions/\($0)")]) }),
+            ]),
+        ])
     }
 
     // MARK: - Component rendering
@@ -76,10 +123,13 @@ public enum SchemaRenderer {
         return .object([
             "type": .string("object"),
             "allOf": .array(allOf),
+            "unevaluatedProperties": .bool(false),
         ])
     }
 
     static func renderProperty(_ prop: PropertySchema) -> StructuredValue {
+        // `.raw` fragments are emitted verbatim (they already carry their own description).
+        if case .raw(let value) = prop.type { return value }
         var node = renderType(prop.type)
         if case .object(var dict) = node {
             if let description = prop.description { dict["description"] = .string(description) }
@@ -101,6 +151,7 @@ public enum SchemaRenderer {
         case .action: return ref("Action")
         case .string: return .object(["type": .string("string")])
         case .number: return .object(["type": .string("number")])
+        case .integer: return .object(["type": .string("integer")])
         case .boolean: return .object(["type": .string("boolean")])
         case .enumeration(let cases):
             return .object([
@@ -119,27 +170,37 @@ public enum SchemaRenderer {
             var obj: OrderedObject = ["type": .string("object"), "properties": .object(properties)]
             if !required.isEmpty { obj["required"] = .array(required) }
             return .object(obj)
+        case .raw(let value):
+            return value
         }
     }
 
     // MARK: - Function rendering
 
     static func renderFunction(_ fn: FunctionSchema) -> StructuredValue {
-        var argProps: OrderedObject = [:]
-        var argRequired: [StructuredValue] = []
-        for arg in fn.arguments {
-            argProps[arg.name] = renderProperty(arg)
-            if arg.isRequired { argRequired.append(.string(arg.name)) }
+        let argsValue: StructuredValue
+        if let override = fn.argsObject {
+            // Verbatim official `args` object (the irregular shapes).
+            argsValue = override
+        } else {
+            var argProps: OrderedObject = [:]
+            var argRequired: [StructuredValue] = []
+            for arg in fn.arguments {
+                argProps[arg.name] = renderProperty(arg)
+                if arg.isRequired { argRequired.append(.string(arg.name)) }
+            }
+            var argsObj: OrderedObject = [
+                "type": .string("object"),
+                "properties": .object(argProps),
+            ]
+            if !argRequired.isEmpty { argsObj["required"] = .array(argRequired) }
+            argsObj["unevaluatedProperties"] = .bool(false)
+            argsValue = .object(argsObj)
         }
-        var argsObject: OrderedObject = [
-            "type": .string("object"),
-            "properties": .object(argProps),
-        ]
-        if !argRequired.isEmpty { argsObject["required"] = .array(argRequired) }
 
         var properties: OrderedObject = [
             "call": .object(["const": .string(fn.name)]),
-            "args": .object(argsObject),
+            "args": argsValue,
             "returnType": .object(["const": .string(fn.returnType)]),
         ]
         _ = properties  // keep order deterministic via sortedKeys minify
@@ -148,6 +209,7 @@ public enum SchemaRenderer {
             "type": .string("object"),
             "properties": .object(properties),
             "required": .array([.string("call"), .string("args")]),
+            "unevaluatedProperties": .bool(false),
         ]
         if let description = fn.description { node["description"] = .string(description) }
         return .object(node)

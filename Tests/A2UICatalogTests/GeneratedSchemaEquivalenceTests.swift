@@ -8,7 +8,7 @@ import Foundation
 @Suite("Generated schema ⟷ official catalog.json equivalence")
 struct GeneratedSchemaEquivalenceTests {
 
-    /// The official hand-written v0.9 catalog, kept ONLY as a test fixture (the production code no
+    /// The official hand-written v0.10 catalog, kept ONLY as a test fixture (the production code no
     /// longer ships it — `catalogSchemaJSON()` is generated from Swift types). This pins the
     /// generated output to the spec.
     private func officialCatalog() -> [String: Any] {

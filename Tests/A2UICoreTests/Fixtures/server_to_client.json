@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://a2ui.org/specification/v0_9/server_to_client.json",
+  "$id": "https://a2ui.org/specification/v0_10/server_to_client.json",
   "title": "A2UI Message Schema",
   "description": "Describes a JSON payload for an A2UI (Agent to UI) message, which is used to dynamically construct and update user interfaces.",
   "type": "object",
@@ -8,14 +8,16 @@
     {"$ref": "#/$defs/CreateSurfaceMessage"},
     {"$ref": "#/$defs/UpdateComponentsMessage"},
     {"$ref": "#/$defs/UpdateDataModelMessage"},
-    {"$ref": "#/$defs/DeleteSurfaceMessage"}
+    {"$ref": "#/$defs/DeleteSurfaceMessage"},
+    {"$ref": "#/$defs/CallFunctionMessage"},
+    {"$ref": "#/$defs/ActionResponseMessage"}
   ],
   "$defs": {
     "CreateSurfaceMessage": {
       "type": "object",
       "properties": {
         "version": {
-          "const": "v0.9"
+          "const": "v0.10"
         },
         "createSurface": {
           "type": "object",
@@ -31,11 +33,19 @@
             },
             "theme": {
               "$ref": "catalog.json#/$defs/theme",
-              "description": "Theme parameters for the surface (e.g., {'primaryColor': '#FF0000'}). These must validate against the 'theme' schema defined in the catalog."
+              "description": "Initial theme parameters for the surface (e.g., {'primaryColor': '#FF0000'}). These must validate against the 'theme' schema defined in the catalog."
             },
             "sendDataModel": {
               "type": "boolean",
               "description": "If true, the client will send the full data model of this surface in the metadata of every A2A message sent to the server that created the surface. Defaults to false."
+            },
+            "components": {
+              "$ref": "#/$defs/ComponentsList"
+            },
+            "dataModel": {
+              "type": "object",
+              "description": "The initial root data model object for the surface.",
+              "additionalProperties": true
             }
           },
           "required": ["surfaceId", "catalogId"],
@@ -45,11 +55,19 @@
       "required": ["createSurface", "version"],
       "additionalProperties": false
     },
+    "ComponentsList": {
+      "type": "array",
+      "description": "A list containing UI components for the surface.",
+      "minItems": 1,
+      "items": {
+        "$ref": "catalog.json#/$defs/anyComponent"
+      }
+    },
     "UpdateComponentsMessage": {
       "type": "object",
       "properties": {
         "version": {
-          "const": "v0.9"
+          "const": "v0.10"
         },
         "updateComponents": {
           "type": "object",
@@ -59,14 +77,8 @@
               "type": "string",
               "description": "The unique identifier for the UI surface to be updated."
             },
-
             "components": {
-              "type": "array",
-              "description": "A list containing all UI components for the surface.",
-              "minItems": 1,
-              "items": {
-                "$ref": "catalog.json#/$defs/anyComponent"
-              }
+              "$ref": "#/$defs/ComponentsList"
             }
           },
           "required": ["surfaceId", "components"],
@@ -80,7 +92,7 @@
       "type": "object",
       "properties": {
         "version": {
-          "const": "v0.9"
+          "const": "v0.10"
         },
         "updateDataModel": {
           "type": "object",
@@ -110,7 +122,7 @@
       "type": "object",
       "properties": {
         "version": {
-          "const": "v0.9"
+          "const": "v0.10"
         },
         "deleteSurface": {
           "type": "object",
@@ -126,6 +138,77 @@
         }
       },
       "required": ["deleteSurface", "version"],
+      "additionalProperties": false
+    },
+    "CallFunctionMessage": {
+      "type": "object",
+      "description": "A function invoked from the server.",
+      "properties": {
+        "version": {
+          "const": "v0.10"
+        },
+        "functionCallId": {
+          "$ref": "common_types.json#/$defs/CallId",
+          "description": "Unique ID for the instance of this function call. MUST be copied verbatim into the functionResponse or error."
+        },
+        "wantResponse": {
+          "type": "boolean",
+          "default": false
+        },
+        "callFunction": {
+          "allOf": [
+            {
+              "$ref": "common_types.json#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "callableFrom": {
+                  "description": "Specifies where this function can be invoked from.",
+                  "enum": ["remoteOnly", "clientOrRemote"]
+                }
+              }
+            }
+          ],
+          "required": ["call", "returnType", "callableFrom"],
+          "unevaluatedProperties": false
+        }
+      },
+      "required": ["version", "callFunction", "functionCallId"],
+      "additionalProperties": false
+    },
+    "ActionResponseMessage": {
+      "type": "object",
+      "description": "A response to a client-initiated action.",
+      "properties": {
+        "version": {
+          "const": "v0.10"
+        },
+        "actionId": {
+          "type": "string",
+          "description": "The ID of the action call this response belongs to."
+        },
+        "actionResponse": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "description": "The return value of the action.",
+              "type": ["string", "number", "boolean", "array", "object", "null"]
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {"type": "string"},
+                "message": {"type": "string"}
+              },
+              "required": ["code", "message"],
+              "additionalProperties": false
+            }
+          },
+          "oneOf": [{"required": ["value"]}, {"required": ["error"]}],
+          "additionalProperties": false
+        }
+      },
+      "required": ["version", "actionResponse", "actionId"],
       "additionalProperties": false
     }
   }

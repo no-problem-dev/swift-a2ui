@@ -4,6 +4,5 @@ public enum FunctionReturnType: String, Codable, Sendable, Equatable, Hashable {
     case boolean
     case array
     case object
-    case any
     case void
 }

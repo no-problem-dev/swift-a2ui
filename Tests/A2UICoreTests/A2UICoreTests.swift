@@ -445,7 +445,7 @@ struct ServerMessageTests {
 
     @Test func decodesCreateSurfaceFromJSON() throws {
         let json = """
-        {"version": "v0.9", "createSurface": {"surfaceId": "booking", "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"}}
+        {"version": "v0.10", "createSurface": {"surfaceId": "booking", "catalogId": "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"}}
         """
         let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
         if case .createSurface(let cs) = decoded {
@@ -457,7 +457,7 @@ struct ServerMessageTests {
 
     @Test func decodesUpdateDataModelWithFullValue() throws {
         let json = """
-        {"version": "v0.9", "updateDataModel": {"surfaceId": "s1", "value": {"name": "Alice", "age": 30}}}
+        {"version": "v0.10", "updateDataModel": {"surfaceId": "s1", "value": {"name": "Alice", "age": 30}}}
         """
         let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
         if case .updateDataModel(let udm) = decoded {
@@ -476,6 +476,7 @@ struct ServerMessageTests {
             try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
         }
     }
+
 }
 
 // MARK: - ClientMessage

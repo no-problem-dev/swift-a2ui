@@ -32,7 +32,7 @@ struct SchemaRendererComponentTests {
         #expect((props["component"] as! [String: Any])["const"] as? String == "Text")
         // text → DynamicString $ref
         let text = props["text"] as! [String: Any]
-        #expect(text["$ref"] as? String == "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString")
+        #expect(text["$ref"] as? String == "https://a2ui.org/specification/v0_10/common_types.json#/$defs/DynamicString")
         #expect(text["description"] as? String == "The text content to display.")
         // variant → string enum + default
         let variant = props["variant"] as! [String: Any]
@@ -46,7 +46,8 @@ struct SchemaRendererComponentTests {
         // mixins: ComponentCommon + CatalogComponentCommon
         #expect(allOf.count == 3)
         #expect((allOf[0]["$ref"] as? String)?.hasSuffix("ComponentCommon") == true)
-        #expect(json["unevaluatedProperties"] == nil)
+        // Official catalog marks every component object `unevaluatedProperties: false`.
+        #expect(json["unevaluatedProperties"] as? Bool == false)
     }
 
     @Test("Button schema includes Checkable mixin + child(ComponentId) + action(Action)")
@@ -68,8 +69,8 @@ struct SchemaRendererComponentTests {
 
         let inner = allOf.last!
         let props = inner["properties"] as! [String: Any]
-        #expect((props["child"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentId")
-        #expect((props["action"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action")
+        #expect((props["child"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v0_10/common_types.json#/$defs/ComponentId")
+        #expect((props["action"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v0_10/common_types.json#/$defs/Action")
         #expect(Set(inner["required"] as! [String]) == ["component", "child", "action"])
     }
 
@@ -79,7 +80,7 @@ struct SchemaRendererComponentTests {
         let json = render(schema)
         let inner = (json["allOf"] as! [[String: Any]]).last!
         let props = inner["properties"] as! [String: Any]
-        #expect((props["children"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList")
+        #expect((props["children"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v0_10/common_types.json#/$defs/ChildList")
     }
 }
 
