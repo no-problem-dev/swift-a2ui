@@ -128,9 +128,10 @@ extension BasicCatalog: RenderableCatalog {
         }
     }
 
-    private static func containsMarkdownFormatting(_ s: String) -> Bool {
+    static func containsMarkdownFormatting(_ s: String) -> Bool {
         if s.contains("**") || s.contains("__") || s.contains("`") { return true }
         if s.range(of: #"\[[^\]]+\]\([^)]+\)"#, options: .regularExpression) != nil { return true }
+        if containsMathDelimiters(s) { return true }
         for rawLine in s.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = rawLine.drop { $0 == " " }
             if line.hasPrefix("# ") || line.hasPrefix("## ") || line.hasPrefix("### ")
@@ -140,6 +141,14 @@ extension BasicCatalog: RenderableCatalog {
             if line.range(of: #"^\d+\.\s"#, options: .regularExpression) != nil { return true }
         }
         return false
+    }
+
+    /// LLM 出力の数式デリミタ検出。誤検出は MarkdownView 側のパーサが
+    /// 正しく平文扱いするため、ここは緩めで安全（コストは描画経路のみ）。
+    private static func containsMathDelimiters(_ s: String) -> Bool {
+        if s.contains("$$") || s.contains(#"\("#) || s.contains(#"\["#) { return true }
+        // single-$: 開き直後・閉じ直前が非空白の同一行ペアのみ（通貨除外）
+        return s.range(of: #"\$\S(?:[^$\n]*\S)?\$"#, options: .regularExpression) != nil
     }
 
     @MainActor @ViewBuilder

@@ -24,7 +24,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "1.0.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", branch: "main"),
+        // TODO: 数式対応リリース後に URL 依存へ戻す
+        .package(path: "../swift-markdown-view"),
         .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.2.1"),
     ],
     targets: [
