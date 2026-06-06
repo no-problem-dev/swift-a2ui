@@ -343,7 +343,7 @@ struct ImageNodeView: View {
         AsyncImage(url: URL(string: ctx.resolve(component.url))) { phase in
             switch phase {
             case .success(let image):
-                image.resizable().aspectRatio(contentMode: component.fit == .cover ? .fill : .fit)
+                sized(image)
             case .failure:
                 Image(systemName: "photo").foregroundStyle(.secondary)
             default:
@@ -353,6 +353,23 @@ struct ImageNodeView: View {
         .frame(maxWidth: maxWidth, maxHeight: maxHeight)
         .clipShape(RoundedRectangle(cornerRadius: component.variant == .avatar ? 999 : 8))
         .accessibilityLabel(component.imageDescription.map { ctx.resolve($0) } ?? "")
+    }
+
+    /// resizable + `.fill` を直接置くと、画像のレイアウトサイズが提案サイズを無視して
+    /// 原寸まで膨らみフレーム外へあふれる（clip は描画にしか効かない）。
+    /// cover はレイアウトを variant の高さで確定した flexible な箱（Color.clear）にし、
+    /// 画像は overlay で描画だけ cover させる。高さ無制限の variant では cover が
+    /// 成立しないため fit に落とす。
+    @ViewBuilder
+    private func sized(_ image: SwiftUI.Image) -> some View {
+        if component.fit == .cover, let coverHeight = maxHeight {
+            Color.clear
+                .frame(idealWidth: maxWidth == .infinity ? nil : maxWidth, height: coverHeight)
+                .overlay(image.resizable().aspectRatio(contentMode: .fill))
+                .clipped()
+        } else {
+            image.resizable().aspectRatio(contentMode: .fit)
+        }
     }
 
     private var maxWidth: CGFloat? {
