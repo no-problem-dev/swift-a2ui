@@ -88,6 +88,15 @@ extension BasicCatalog: RenderableCatalog {
         let text = ctx.resolve(c.text)
         if shouldRenderMarkdown(text, variant: c.variant) {
             MarkdownView(text).frame(maxWidth: .infinity, alignment: .leading)
+        } else if containsMathDelimiters(text) {
+            // Heading/caption variants keep their typography, so math inside
+            // them is typeset inline at the variant's size instead of routing
+            // through MarkdownView's body layout.
+            MathText(text, mathFontSize: typography(for: c.variant).size)
+                .typography(typography(for: c.variant))
+                .fontWeight(c.weight.map { mapFontWeight(Int($0)) })
+                .foregroundStyle(c.variant == .caption ? ctx.colors.onSurfaceVariant : ctx.colors.onSurface)
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Text(text)
                 .typography(typography(for: c.variant))
@@ -145,7 +154,7 @@ extension BasicCatalog: RenderableCatalog {
 
     /// LLM 出力の数式デリミタ検出。誤検出は MarkdownView 側のパーサが
     /// 正しく平文扱いするため、ここは緩めで安全（コストは描画経路のみ）。
-    private static func containsMathDelimiters(_ s: String) -> Bool {
+    static func containsMathDelimiters(_ s: String) -> Bool {
         if s.contains("$$") || s.contains(#"\("#) || s.contains(#"\["#) { return true }
         // single-$: 開き直後・閉じ直前が非空白の同一行ペアのみ（通貨除外）
         return s.range(of: #"\$\S(?:[^$\n]*\S)?\$"#, options: .regularExpression) != nil

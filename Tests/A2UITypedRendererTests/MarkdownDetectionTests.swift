@@ -38,4 +38,25 @@ struct MarkdownDetectionTests {
     func existingMarkdownStillDetected(text: String) {
         #expect(BasicCatalog.containsMarkdownFormatting(text))
     }
+
+    // heading/caption variant は MarkdownView に乗らないため、数式は
+    // containsMathDelimiters の判定で MathText 経路に入る（A2A デモの
+    // 答えカード `$$-6$$` が h3 のまま生表示された回帰の防止）。
+
+    @Test("heading variant の数式は MathText 経路に乗る", arguments: [
+        "$$-6$$",
+        "答え: $x = 3$",
+        #"条件: \(a \neq 0\)"#,
+    ])
+    func headingMathRoutesToMathText(text: String) {
+        #expect(BasicCatalog.containsMathDelimiters(text))
+    }
+
+    @Test("通貨表記の heading は MathText 経路に乗らない", arguments: [
+        "costs $5 and $10 total",
+        "$ 100 の予算",
+    ])
+    func headingCurrencyStaysPlain(text: String) {
+        #expect(!BasicCatalog.containsMathDelimiters(text))
+    }
 }
