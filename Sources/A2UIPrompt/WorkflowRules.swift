@@ -64,4 +64,8 @@ public enum A2UIWorkflowRules {
     - For 'Button', you MUST provide 'action'.
     - For 'TextField', 'CheckBox', etc., you MUST provide 'label'.
     """
+
+    public static let textMathRules = """
+    - Math formulas MUST be LaTeX wrapped in `$...$` (inline) or `$$...$$` (display) inside a 'Text' component whose 'variant' is 'body' or omitted; other variants show them as raw text.
+    """
 }
