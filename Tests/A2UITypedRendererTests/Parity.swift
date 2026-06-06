@@ -151,6 +151,64 @@ struct ParityTests {
     ]
     """
 
+    /// The exact shape of the "empty tab content" regression: template children both inside a
+    /// Tabs pane and at the top level. Data arrives via updateDataModel (separate message).
+    static let templateCorpus = """
+    [
+      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+        {"id":"root","component":"Column","children":["tabs","trendTitle","trends"]},
+        {"id":"tabs","component":"Tabs","tabs":[
+          {"title":"特徴","child":"featList"},
+          {"title":"技術","child":"techList"}
+        ]},
+        {"id":"featList","component":"Column","children":{"componentId":"featItem","path":"/features"}},
+        {"id":"featItem","component":"Text","text":{"path":"label"}},
+        {"id":"techList","component":"List","children":{"componentId":"techItem","path":"/techs"}},
+        {"id":"techItem","component":"Text","text":{"path":"name"}},
+        {"id":"trendTitle","component":"Text","text":"最新トレンド","variant":"h3"},
+        {"id":"trends","component":"List","children":{"componentId":"trendItem","path":"/trends"}},
+        {"id":"trendItem","component":"Text","text":{"path":"point"}}
+      ]}},
+      {"version":"v0.10","updateDataModel":{"surfaceId":"s1","value":{
+        "features":[{"label":"自律性: 目標から計画を立てる"},{"label":"ツール利用: 外部APIを実行する"}],
+        "techs":[{"name":"LangGraph"},{"name":"CrewAI"}],
+        "trends":[{"point":"マルチエージェント協調"},{"point":"MCP の普及"}]
+      }}}
+    ]
+    """
+
+    /// Same components, but the bound collections never arrive — template containers render empty.
+    static let templateCorpusNoData = """
+    [
+      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+        {"id":"root","component":"Column","children":["tabs","trendTitle","trends"]},
+        {"id":"tabs","component":"Tabs","tabs":[
+          {"title":"特徴","child":"featList"},
+          {"title":"技術","child":"techList"}
+        ]},
+        {"id":"featList","component":"Column","children":{"componentId":"featItem","path":"/features"}},
+        {"id":"featItem","component":"Text","text":{"path":"label"}},
+        {"id":"techList","component":"List","children":{"componentId":"techItem","path":"/techs"}},
+        {"id":"techItem","component":"Text","text":{"path":"name"}},
+        {"id":"trendTitle","component":"Text","text":"最新トレンド","variant":"h3"},
+        {"id":"trends","component":"List","children":{"componentId":"trendItem","path":"/trends"}},
+        {"id":"trendItem","component":"Text","text":{"path":"point"}}
+      ]}}
+    ]
+    """
+
+    @Test("template children render real content (tab pane + top-level list)")
+    func templateChildrenRender() throws {
+        let withData = try #require(rasterize(A2UISurfaceView(try surface(Self.templateCorpus))))
+        let withoutData = try #require(rasterize(A2UISurfaceView(try surface(Self.templateCorpusNoData))))
+        writePNG(withData, "/tmp/typed_template.png")
+        // Bound collections must visibly change the surface beyond the static chrome (tab bar +
+        // heading). contentPixels saturates on the transparent background, so compare renders.
+        #expect(diffRatio(withData, withoutData) > 0.005)
+    }
+
     @Test("typed renderer is deterministic (same surface → identical pixels)")
     func deterministic() throws {
         let a = try #require(rasterize(A2UISurfaceView(try surface(Self.cardCorpus))))

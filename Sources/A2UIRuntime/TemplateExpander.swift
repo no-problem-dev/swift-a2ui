@@ -7,7 +7,7 @@ import Foundation
 /// `basePath` is the data scope for this child instance. For static lists it equals the parent's
 /// scope; for template instances it is `/<path>/<index>` (or `/<path>/<key>` for objects), so that
 /// relative bindings inside the template resolve against the correct array element (spec §scope).
-public struct ResolvedChild: Sendable, Equatable {
+public struct ResolvedChild: Sendable, Hashable {
     public let componentId: String
     public let basePath: String
 

@@ -3,6 +3,7 @@ import DesignSystem
 import SwiftMarkdownView
 import A2UICore
 import A2UICatalog
+import A2UIRuntime
 import A2UITyped
 
 /// Basic catalog → SwiftUI as a single **exhaustive** `@ViewBuilder switch` over `BasicComponent`.
@@ -215,24 +216,20 @@ extension BasicCatalog: RenderableCatalog {
 
 // MARK: - Stateful components (need @State, so are View structs)
 
-private func childIds(_ children: ChildList) -> [ComponentId] {
-    if case .ids(let list) = children { return list }
-    return []   // template children handled in a later phase
-}
-
 /// `Row` — faithful port of A2UIRenderer.RowView (incl. the isChipRow horizontal-scroll heuristic,
 /// spaceBetween "first child greedy" logic, and leading/trailing spacers). Child-kind detection is
-/// type-safe via the typed node (`.known(.button)`), not a string compare.
+/// type-safe via the typed node (`.known(.button)`), not a string compare. Children resolve via
+/// `ctx.children`, so `{componentId, path}` templates expand with per-element data scopes.
 struct RowNodeView: View {
     @Environment(\.spacingScale) private var spacing
     let component: RowComponent
     let ctx: RenderContext<BasicCatalog>
 
-    private var ids: [ComponentId] { childIds(component.children) }
+    private var kids: [ResolvedChild] { ctx.children(component.children) }
 
     private var isChipRow: Bool {
-        component.justify == nil && !ids.isEmpty && ids.allSatisfy {
-            if case .known(.button) = ctx.node($0) { return true }
+        component.justify == nil && !kids.isEmpty && kids.allSatisfy {
+            if case .known(.button) = ctx.node($0.componentId) { return true }
             return false
         }
     }
@@ -242,16 +239,16 @@ struct RowNodeView: View {
         if justify == .start || isChipRow {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: component.align.vertical, spacing: spacing.sm) {
-                    ForEach(ids, id: \.self) { ctx.child($0) }
+                    ForEach(kids, id: \.self) { ctx.child($0) }
                 }
             }
         } else if justify == .spaceBetween {
             HStack(alignment: component.align.vertical, spacing: spacing.sm) {
-                ForEach(Array(ids.enumerated()), id: \.offset) { index, id in
+                ForEach(Array(kids.enumerated()), id: \.offset) { index, kid in
                     if index == 0 {
-                        ctx.child(id)
+                        ctx.child(kid)
                     } else {
-                        ctx.child(id).fixedSize(horizontal: true, vertical: false)
+                        ctx.child(kid).fixedSize(horizontal: true, vertical: false)
                     }
                 }
             }
@@ -259,7 +256,7 @@ struct RowNodeView: View {
         } else {
             HStack(alignment: component.align.vertical, spacing: spacing.sm) {
                 if justify.leadingSpacer { Spacer(minLength: 0) }
-                ForEach(ids, id: \.self) { ctx.child($0) }
+                ForEach(kids, id: \.self) { ctx.child($0) }
                 if justify.trailingSpacer { Spacer(minLength: 0) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -267,45 +264,46 @@ struct RowNodeView: View {
     }
 }
 
-/// `Column` — faithful port of A2UIRenderer.ColumnView.
+/// `Column` — faithful port of A2UIRenderer.ColumnView. Template children expand via `ctx.children`.
 struct ColumnNodeView: View {
     @Environment(\.spacingScale) private var spacing
     let component: ColumnComponent
     let ctx: RenderContext<BasicCatalog>
 
-    private var ids: [ComponentId] { childIds(component.children) }
+    private var kids: [ResolvedChild] { ctx.children(component.children) }
 
     var body: some View {
         VStack(alignment: component.align.horizontal, spacing: spacing.md) {
-            ForEach(ids, id: \.self) { ctx.child($0) }
+            ForEach(kids, id: \.self) { ctx.child($0) }
         }
         .frame(maxWidth: .infinity, alignment: component.align.frameAlignment)
     }
 }
 
-/// `List` — faithful port of A2UIRenderer.ListView (vertical: hairline separators; horizontal: scroll).
+/// `List` — faithful port of A2UIRenderer.ListView (vertical: hairline separators; horizontal:
+/// scroll). Template children expand via `ctx.children`.
 struct ListNodeView: View {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
     let component: ListComponent
     let ctx: RenderContext<BasicCatalog>
 
-    private var ids: [ComponentId] { childIds(component.children) }
+    private var kids: [ResolvedChild] { ctx.children(component.children) }
 
     var body: some View {
         if component.direction == .horizontal {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: component.align.vertical, spacing: spacing.sm) {
-                    ForEach(ids, id: \.self) { ctx.child($0) }
+                    ForEach(kids, id: \.self) { ctx.child($0) }
                 }
             }
         } else {
             VStack(alignment: component.align.horizontal, spacing: spacing.sm) {
-                ForEach(Array(ids.enumerated()), id: \.offset) { index, id in
+                ForEach(Array(kids.enumerated()), id: \.offset) { index, kid in
                     if index > 0 {
                         Rectangle().fill(colors.outlineVariant.opacity(0.5)).frame(height: 1)
                     }
-                    ctx.child(id)
+                    ctx.child(kid)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

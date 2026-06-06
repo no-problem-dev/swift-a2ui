@@ -114,6 +114,20 @@ public struct RenderContext<Catalog: RenderableCatalog> {
         NodeView(surface: surface, id: id, scope: scope)
     }
 
+    /// Resolve a `ChildList` into concrete child slots, expanding `{componentId, path}` templates
+    /// over the bound collection (spec §collection scopes). Expansion reads the data model, so it
+    /// tracks `dataVersion` — collection changes re-render the container. Mirrors the official lit
+    /// renderer's `A2uiChildRef` shape (`{id, basePath}`, scope = basePath ?? parentPath).
+    public func children(_ list: ChildList) -> [ResolvedChild] {
+        if case .template = list { trackData() }
+        return TemplateExpander.expand(list, in: dataContext)
+    }
+
+    /// Render a resolved child slot — template instances carry their element scope (`basePath`).
+    public func child(_ resolved: ResolvedChild) -> NodeView<Catalog> {
+        NodeView(surface: surface, id: resolved.componentId, scope: resolved.basePath)
+    }
+
     /// Look up a child node (e.g. to inspect its kind for layout decisions, type-safely).
     public func node(_ id: ComponentId) -> CatalogNode<Catalog.Node>? { surface.node(id) }
 
