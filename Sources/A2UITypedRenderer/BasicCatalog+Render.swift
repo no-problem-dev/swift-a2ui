@@ -239,7 +239,12 @@ struct RowNodeView: View {
         if justify == .start || isChipRow {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: component.align.vertical, spacing: spacing.sm) {
-                    ForEach(kids, id: \.self) { ctx.child($0) }
+                    // fixedSize keeps each chip at its intrinsic width (no "…" truncation) — the
+                    // mid-chip cut at the screen edge then reads as a scroll affordance, same as
+                    // the tab bar's titles.
+                    ForEach(kids, id: \.self) {
+                        ctx.child($0).fixedSize(horizontal: true, vertical: false)
+                    }
                 }
             }
         } else if justify == .spaceBetween {
