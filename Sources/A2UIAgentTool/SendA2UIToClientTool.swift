@@ -16,9 +16,25 @@ import LLMTool
 /// successful call ends the turn without a further inference (ADK `skip_summarization`).
 public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
 
-    public init() {}
+    private let examples: String?
+    private let promptBuilder: A2UIPromptBuilder
+
+    public init(examples: String? = nil, promptBuilder: A2UIPromptBuilder = A2UIPromptBuilder()) {
+        self.examples = examples
+        self.promptBuilder = promptBuilder
+    }
 
     public var toolName: String { A2UIToolConstants.toolName }
+
+    /// スキーマブロックと手本をツール自身が system prompt に同伴させる
+    /// （公式 `_SendA2uiJsonToClientTool.process_llm_request` 相当）。
+    public var systemInstruction: String? {
+        var sections = [promptBuilder.schemaBlock()]
+        if let examples, !examples.isEmpty {
+            sections.append("### Examples:\n\(examples)")
+        }
+        return sections.joined(separator: "\n\n")
+    }
 
     public var toolDescription: String {
         "Sends A2UI JSON to the client to render rich UI for the user. This tool"
