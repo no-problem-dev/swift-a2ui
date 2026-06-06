@@ -38,8 +38,20 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
     public func process(_ message: ServerMessage) {
         switch message {
         case .createSurface(let cs):
-            surfaces[cs.surfaceId] = makeSurface(id: cs.surfaceId)
+            // v0.10: createSurface may carry the initial tree and data model inline.
+            // The official eval validator treats these as exactly equivalent to a
+            // following updateComponents / root updateDataModel, so they flow through
+            // the same apply functions. Data model first: bindings resolve by the
+            // time the root component appears.
+            let surface = makeSurface(id: cs.surfaceId)
+            surfaces[cs.surfaceId] = surface
             record(cs.surfaceId)
+            if let dataModel = cs.dataModel {
+                surface.applyUpdateDataModel(path: "", value: dataModel)
+            }
+            if let components = cs.components {
+                surface.applyUpdateComponents(components.map { CatalogNode<Catalog.Node>.lenientDecode($0) })
+            }
         case .updateComponents(let uc):
             let surface = surfaces[uc.surfaceId] ?? makeSurface(id: uc.surfaceId)
             surfaces[uc.surfaceId] = surface

@@ -24,6 +24,8 @@ public enum A2UIValidation {
         var componentsBySurface: [String: [StructuredValue]] = [:]
         var order: [String] = []
         var sawSurface = false
+        var activeSurfaces: Set<String> = []
+        var duplicateIssues: [String] = []
 
         func note(_ surfaceId: String) {
             if !order.contains(surfaceId) { order.append(surfaceId) }
@@ -34,12 +36,24 @@ public enum A2UIValidation {
             case .createSurface(let cs):
                 sawSurface = true
                 note(cs.surfaceId)
+                // Per the spec it is an error to recreate an existing surfaceId; only a
+                // prior deleteSurface frees the id (mirrors the official eval validator).
+                if activeSurfaces.contains(cs.surfaceId) {
+                    duplicateIssues.append(
+                        "duplicate createSurface for surface '\(cs.surfaceId)' without prior deleteSurface")
+                }
+                activeSurfaces.insert(cs.surfaceId)
                 if let comps = cs.components {
                     componentsBySurface[cs.surfaceId, default: []].append(contentsOf: comps)
                 }
             case .updateComponents(let uc):
                 note(uc.surfaceId)
                 componentsBySurface[uc.surfaceId, default: []].append(contentsOf: uc.components)
+            case .deleteSurface(let ds):
+                // The recreated surface starts fresh, so earlier components no longer count
+                // toward duplicate-id / topology checks.
+                activeSurfaces.remove(ds.surfaceId)
+                componentsBySurface[ds.surfaceId] = nil
             default:
                 break
             }
@@ -49,7 +63,7 @@ public enum A2UIValidation {
             return ["no A2UI surface or components were produced"]
         }
 
-        var issues: [String] = []
+        var issues: [String] = duplicateIssues
         for surfaceId in order {
             let comps = componentsBySurface[surfaceId] ?? []
             // A createSurface with no components yet is valid (components may arrive in a later message

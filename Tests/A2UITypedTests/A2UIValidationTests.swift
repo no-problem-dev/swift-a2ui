@@ -74,4 +74,48 @@ struct A2UIValidationTests {
         ]
         #expect(issues(messages).contains { $0.contains("malformed component") })
     }
+
+    @Test("duplicate createSurface without prior deleteSurface is flagged")
+    func duplicateCreateSurface() {
+        let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+            .updateComponents(UpdateComponents(surfaceId: "s", components: [
+                comp(#"{"id":"root","component":"Text","text":"hi"}"#),
+            ])),
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+        ]
+        #expect(issues(messages).contains {
+            $0.contains("duplicate createSurface for surface 's'")
+        })
+    }
+
+    @Test("recreating a surface after deleteSurface is valid")
+    func recreateAfterDelete() {
+        let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+            .updateComponents(UpdateComponents(surfaceId: "s", components: [
+                comp(#"{"id":"root","component":"Text","text":"hi"}"#),
+            ])),
+            .deleteSurface(DeleteSurface(surfaceId: "s")),
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+            .updateComponents(UpdateComponents(surfaceId: "s", components: [
+                comp(#"{"id":"root","component":"Text","text":"again"}"#),
+            ])),
+        ]
+        #expect(issues(messages).isEmpty)
+    }
+
+    @Test("inline createSurface components are validated like updateComponents", arguments: [
+        // missing root
+        #"{"id":"orphan","component":"Text","text":"no root"}"#,
+        // unknown component
+        #"{"id":"root","component":"Frobnicate","value":1}"#,
+    ])
+    func inlineComponentsValidated(componentJSON: String) {
+        let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(
+                surfaceId: "s", catalogId: "basic", components: [comp(componentJSON)])),
+        ]
+        #expect(!issues(messages).isEmpty)
+    }
 }
