@@ -124,6 +124,30 @@ extension BasicComponent {
         }
     }
 
+    /// Row / Column 直下での flex-grow 相当(catalog.json CatalogComponentCommon.weight)。
+    public var weight: Double? {
+        switch self {
+        case .text(let c): c.weight
+        case .image(let c): c.weight
+        case .icon(let c): c.weight
+        case .video(let c): c.weight
+        case .audioPlayer(let c): c.weight
+        case .row(let c): c.weight
+        case .column(let c): c.weight
+        case .list(let c): c.weight
+        case .card(let c): c.weight
+        case .tabs(let c): c.weight
+        case .modal(let c): c.weight
+        case .divider(let c): c.weight
+        case .button(let c): c.weight
+        case .textField(let c): c.weight
+        case .checkBox(let c): c.weight
+        case .choicePicker(let c): c.weight
+        case .slider(let c): c.weight
+        case .dateTimeInput(let c): c.weight
+        }
+    }
+
     public var componentName: String {
         switch self {
         case .text: TextComponent.componentName

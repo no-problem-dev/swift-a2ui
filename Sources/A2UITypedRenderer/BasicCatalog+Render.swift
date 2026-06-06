@@ -234,8 +234,10 @@ extension BasicCatalog: RenderableCatalog {
 
 // MARK: - Stateful components (need @State, so are View structs)
 
-/// `Row` — faithful port of A2UIRenderer.RowView (incl. the isChipRow horizontal-scroll heuristic,
-/// spaceBetween "first child greedy" logic, and leading/trailing spacers). Child-kind detection is
+/// `Row` — weight(flex-grow)と justify を FlexRowLayout で仕様の意味論どおりに解釈する。
+/// 旧 "spaceBetween first child greedy"(2 番目以降を fixedSize)は、長文の weighted Column に
+/// 当たると intrinsic 1 行幅で Row が画面外まで膨張するため廃止した。
+/// 全子が Button のチップ行(weight なし)だけは横スクロールを維持。Child-kind detection is
 /// type-safe via the typed node (`.known(.button)`), not a string compare. Children resolve via
 /// `ctx.children`, so `{componentId, path}` templates expand with per-element data scopes.
 struct RowNodeView: View {
@@ -252,9 +254,17 @@ struct RowNodeView: View {
         }
     }
 
+    private var weights: [Double?] {
+        kids.map { kid in
+            if case .known(let component) = ctx.node(kid.componentId) { return component.weight }
+            return nil
+        }
+    }
+
     var body: some View {
-        let justify = component.justify
-        if justify == .start || isChipRow {
+        let weights = weights
+        // weight 宣言は flex レイアウトの意図表明なので、チップスクロールより優先する。
+        if !weights.contains(where: { $0 != nil }), component.justify == .start || isChipRow {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: component.align.vertical, spacing: spacing.sm) {
                     // fixedSize keeps each chip at its intrinsic width (no "…" truncation) — the
@@ -265,22 +275,11 @@ struct RowNodeView: View {
                     }
                 }
             }
-        } else if justify == .spaceBetween {
-            HStack(alignment: component.align.vertical, spacing: spacing.sm) {
-                ForEach(Array(kids.enumerated()), id: \.offset) { index, kid in
-                    if index == 0 {
-                        ctx.child(kid)
-                    } else {
-                        ctx.child(kid).fixedSize(horizontal: true, vertical: false)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            HStack(alignment: component.align.vertical, spacing: spacing.sm) {
-                if justify.leadingSpacer { Spacer(minLength: 0) }
-                ForEach(kids, id: \.self) { ctx.child($0) }
-                if justify.trailingSpacer { Spacer(minLength: 0) }
+            FlexRowLayout(justify: component.justify, align: component.align, spacing: spacing.sm) {
+                ForEach(Array(kids.enumerated()), id: \.offset) { index, kid in
+                    ctx.child(kid).layoutValue(key: FlexWeightKey.self, value: weights[index])
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
