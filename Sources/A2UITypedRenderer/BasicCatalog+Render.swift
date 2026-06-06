@@ -364,7 +364,8 @@ struct ImageNodeView: View {
     private func sized(_ image: SwiftUI.Image) -> some View {
         if component.fit == .cover, let coverHeight = maxHeight {
             Color.clear
-                .frame(idealWidth: maxWidth == .infinity ? nil : maxWidth, height: coverHeight)
+                .frame(idealWidth: maxWidth == .infinity ? nil : maxWidth)
+                .frame(height: coverHeight)
                 .overlay(image.resizable().aspectRatio(contentMode: .fill))
                 .clipped()
         } else {
