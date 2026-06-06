@@ -25,7 +25,7 @@ let package = Package(
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "1.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "1.1.1"),
-        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.3.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.4.0"),
     ],
     targets: [
         .target(name: "A2UICore", dependencies: [

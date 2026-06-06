@@ -20,15 +20,12 @@ struct A2UIExampleTests {
             ]),
         ]
 
-        let blockText = A2UIExample.block(messages)
-        #expect(blockText.hasPrefix("<a2ui-json>"))
-        #expect(blockText.hasSuffix("</a2ui-json>"))
+        let blockText = A2UIExample.json(messages)
+        #expect(blockText.hasPrefix("["))
+        #expect(blockText.hasSuffix("]"))
 
-        // Strip the tags and decode back — proves the generated example is valid A2UI.
-        let inner = blockText
-            .replacingOccurrences(of: "<a2ui-json>", with: "")
-            .replacingOccurrences(of: "</a2ui-json>", with: "")
-        let decoded = try JSONDecoder().decode([ServerMessage].self, from: Data(inner.utf8))
+        // Decode back — proves the generated example is valid A2UI.
+        let decoded = try JSONDecoder().decode([ServerMessage].self, from: Data(blockText.utf8))
         #expect(decoded.count == 2)
 
         // The Modal serializes with trigger/content (NOT the hand-written-string `children` bug).
@@ -53,12 +50,9 @@ struct A2UIExampleTests {
         #expect(decoded.count == uc.components.count)
         #expect(decoded.contains { $0.id == "root" })
 
-        // The rendered block round-trips back to messages.
+        // The rendered JSON round-trips back to messages.
         let block = A2UIExample.referenceSurface()
-        let inner = block
-            .replacingOccurrences(of: "<a2ui-json>", with: "")
-            .replacingOccurrences(of: "</a2ui-json>", with: "")
-        let reMessages = try JSONDecoder().decode([ServerMessage].self, from: Data(inner.utf8))
+        let reMessages = try JSONDecoder().decode([ServerMessage].self, from: Data(block.utf8))
         #expect(reMessages.count == 3)
         // No JSON comments, correct version.
         #expect(!block.contains("/*"))

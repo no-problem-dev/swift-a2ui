@@ -26,13 +26,13 @@ public enum A2UIExample {
         .updateComponents(UpdateComponents(surfaceId: surfaceId, components: components.map { component($0) }))
     }
 
-    /// Render a list of messages as a ready-to-embed `<a2ui-json>` block. Keys are sorted and slashes
-    /// are not escaped, so the embedded JSON is deterministic (stable prompt cache) and URL-clean.
-    public static func block(_ messages: [ServerMessage]) -> String {
+    /// Render a list of messages as a raw JSON array. Keys are sorted and slashes are not escaped,
+    /// so the embedded JSON is deterministic (stable prompt cache) and URL-clean.
+    /// Wrapping conventions (e.g. `<a2ui-json>` tags for the text-tags method) belong to the consumer.
+    public static func json(_ messages: [ServerMessage]) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        let json = (try? encoder.encode(messages)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
-        return "<a2ui-json>\n\(json)\n</a2ui-json>"
+        return (try? encoder.encode(messages)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
     }
 
     // MARK: - Reference example (the canonical prompt example, built from types)
@@ -45,7 +45,7 @@ public enum A2UIExample {
     /// matching the official v0.9 sample convention. How surfaces are *arranged over a session*
     /// (single / paged / stacked) is a separate, out-of-protocol concern owned by the consuming app.
     public static func referenceSurface(surfaceId id: String = "main") -> String {
-        block(referenceMessages(surfaceId: id))
+        json(referenceMessages(surfaceId: id))
     }
 
     /// The reference surface as typed messages (exposed so tests can assert structure).
