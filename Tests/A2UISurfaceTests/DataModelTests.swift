@@ -24,6 +24,21 @@ struct JSONPointerExtensionsTests {
         #expect(JSONPointer.absolutePath("name", scope: "") == "/name")
     }
 
+    @Test("'.' は要素自身（公式 web_core resolvePath パリティ）")
+    func dotIsSelfReference() {
+        #expect(JSONPointer.absolutePath(".", scope: "/suggestions/0") == "/suggestions/0")
+        #expect(JSONPointer.absolutePath(".", scope: "") == "/")
+    }
+
+    @Test("'.' でスカラー配列の要素自身を解決する（文字列チップの自己参照）")
+    func dotResolvesScalarElement() {
+        let data: StructuredValue = .object([
+            "suggestions": .array([.string("今日のニュースを教えて"), .string("週末の天気を調べて")]),
+        ])
+        #expect(JSONPointer.resolve(path: ".", scope: "/suggestions/0", in: data) == .string("今日のニュースを教えて"))
+        #expect(JSONPointer.resolve(path: "", scope: "/suggestions/1", in: data) == .string("週末の天気を調べて"))
+    }
+
     // MARK: spec §scope-resolution example
 
     @Test("spec example: relative 'name' in /employees/0 scope resolves to employee name")

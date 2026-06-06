@@ -85,9 +85,13 @@ public enum A2UIExample {
                 TabItem(title: "プログラム", child: "programList"),
             ]),
             TextComponent(id: "about", text: path("/about"), variant: .body),
-            ListComponent(id: "programList", children: .ids(["program1", "program2"])),
-            TextComponent(id: "program1", text: path("/program1")),
-            TextComponent(id: "program2", text: path("/program2")),
+            // Template-driven list: the canonical pattern for arrays. Teaches the spec's scope rule —
+            // inside the instantiated template, paths WITHOUT a leading slash are RELATIVE to each
+            // array element ("time" → /program/0/time); leading-slash paths stay absolute (root).
+            ListComponent(id: "programList", children: .template(componentId: "programItem", path: "/program")),
+            RowComponent(id: "programItem", children: .ids(["programTime", "programTitle"]), align: .center),
+            TextComponent(id: "programTime", text: path("time"), variant: .caption),
+            TextComponent(id: "programTitle", text: path("title"), variant: .body),
 
             DividerComponent(id: "div2"),
             TextComponent(id: "formTitle", text: "参加登録", variant: .h3),
@@ -142,8 +146,10 @@ public enum A2UIExample {
             "venue": .string("横浜・みなとみらい"),
             "summary": .string("現場で使える SwiftUI の設計とアニメーションを、手を動かしながら学ぶ少人数ワークショップです。"),
             "about": .string("状態管理・レイアウト・アニメーションの実践テクニックを習得します。中級者向け。"),
-            "program1": .string("• 13:00 レイアウトと状態管理"),
-            "program2": .string("• 14:30 アニメーションと画面遷移"),
+            "program": .array([
+                .object(["time": .string("13:00"), "title": .string("レイアウトと状態管理")]),
+                .object(["time": .string("14:30"), "title": .string("アニメーションと画面遷移")]),
+            ]),
             "access": .string("みなとみらい駅から徒歩5分、地下2階イベントスペース。"),
             "link1Label": .string("イベント詳細"), "link1Url": .string("https://example.com/event"),
             "link2Label": .string("過去の開催レポート"), "link2Url": .string("https://example.com/report"),

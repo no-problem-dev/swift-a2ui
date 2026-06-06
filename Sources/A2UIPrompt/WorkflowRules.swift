@@ -38,6 +38,18 @@ public enum A2UIWorkflowRules {
     - If you get an error in the tool response apologize to the user and let them know they should try again.
     """
 
+    /// Path-resolution scope rules (spec §"Path resolution & scope", v0.10). The JSON schemas can
+    /// express the template `ChildList` *shape* but not the scope *semantics*, so models invent
+    /// absolute paths inside templates (resolving to undefined → empty UI). This prose ports the
+    /// normative spec wording for the prompt.
+    public static let scopeRules = """
+    Data binding scope rules:
+    - Paths starting with '/' are ABSOLUTE: they always resolve from the root of the data model, even inside a template.
+    - When a container's `children` uses a template ({"componentId": ..., "path": "/items"}), the client instantiates the template once per array element, and inside it any path WITHOUT a leading '/' is RELATIVE to that element (e.g. `name` resolves to /items/0/name, /items/1/name, ...).
+    - Therefore, inside template components you MUST bind item fields with relative paths (no leading slash). Use absolute paths there only to reference root-level values.
+    - To bind the array element itself (e.g. iterating an array of strings), use {"path": "."}.
+    """
+
     /// Required-property reminders for the **basic catalog** components.
     ///
     /// These mirror the natural-language hints the Google Python SDK includes alongside the basic

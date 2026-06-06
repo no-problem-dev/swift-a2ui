@@ -21,11 +21,13 @@ public enum JSONPointer {
     }
 
     /// Combine a (possibly relative) path with a scope into an absolute path.
-    /// Absolute paths (leading `/`) are returned unchanged.
+    /// Absolute paths (leading `/`) are returned unchanged. `""` and `"."` reference the scope
+    /// element itself (official web_core `resolvePath` parity — used to bind elements of scalar
+    /// arrays inside templates).
     public static func absolutePath(_ path: String, scope: String) -> String {
         if path.hasPrefix("/") { return path }
         let normalizedScope = scope == "/" ? "" : scope
-        if path.isEmpty { return normalizedScope.isEmpty ? "/" : normalizedScope }
+        if path.isEmpty || path == "." { return normalizedScope.isEmpty ? "/" : normalizedScope }
         let base = normalizedScope.hasSuffix("/") ? String(normalizedScope.dropLast()) : normalizedScope
         return "\(base)/\(path)"
     }
