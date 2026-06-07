@@ -37,3 +37,33 @@ public enum BasicCatalog: A2UICatalog {
     public typealias Node = BasicComponent
     public static let catalogId = BasicComponentCatalog.catalogId
 }
+
+/// Node sums that embed the basic catalog — directly (`BasicComponent`) or by composition
+/// (`CombinedNode<MyNode, BasicComponent>`). The generic basic renderer needs two projections
+/// `ComponentNode` doesn't carry: the embedded basic component (for child-kind decisions like
+/// chip rows) and the layout weight (flex-grow).
+public protocol BasicEmbeddingNode: ComponentNode {
+    var basicComponent: BasicComponent? { get }
+    var layoutWeight: Double? { get }
+}
+
+extension BasicComponent: BasicEmbeddingNode {
+    public var basicComponent: BasicComponent? { self }
+    public var layoutWeight: Double? { weight }
+}
+
+extension CombinedNode: BasicEmbeddingNode where Primary: BasicEmbeddingNode, Fallback: BasicEmbeddingNode {
+    public var basicComponent: BasicComponent? {
+        switch self {
+        case .primary(let node): node.basicComponent
+        case .fallback(let node): node.basicComponent
+        }
+    }
+
+    public var layoutWeight: Double? {
+        switch self {
+        case .primary(let node): node.layoutWeight
+        case .fallback(let node): node.layoutWeight
+        }
+    }
+}

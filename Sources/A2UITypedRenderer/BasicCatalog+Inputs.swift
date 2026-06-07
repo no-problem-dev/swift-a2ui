@@ -12,12 +12,12 @@ import A2UITyped
 /// ホストの `surfaceStyle` 環境に応答する: `.glass` 系ではソリッド塗りではなく
 /// Liquid Glass ボタン（primary はティント付き、default は中立ガラス、borderless は
 /// ガラスチップ）でレンダリングし、カードと同じデザイン言語に揃える。
-struct ButtonNodeView: View {
+struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
     @Environment(\.surfaceStyle) private var surfaceStyle
     let component: ButtonComponent
-    let ctx: RenderContext<BasicCatalog>
+    let ctx: RenderContext<Catalog>
 
     private var isGlass: Bool { surfaceStyle != .solid }
 
@@ -83,9 +83,9 @@ struct ButtonNodeView: View {
 }
 
 /// `TextField` — faithful port of TextFieldView.
-struct TextFieldNodeView: View {
+struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     let component: TextFieldComponent
-    let ctx: RenderContext<BasicCatalog>
+    let ctx: RenderContext<Catalog>
 
     var body: some View {
         let label = ctx.resolve(component.label)
@@ -106,10 +106,10 @@ struct TextFieldNodeView: View {
 }
 
 /// `CheckBox` — faithful port of CheckBoxView.
-struct CheckBoxNodeView: View {
+struct CheckBoxNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     let component: CheckBoxComponent
-    let ctx: RenderContext<BasicCatalog>
+    let ctx: RenderContext<Catalog>
 
     var body: some View {
         Toggle(isOn: ctx.binding(component.value)) {
@@ -120,11 +120,11 @@ struct CheckBoxNodeView: View {
 }
 
 /// `Slider` — faithful port of SliderView.
-struct SliderNodeView: View {
+struct SliderNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
     let component: SliderComponent
-    let ctx: RenderContext<BasicCatalog>
+    let ctx: RenderContext<Catalog>
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing.xs) {
@@ -145,11 +145,11 @@ struct SliderNodeView: View {
 }
 
 /// `ChoicePicker` — faithful port of ChoicePickerView + FlowChips.
-struct ChoicePickerNodeView: View {
+struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
     let component: ChoicePickerComponent
-    let ctx: RenderContext<BasicCatalog>
+    let ctx: RenderContext<Catalog>
 
     private var multiple: Bool { component.variant == .multipleSelection }
 
@@ -177,11 +177,11 @@ struct ChoicePickerNodeView: View {
 }
 
 /// `DateTimeInput` — faithful port of DateTimeInputView.
-struct DateTimeInputNodeView: View {
+struct DateTimeInputNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
     let component: DateTimeInputComponent
-    let ctx: RenderContext<BasicCatalog>
+    let ctx: RenderContext<Catalog>
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing.xs) {
