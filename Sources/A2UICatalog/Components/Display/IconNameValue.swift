@@ -1,12 +1,16 @@
 import A2UICore
 
-/// An Icon's `name` (A2UI v0.10): either a preset icon, or a custom SVG path object `{ "path": "…" }`.
+/// An Icon's `name` (A2UI v0.10): either a preset icon, or a data binding `{ "path": "…" }`.
 ///
-/// v0.10 removed the `DataBinding` branch from the Icon `name` oneOf and renamed the custom-icon key
-/// from `svgPath` to `path`, so `{ "path": "…" }` is now an unambiguous inline SVG path.
+/// v0.10 removed the v0.9 custom-SVG branch (`{ "svgPath": "…" }`) from the Icon `name` oneOf.
+/// The remaining `{ "path": "…" }` object is the standard data binding — official examples bind
+/// preset names through it (e.g. 06_music-player's `{"path": "/playIcon"}` → `"pause"`).
+/// Non-preset strings stay first-class (`raw`): the official lit renderer forwards them to the
+/// Material Symbols font verbatim, so they must round-trip even though SF Symbols can't show them.
 public enum IconNameValue: Codable, Sendable, Equatable {
     case preset(IconName)
-    case svgPath(String)
+    case binding(DataBinding)
+    case raw(String)
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -15,14 +19,14 @@ public enum IconNameValue: Codable, Sendable, Equatable {
             if let preset = IconName(rawValue: str) {
                 self = .preset(preset)
             } else {
-                self = .svgPath(str)
+                self = .raw(str)
             }
             return
         }
 
         let keyed = try decoder.container(keyedBy: CodingKeys.self)
         if keyed.allKeys.contains(.path) {
-            self = .svgPath(try keyed.decode(String.self, forKey: .path))
+            self = .binding(DataBinding(path: try keyed.decode(String.self, forKey: .path)))
         } else {
             throw DecodingError.dataCorruptedError(
                 in: container,
@@ -36,9 +40,12 @@ public enum IconNameValue: Codable, Sendable, Equatable {
         case .preset(let value):
             var container = encoder.singleValueContainer()
             try container.encode(value.rawValue)
-        case .svgPath(let value):
+        case .raw(let value):
+            var container = encoder.singleValueContainer()
+            try container.encode(value)
+        case .binding(let value):
             var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(value, forKey: .path)
+            try container.encode(value.path, forKey: .path)
         }
     }
 

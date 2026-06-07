@@ -26,7 +26,7 @@ extension BasicCatalog: RenderableCatalog {
             ImageNodeView(component: c, ctx: ctx)
 
         case .icon(let c):
-            Image(systemName: symbol(for: c.name))
+            Image(systemName: symbol(for: c.name, in: ctx))
                 .iconSize(.md)
                 .foregroundStyle(ctx.colors.onSurfaceVariant)
 
@@ -172,8 +172,25 @@ extension BasicCatalog: RenderableCatalog {
 
     // MARK: - Icon mapping (faithful port of A2UIRenderer.A2UIIcon)
 
-    private static func symbol(for value: IconNameValue) -> String {
-        guard case .preset(let icon) = value else { return "questionmark.circle" }
+    /// バインディングはデータモデル解決後に再度プリセット照合する（公式 example は
+    /// `{"path": "/playIcon"}` → `"pause"` のようにプリセット名を流す）。SF Symbols に
+    /// 写像できない名前だけがフォールバックに落ちる。
+    @MainActor
+    private static func symbol(for value: IconNameValue, in ctx: RenderContext<BasicCatalog>) -> String {
+        switch value {
+        case .preset(let icon):
+            return symbol(for: icon)
+        case .binding(let binding):
+            guard let icon = IconName(rawValue: ctx.resolve(.binding(binding))) else {
+                return "questionmark.circle"
+            }
+            return symbol(for: icon)
+        case .raw:
+            return "questionmark.circle"
+        }
+    }
+
+    private static func symbol(for icon: IconName) -> String {
         return switch icon {
         case .accountCircle, .person: "person.circle"
         case .add: "plus"

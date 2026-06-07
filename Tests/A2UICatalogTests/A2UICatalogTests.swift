@@ -67,6 +67,23 @@ struct ComponentRoundTripTests {
         #expect(decoded.name == .preset(.search))
     }
 
+    @Test func iconNameBinding() throws {
+        // 公式 06_music-player: {"path": "/playIcon"} はデータバインディング（v0.9 の svgPath 削除後の唯一の object 形）
+        let json = #"{"component":"Icon","id":"ic2","name":{"path":"/playIcon"}}"#
+        let decoded = try JSONDecoder().decode(IconComponent.self, from: Data(json.utf8))
+        #expect(decoded.name == .binding(DataBinding(path: "/playIcon")))
+        let reencoded = try JSONDecoder().decode(
+            IconComponent.self, from: JSONEncoder().encode(decoded))
+        #expect(reencoded.name == decoded.name)
+    }
+
+    @Test func iconNameNonPresetString() throws {
+        // 公式 27_stats-card はプリセット外の Material 名（trending_up）を素通しする
+        let json = #"{"component":"Icon","id":"ic3","name":"trending_up"}"#
+        let decoded = try JSONDecoder().decode(IconComponent.self, from: Data(json.utf8))
+        #expect(decoded.name == .raw("trending_up"))
+    }
+
     @Test func videoComponent() throws {
         let c = VideoComponent(id: "v1", url: "https://example.com/video.mp4")
         let data = try JSONEncoder().encode(c)
