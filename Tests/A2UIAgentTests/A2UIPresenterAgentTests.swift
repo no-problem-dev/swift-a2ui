@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import A2UIAgent
 import A2UIA2A
+import A2UICatalog
 import A2UICore
 import A2UIPrompt
 import A2UITyped
@@ -63,5 +64,64 @@ struct A2UIPresenterAgentTests {
 
         let custom = SystemPrompt { A2UIPresenterAgent.hostOutputConstraint(agentName: "renderer") }.render()
         #expect(custom.contains("`renderer` agent"))
+    }
+}
+
+// コンポーネントパレットの差し替え（tools(components:)）— pruning・手本・検証が
+// 同じ集合で同期することを固定する。
+@Suite("A2UIPresenterAgent (component palette)")
+struct A2UIPresenterAgentPaletteTests {
+
+    private func instruction(components: Set<String>) throws -> String {
+        let tools = A2UIPresenterAgent.tools(components: components)
+        let tool = try #require(tools.first)
+        return try #require(tool.systemInstruction)
+    }
+
+    @Test("デフォルトは presenter 9 種")
+    func defaultPalette() {
+        #expect(A2UIPresenterAgent.defaultComponents == A2UIExample.presenterComponentNames)
+    }
+
+    @Test("フルカタログ指定でスキーマに全 18 種 + フルパレット手本が同伴する")
+    func fullCatalogPalette() throws {
+        let inst = try instruction(components: BasicComponent.componentNames)
+        #expect(inst.contains("\"Tabs\""))
+        #expect(inst.contains("\"Modal\""))
+        #expect(inst.contains("\"DateTimeInput\""))
+        // フルパレットの手本は referenceSurface（Tabs / Modal / フォーム入力を含む）
+        #expect(inst.contains("REFERENCE SURFACE EXAMPLE"))
+        #expect(inst.contains("mapModal"))
+    }
+
+    @Test("presenter を包含する拡張パレットはスキーマ拡張 + presenter 手本を保つ")
+    func supersetKeepsPresenterExample() throws {
+        let inst = try instruction(components: A2UIExample.presenterComponentNames.union(["Slider"]))
+        #expect(inst.contains("\"Slider\""))
+        #expect(!inst.contains("\"Modal\""))
+        #expect(inst.contains("REFERENCE SURFACE EXAMPLE"))
+        #expect(!inst.contains("mapModal"))  // presenterSurface であって referenceSurface ではない
+    }
+
+    @Test("presenter パレットを欠く集合では矛盾する手本を同伴しない")
+    func reducedPaletteDropsExample() throws {
+        let inst = try instruction(components: ["Column", "Row", "Text"])
+        #expect(inst.contains("\"Text\""))
+        #expect(!inst.contains("\"Card\""))
+        #expect(!inst.contains("REFERENCE SURFACE EXAMPLE"))
+    }
+
+    @Test("正規化: カタログ外の名前は落ち、空になればデフォルトへフォールバック")
+    func sanitization() {
+        #expect(A2UIPresenterAgent.sanitizedComponents(["Text", "Frobnicate"]) == ["Text"])
+        #expect(A2UIPresenterAgent.sanitizedComponents(["Frobnicate"]) == A2UIPresenterAgent.defaultComponents)
+        #expect(A2UIPresenterAgent.sanitizedComponents([]) == A2UIPresenterAgent.defaultComponents)
+    }
+
+    @Test("exampleSurface の 3 分岐")
+    func exampleSelection() {
+        #expect(A2UIPresenterAgent.exampleSurface(for: BasicComponent.componentNames) == A2UIExample.referenceSurface())
+        #expect(A2UIPresenterAgent.exampleSurface(for: A2UIExample.presenterComponentNames) == A2UIExample.presenterSurface())
+        #expect(A2UIPresenterAgent.exampleSurface(for: ["Column", "Text"]) == nil)
     }
 }

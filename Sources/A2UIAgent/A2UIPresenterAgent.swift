@@ -1,6 +1,7 @@
 import A2ACore
 import A2UIA2A
 import A2UIAgentTool
+import A2UICatalog
 import A2UICore
 import A2UIPrompt
 import A2UITyped
@@ -19,6 +20,33 @@ import LLMTool
 /// ツールが所有し、アタッチ時に system prompt へ同伴）。
 public enum A2UIPresenterAgent {
     public static let defaultName = "a2ui"
+
+    /// presenter のデフォルト・コンポーネントパレット（コンテンツ提示の 9 種）。
+    /// ホストは `tools(components:)` に任意のサブセットを渡してパレットを変えられる。
+    public static let defaultComponents = A2UIExample.presenterComponentNames
+
+    /// 要求されたコンポーネント集合を basic catalog に対して正規化する:
+    /// カタログに無い名前は落とし、空になったらデフォルトパレットへフォールバックする。
+    /// 設定の保存値（古いカタログの名前が残り得る）をそのまま渡しても壊れない。
+    public static func sanitizedComponents(_ requested: Set<String>) -> Set<String> {
+        let known = requested.intersection(BasicComponent.componentNames)
+        return known.isEmpty ? defaultComponents : known
+    }
+
+    /// コンポーネント集合に同伴させる手本サーフェス。手本がスキーマと矛盾しないことが規約:
+    /// - フルカタログ → 全パレットを教える `referenceSurface`
+    /// - presenter パレットを含む → 提示特化の `presenterSurface`
+    /// - presenter パレットすら欠ける → 手本なし（矛盾した手本は無いほうがよい。
+    ///   pruning 済みスキーマブロックだけで生成する）
+    public static func exampleSurface(for components: Set<String>) -> String? {
+        if components == BasicComponent.componentNames {
+            return A2UIExample.referenceSurface()
+        }
+        if A2UIExample.presenterComponentNames.isSubset(of: components) {
+            return A2UIExample.presenterSurface()
+        }
+        return nil
+    }
 
     /// オーケストレータが委譲判断に使う説明（card / ルーティング用）。
     /// 「内容は全部渡す・サーフェスは毎ターン更新し続ける」を card 段階で明示する —
@@ -73,16 +101,29 @@ public enum A2UIPresenterAgent {
     }
 
     /// a2ui ワーカーの公式ツール一式（生成は `send_a2ui_json_to_client` 一本）。
-    /// presenter サブセットの pruning 済みスキーマと手本サーフェスはツールが所有し、
-    /// アタッチ時に system prompt へ同伴する（公式 rizzcharts 準拠）。
-    public static func tools() -> [any Tool] {
-        [
+    /// pruning 済みスキーマと手本サーフェスはツールが所有し、アタッチ時に
+    /// system prompt へ同伴する（公式 rizzcharts 準拠）。
+    ///
+    /// `components` でカタログパレットを差し替えられる（デフォルトは presenter 9 種）。
+    /// 同じ集合がプロンプト側の pruning と出力検証の両方に使われるため、
+    /// モデルに提示していないコンポーネントはツールエラーとなり同一ループ内で自己修正される。
+    /// メッセージは常に presenter の 3 種（createSurface / updateComponents / updateDataModel）
+    /// — 単一サーフェス運用の規約はパレットと独立。
+    public static func tools(components: Set<String> = defaultComponents) -> [any Tool] {
+        let allowed = sanitizedComponents(components)
+        let promptBuilder = A2UIPromptBuilder(
+            serverToClientSchema: nil,
+            commonTypesSchema: nil,
+            catalogSchema: nil,
+            allowedComponents: allowed,
+            allowedMessages: A2UIExample.presenterMessageNames
+        )
+        return [
             SendA2UIToClientTool<BasicCatalog>(
-                examples: A2UIExampleFormatter.format(
-                    name: "REFERENCE SURFACE EXAMPLE",
-                    content: A2UIExample.presenterSurface()
-                ),
-                promptBuilder: .presenter()
+                examples: exampleSurface(for: allowed).map {
+                    A2UIExampleFormatter.format(name: "REFERENCE SURFACE EXAMPLE", content: $0)
+                },
+                promptBuilder: promptBuilder
             )
         ]
     }
