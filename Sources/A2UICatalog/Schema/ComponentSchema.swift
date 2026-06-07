@@ -9,6 +9,10 @@ import A2UICore
 public struct ComponentSchema: Sendable, Equatable {
     /// The component name (the `component` discriminator const, e.g. "Text").
     public let name: String
+    /// The functional category (Display / Layout / Input) — consumer-facing metadata for settings
+    /// UIs, docs, and catalog browsers. NOT rendered into the LLM-facing schema (the official
+    /// catalog.json has no category field), so generated-schema fidelity is unaffected.
+    public let category: ComponentCategory
     /// Human description emitted into the schema for the LLM.
     public let description: String?
     /// Declared properties (excluding the implicit `component`/`id`/`weight`, which are shared).
@@ -18,11 +22,13 @@ public struct ComponentSchema: Sendable, Equatable {
 
     public init(
         name: String,
+        category: ComponentCategory,
         description: String? = nil,
         properties: [PropertySchema],
         mixins: [SchemaMixin] = []
     ) {
         self.name = name
+        self.category = category
         self.description = description
         self.properties = properties
         self.mixins = mixins
@@ -32,6 +38,14 @@ public struct ComponentSchema: Sendable, Equatable {
     public var requiredPropertyNames: [String] {
         ["component"] + properties.filter(\.isRequired).map(\.name)
     }
+}
+
+/// The functional category of a basic-catalog component, mirroring the official component
+/// organization (Display / Layout / Input). `CaseIterable` order is the canonical display order.
+public enum ComponentCategory: String, Sendable, Equatable, CaseIterable {
+    case display
+    case layout
+    case input
 }
 
 /// Shared schema fragments referenced via `allOf` in the official catalog.

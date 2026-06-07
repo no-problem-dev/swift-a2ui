@@ -19,7 +19,7 @@ private func ct(_ name: String) -> StructuredValue {
 
 extension TextComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .display, properties: [
             .required("text", .dynamicString, "The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation."),
             .optional("variant", .enumeration(TextVariant.self), "A hint for the base text style.", default: .string("body")),
         ])
@@ -28,7 +28,7 @@ extension TextComponent: CatalogSchemaDescribing {
 
 extension ImageComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .display, properties: [
             .required("url", .dynamicString, "The URL of the image to display."),
             .optional("description", .dynamicString, "Accessibility text for the image."),
             .optional("fit", .enumeration(ImageFit.self), "Specifies how the image should be resized to fit its container. This corresponds to the CSS 'object-fit' property.", default: .string("fill")),
@@ -39,7 +39,7 @@ extension ImageComponent: CatalogSchemaDescribing {
 
 extension IconComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .display, properties: [
             .required("name", .raw(.object([
                 "description": .string("The name of the icon to display."),
                 "oneOf": .array([
@@ -61,7 +61,7 @@ extension IconComponent: CatalogSchemaDescribing {
 
 extension VideoComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .display, properties: [
             .required("url", .dynamicString, "The URL of the video to display."),
             .optional("posterUrl", .dynamicString, "The URL of the poster image to display before the video plays."),
         ])
@@ -70,7 +70,7 @@ extension VideoComponent: CatalogSchemaDescribing {
 
 extension AudioPlayerComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .display, properties: [
             .required("url", .dynamicString, "The URL of the audio to be played."),
             .optional("description", .dynamicString, "A description of the audio, such as a title or summary."),
         ])
@@ -81,6 +81,7 @@ extension RowComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
         ComponentSchema(
             name: componentName,
+            category: .layout,
             description: "A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.",
             properties: [
                 .required("children", .childList, "Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID."),
@@ -96,6 +97,7 @@ extension ColumnComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
         ComponentSchema(
             name: componentName,
+            category: .layout,
             description: "A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.",
             properties: [
                 .required("children", .childList, "Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID."),
@@ -109,7 +111,7 @@ extension ColumnComponent: CatalogSchemaDescribing {
 
 extension ListComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .layout, properties: [
             .required("children", .childList, "Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list."),
             .optional("direction", .enumeration(ListDirection.self), "The direction in which the list items are laid out.", default: .string("vertical")),
             .optional("align", .enumeration(LayoutAlign.self), "Defines the alignment of children along the cross axis.", default: .string("stretch")),
@@ -119,7 +121,7 @@ extension ListComponent: CatalogSchemaDescribing {
 
 extension CardComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .layout, properties: [
             .required("child", .componentId, "The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID. Do NOT define the child component inline."),
         ])
     }
@@ -127,7 +129,7 @@ extension CardComponent: CatalogSchemaDescribing {
 
 extension TabsComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .layout, properties: [
             .required("tabs", .raw(.object([
                 "type": .string("array"),
                 "description": .string("An array of objects, where each object defines a tab with a title and a child component."),
@@ -148,7 +150,7 @@ extension TabsComponent: CatalogSchemaDescribing {
 
 extension DividerComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .layout, properties: [
             .optional("axis", .enumeration(DividerAxis.self), "The orientation of the divider.", default: .string("horizontal")),
         ])
     }
@@ -156,7 +158,7 @@ extension DividerComponent: CatalogSchemaDescribing {
 
 extension ModalComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .layout, properties: [
             .required("trigger", .componentId, "The ID of the component that opens the modal when interacted with (e.g., a button). Do NOT define the component inline."),
             .required("content", .componentId, "The ID of the component to be displayed inside the modal. Do NOT define the component inline."),
         ])
@@ -165,7 +167,7 @@ extension ModalComponent: CatalogSchemaDescribing {
 
 extension ButtonComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .input, properties: [
             .required("child", .componentId, "The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button. Do NOT define the child component inline."),
             .optional("variant", .enumeration(ButtonVariant.self), "A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link.", default: .string("default")),
             .required("action", .action),
@@ -175,7 +177,7 @@ extension ButtonComponent: CatalogSchemaDescribing {
 
 extension TextFieldComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .input, properties: [
             .required("label", .dynamicString, "The text label for the input field."),
             .optional("value", .dynamicString, "The value of the text field."),
             .optional("variant", .enumeration(TextFieldVariant.self), "The type of input field to display.", default: .string("shortText")),
@@ -186,7 +188,7 @@ extension TextFieldComponent: CatalogSchemaDescribing {
 
 extension CheckBoxComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .input, properties: [
             .required("label", .dynamicString, "The text to display next to the checkbox."),
             .required("value", .dynamicBoolean, "The current state of the checkbox (true for checked, false for unchecked)."),
         ], mixins: [.checkable])
@@ -197,6 +199,7 @@ extension ChoicePickerComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
         ComponentSchema(
             name: componentName,
+            category: .input,
             description: "A component that allows selecting one or more options from a list.",
             properties: [
                 .optional("label", .dynamicString, "The label for the group of options."),
@@ -225,7 +228,7 @@ extension ChoicePickerComponent: CatalogSchemaDescribing {
 
 extension SliderComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .input, properties: [
             // `value` before `max` so the generated `required` array is ["component","value","max"] (official order).
             .optional("label", .dynamicString, "The label for the slider."),
             .optional("min", .number, "The minimum value of the slider.", default: .int(0)),
@@ -242,7 +245,7 @@ extension SliderComponent: CatalogSchemaDescribing {
 
 extension DateTimeInputComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
-        ComponentSchema(name: componentName, properties: [
+        ComponentSchema(name: componentName, category: .input, properties: [
             .required("value", .dynamicString, "The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string."),
             .optional("enableDate", .boolean, "If true, allows the user to select a date.", default: .bool(false)),
             .optional("enableTime", .boolean, "If true, allows the user to select a time.", default: .bool(false)),

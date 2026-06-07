@@ -17,6 +17,7 @@ struct SchemaRendererComponentTests {
     func textSchema() {
         let schema = ComponentSchema(
             name: "Text",
+            category: .display,
             properties: [
                 .required("text", .dynamicString, "The text content to display."),
                 .optional("variant", .enumeration(["h1", "h2", "h3", "h4", "h5", "caption", "body"]), default: .string("body")),
@@ -54,6 +55,7 @@ struct SchemaRendererComponentTests {
     func buttonSchema() {
         let schema = ComponentSchema(
             name: "Button",
+            category: .input,
             properties: [
                 .required("child", .componentId),
                 .optional("variant", .enumeration(["default", "primary", "borderless"]), default: .string("default")),
@@ -76,7 +78,7 @@ struct SchemaRendererComponentTests {
 
     @Test("childList property renders as ChildList $ref")
     func childListProperty() {
-        let schema = ComponentSchema(name: "Column", properties: [.required("children", .childList)])
+        let schema = ComponentSchema(name: "Column", category: .layout, properties: [.required("children", .childList)])
         let json = render(schema)
         let inner = (json["allOf"] as! [[String: Any]]).last!
         let props = inner["properties"] as! [String: Any]
@@ -106,7 +108,7 @@ struct SchemaRendererCatalogTests {
             catalogId: "https://example.com/cat.json",
             title: "Test",
             description: "desc",
-            components: [ComponentSchema(name: "Text", properties: [.required("text", .dynamicString)])],
+            components: [ComponentSchema(name: "Text", category: .display, properties: [.required("text", .dynamicString)])],
             functions: [FunctionSchema(name: "required", description: "Checks presence.", arguments: [.required("value", .dynamicValue, "The value to check.")], returnType: "boolean")]
         )
         let json = (try! JSONSerialization.jsonObject(with: doc.data(using: .utf8)!)) as! [String: Any]
