@@ -198,7 +198,7 @@ public enum SchemaRenderer {
             argsValue = .object(argsObj)
         }
 
-        var properties: OrderedObject = [
+        let properties: OrderedObject = [
             "call": .object(["const": .string(fn.name)]),
             "args": argsValue,
             "returnType": .object(["const": .string(fn.returnType)]),

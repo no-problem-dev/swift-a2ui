@@ -1,6 +1,5 @@
 import A2UICore
 import A2UISurface
-import A2UITyped
 
 /// Validates parsed A2UI messages against a catalog **before rendering** — the Swift counterpart of
 /// the official Python `A2uiValidator.validate()`. Returns a list of human-readable issues (empty =
