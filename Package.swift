@@ -20,9 +20,14 @@ let package = Package(
         // Official tool-call generation pattern (mirror of the Python SDK's a2ui.adk):
         // the send_a2ui_json_to_client tool + the tool-result → ServerMessage extractor.
         .library(name: "A2UIAgentTool", targets: ["A2UIAgentTool"]),
+        // A2A integration (mirror of the Python SDK's a2ui.a2a): the A2UI agent extension
+        // declaration, ServerMessage/ClientMessage ⇄ A2A Part coding, and the message
+        // metadata vocabulary (a2uiClientCapabilities / a2uiClientDataModel).
+        .library(name: "A2UIA2A", targets: ["A2UIA2A"]),
     ],
     dependencies: [
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.5.0"),
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "1.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "1.1.1"),
         .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.4.0"),
@@ -58,8 +63,15 @@ let package = Package(
             .product(name: "LLMClient", package: "swift-llm-client"),
             .product(name: "LLMTool", package: "swift-llm-client"),
         ]),
+        // A2A integration. Depends on A2ACore the same way the Python SDK's a2ui.a2a
+        // depends on a2a-sdk. UI-free — tests run on the CLI.
+        .target(name: "A2UIA2A", dependencies: [
+            "A2UICore",
+            .product(name: "A2ACore", package: "swift-a2a"),
+        ]),
         .testTarget(name: "A2UICoreTests", dependencies: ["A2UICore"],
                     resources: [.copy("Fixtures")]),
+        .testTarget(name: "A2UIA2ATests", dependencies: ["A2UIA2A"]),
         .testTarget(name: "A2UICatalogTests", dependencies: ["A2UICatalog"],
                     resources: [.copy("Fixtures")]),
         .testTarget(name: "A2UIPromptTests", dependencies: ["A2UIPrompt"]),
