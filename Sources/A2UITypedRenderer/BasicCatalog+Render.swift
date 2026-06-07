@@ -31,10 +31,10 @@ extension BasicCatalog: RenderableCatalog {
                 .foregroundStyle(ctx.colors.onSurfaceVariant)
 
         case .video(let c):
-            mediaLink(url: ctx.resolve(c.url), system: "play.rectangle")
+            MediaNodeView(url: ctx.resolve(c.url), kind: .video, ctx: ctx)
 
         case .audioPlayer(let c):
-            mediaLink(url: ctx.resolve(c.url), system: "speaker.wave.2")
+            MediaNodeView(url: ctx.resolve(c.url), kind: .audio, ctx: ctx)
 
         case .row(let c):
             RowNodeView(component: c, ctx: ctx)
@@ -163,12 +163,7 @@ extension BasicCatalog: RenderableCatalog {
         return s.range(of: #"\$\S(?:[^$\n]*\S)?\$"#, options: .regularExpression) != nil
     }
 
-    @MainActor @ViewBuilder
-    private static func mediaLink(url: String, system: String) -> some View {
-        Link(destination: URL(string: url) ?? URL(string: "https://example.invalid")!) {
-            Label(url.isEmpty ? "メディア" : url, systemImage: system).typography(.labelMedium)
-        }
-    }
+    // （mediaLink は MediaNodeView へ置換 — Video/AudioPlayer のアプリ内ビューア化）
 
     // MARK: - Icon mapping (faithful port of A2UIRenderer.A2UIIcon)
 
@@ -378,9 +373,11 @@ struct ImageNodeView: View {
     let ctx: RenderContext<BasicCatalog>
 
     @Environment(\.radiusScale) private var radius
+    @Environment(\.a2uiMediaViewerEnabled) private var viewerEnabled
 
     var body: some View {
-        AsyncImage(url: URL(string: ctx.resolve(component.url))) { phase in
+        let url = URL(string: ctx.resolve(component.url))
+        AsyncImage(url: url) { phase in
             switch phase {
             case .success(let image):
                 sized(image)
@@ -392,6 +389,12 @@ struct ImageNodeView: View {
         }
         .frame(maxWidth: maxWidth, maxHeight: maxHeight)
         .clipShape(RoundedRectangle(cornerRadius: component.variant == .avatar ? radius.full : radius.md))
+        // クライアント側 UX としてタップ → フルスクリーンビューアを標準付与
+        // （スキーマ非接触。iOS 18+ のみ動作、その他環境では恒等）
+        .mediaViewable(
+            .image(url ?? URL(string: "https://example.invalid")!),
+            enabled: viewerEnabled && url != nil
+        )
         .accessibilityLabel(component.imageDescription.map { ctx.resolve($0) } ?? "")
     }
 
@@ -433,6 +436,60 @@ struct ImageNodeView: View {
         default: nil
         }
     }
+}
+
+/// `Video` / `AudioPlayer` — タップでアプリ内フルスクリーン再生（iOS）。
+///
+/// iOS では DS スタイルのタップ可能タイルから `mediaViewable` でビューアを起動する。
+/// macOS では従来どおり `Link` で外部に開く（機能退行ゼロ、Parity ゴールデンも同形を維持）。
+struct MediaNodeView: View {
+    enum Kind {
+        case video, audio
+
+        var systemImage: String {
+            switch self {
+            case .video: "play.rectangle"
+            case .audio: "speaker.wave.2"
+            }
+        }
+    }
+
+    let url: String
+    let kind: Kind
+    let ctx: RenderContext<BasicCatalog>
+
+    @Environment(\.radiusScale) private var radius
+    @Environment(\.spacingScale) private var spacing
+    @Environment(\.a2uiMediaViewerEnabled) private var viewerEnabled
+
+    private var resolvedURL: URL? { URL(string: url) }
+
+    var body: some View {
+        #if os(iOS)
+        Label(url.isEmpty ? "メディア" : url, systemImage: kind.systemImage)
+            .typography(.labelMedium)
+            .lineLimit(1)
+            .padding(spacing.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(ctx.colors.surfaceVariant)
+            .clipShape(RoundedRectangle(cornerRadius: radius.md))
+            .mediaViewable(viewerItem, enabled: viewerEnabled && resolvedURL != nil)
+        #else
+        Link(destination: resolvedURL ?? URL(string: "https://example.invalid")!) {
+            Label(url.isEmpty ? "メディア" : url, systemImage: kind.systemImage).typography(.labelMedium)
+        }
+        #endif
+    }
+
+    #if os(iOS)
+    private var viewerItem: MediaViewerItem {
+        let target = resolvedURL ?? URL(string: "https://example.invalid")!
+        switch kind {
+        case .video: return .video(target)
+        case .audio: return .audio(target)
+        }
+    }
+    #endif
 }
 
 /// `Tabs` — faithful port of A2UIRenderer.TabsView (scrollable underline tab bar, fixed baseline).
