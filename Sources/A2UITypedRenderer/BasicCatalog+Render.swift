@@ -360,19 +360,21 @@ struct ImageNodeView: View {
     let component: ImageComponent
     let ctx: RenderContext<BasicCatalog>
 
+    @Environment(\.radiusScale) private var radius
+
     var body: some View {
         AsyncImage(url: URL(string: ctx.resolve(component.url))) { phase in
             switch phase {
             case .success(let image):
                 sized(image)
             case .failure:
-                Image(systemName: "photo").foregroundStyle(.secondary)
+                Image(systemName: "photo").foregroundStyle(ctx.colors.onSurfaceVariant)
             default:
                 ProgressView()
             }
         }
         .frame(maxWidth: maxWidth, maxHeight: maxHeight)
-        .clipShape(RoundedRectangle(cornerRadius: component.variant == .avatar ? 999 : 8))
+        .clipShape(RoundedRectangle(cornerRadius: component.variant == .avatar ? radius.full : radius.md))
         .accessibilityLabel(component.imageDescription.map { ctx.resolve($0) } ?? "")
     }
 
@@ -420,6 +422,7 @@ struct ImageNodeView: View {
 struct TabsNodeView: View {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
+    @Environment(\.motion) private var motion
     let component: TabsComponent
     let ctx: RenderContext<BasicCatalog>
     @State private var selection = 0
@@ -439,9 +442,9 @@ struct TabsNodeView: View {
                 ForEach(Array(component.tabs.enumerated()), id: \.offset) { index, tab in
                     let active = index == selection
                     Button {
-                        withAnimation(.easeInOut(duration: 0.18)) { selection = index }
+                        withAnimation(motion.toggle) { selection = index }
                     } label: {
-                        VStack(spacing: 6) {
+                        VStack(spacing: spacing.xs) {
                             Text(ctx.resolve(tab.title))
                                 .typography(.labelLarge)
                                 .foregroundStyle(active ? colors.primary : colors.onSurfaceVariant)
@@ -464,6 +467,7 @@ struct TabsNodeView: View {
 
 /// `Modal` — faithful port of A2UIRenderer.ModalView (trigger → sheet with detents).
 struct ModalNodeView: View {
+    @Environment(\.spacingScale) private var spacing
     let component: ModalComponent
     let ctx: RenderContext<BasicCatalog>
     @State private var presented = false
@@ -473,7 +477,7 @@ struct ModalNodeView: View {
             .onTapGesture { presented = true }
             .sheet(isPresented: $presented) {
                 ScrollView {
-                    ctx.child(component.content).padding()
+                    ctx.child(component.content).padding(spacing.lg)
                 }
                 .presentationDetents([.medium, .large])
             }

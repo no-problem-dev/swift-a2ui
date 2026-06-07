@@ -8,11 +8,18 @@ import A2UITyped
 // two-way `RenderContext.binding(_:)` helpers instead of `ResolvedComponent`/`Writable`.
 
 /// `Button` — variant styles + action dispatch (faithful port of ButtonView).
+///
+/// ホストの `surfaceStyle` 環境に応答する: `.glass` 系ではソリッド塗りではなく
+/// Liquid Glass ボタン（primary はティント付き、default は中立ガラス、borderless は
+/// ガラスチップ）でレンダリングし、カードと同じデザイン言語に揃える。
 struct ButtonNodeView: View {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
+    @Environment(\.surfaceStyle) private var surfaceStyle
     let component: ButtonComponent
     let ctx: RenderContext<BasicCatalog>
+
+    private var isGlass: Bool { surfaceStyle != .solid }
 
     var body: some View {
         // Spec: a Button whose `checks` fail is automatically disabled.
@@ -22,10 +29,14 @@ struct ButtonNodeView: View {
     @ViewBuilder private var content: some View {
         switch component.variant {
         case .primary:
-            Button { ctx.dispatch(component.action, from: component.id) } label: {
+            let button = Button { ctx.dispatch(component.action, from: component.id) } label: {
                 ctx.child(component.child).frame(maxWidth: .infinity)
             }
-            .buttonStyle(PrimaryButtonStyle())
+            if isGlass {
+                button.buttonStyle(.primaryGlass)
+            } else {
+                button.buttonStyle(PrimaryButtonStyle())
+            }
         case .borderless:
             Button { ctx.dispatch(component.action, from: component.id) } label: {
                 ctx.child(component.child)
@@ -33,15 +44,34 @@ struct ButtonNodeView: View {
                     .truncationMode(.tail)
                     .padding(.horizontal, spacing.md)
                     .padding(.vertical, spacing.sm)
-                    .background(colors.surfaceVariant, in: Capsule())
+                    .background { chipBackground }
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
         case .default, .none:
-            Button { ctx.dispatch(component.action, from: component.id) } label: {
+            let button = Button { ctx.dispatch(component.action, from: component.id) } label: {
                 ctx.child(component.child)
             }
-            .buttonStyle(SecondaryButtonStyle())
+            if isGlass {
+                button.buttonStyle(.glass)
+            } else {
+                button.buttonStyle(SecondaryButtonStyle())
+            }
+        }
+    }
+
+    /// borderless（チップ）の背景。glass ではタッチに反応するガラスカプセル。
+    @ViewBuilder private var chipBackground: some View {
+        if isGlass {
+            if #available(iOS 26.0, macOS 26.0, *) {
+                Capsule().fill(.clear)
+                    .glassEffect(.regular.interactive(true), in: Capsule())
+            } else {
+                Capsule().fill(.ultraThinMaterial)
+                    .overlay { Capsule().strokeBorder(colors.outlineVariant, lineWidth: 1) }
+            }
+        } else {
+            Capsule().fill(colors.surfaceVariant)
         }
     }
 }
@@ -176,12 +206,13 @@ struct DateTimeInputNodeView: View {
 /// Selectable chip group for ChoicePicker (faithful port of the private FlowChips).
 private struct FlowChips: View {
     @Environment(\.colorPalette) private var colors
+    @Environment(\.spacingScale) private var spacing
     let options: [(label: String, value: String)]
     let selection: [String]
     let onToggle: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: spacing.xs) {
             ForEach(options, id: \.value) { option in
                 let selected = selection.contains(option.value)
                 Chip(option.label, systemImage: selected ? "checkmark.circle.fill" : "circle")

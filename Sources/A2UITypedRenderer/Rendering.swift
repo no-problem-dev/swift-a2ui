@@ -206,6 +206,7 @@ public struct NodeView<Catalog: RenderableCatalog>: View {
 public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
+    @Environment(\.motion) private var motion
     let surface: TypedSurface<Catalog>
     let busy: Bool
 
@@ -219,10 +220,10 @@ public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
             .disabled(busy)
             .opacity(busy ? 0.55 : 1)
             .overlay(alignment: .topTrailing) { if busy { busyPill } }
-            .animation(.easeInOut(duration: 0.2), value: busy)
+            .animation(motion.fadeIn, value: busy)
             // ストリーミングで部品が流れ込むたびに、挿入トランジション（カードの
             // フェード+スケール等）をアニメーション付きで再生する（カスケード組み上がり）
-            .animation(.smooth(duration: 0.45), value: surface.structureVersion)
+            .animation(motion.stream, value: surface.structureVersion)
     }
 
     @ViewBuilder private var content: some View {
@@ -245,7 +246,8 @@ public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
         .padding(.vertical, spacing.xxs)
         .background(colors.surface, in: Capsule())
         .overlay(Capsule().stroke(colors.outlineVariant, lineWidth: 1))
-        .shadow(color: colors.shadow.opacity(0.12), radius: 4, y: 2)
+        // elevation はダークモードで不透明度を自動調整する（直接 shadow は固定値になる）
+        .elevation(.level1)
         .padding(spacing.xs)
     }
 }
@@ -253,10 +255,11 @@ public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
 /// Spec fallback for a component the catalog does not implement (A2UI renderer guide: never crash —
 /// show a "Not Supported" placeholder or skip).
 struct UnknownComponentView: View {
+    @Environment(\.colorPalette) private var colors
     let name: String
     var body: some View {
         Text("⚠️ Unsupported: \(name)")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .typography(.labelSmall)
+            .foregroundStyle(colors.onSurfaceVariant)
     }
 }
