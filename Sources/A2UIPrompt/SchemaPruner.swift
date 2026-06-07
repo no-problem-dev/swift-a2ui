@@ -4,51 +4,123 @@ import Foundation
 /// LLM プロンプト用に JSON Schema をプルーニングする純関数群。
 ///
 /// Python 公式 SDK (`agent_sdks/python/src/a2ui/schema/catalog.py`) の
-/// `_collect_refs` / `_prune_defs_by_reachability` / `_with_pruned_common_types` /
-/// `_with_pruned_messages` 相当の Swift 移植。
-///
-/// 使い方の組み合わせ:
-/// 1. `pruneMessages(serverToClient:allowedMessages:)`: server_to_client の oneOf と $defs を絞る
-/// 2. `pruneCommonTypes(commonTypes:reachableFrom:)`: catalog と s2c で参照されない common_types を削る
+/// `with_pruning` / `_with_pruned_components` / `_with_pruned_messages` /
+/// `_with_pruned_common_types` / `_collect_refs` / `_prune_defs_by_reachability` の
+/// 逐語移植。挙動は公式 conformance スイート（`agent_sdks/conformance/suites/catalog.yaml`）の
+/// 全 prune ケースをテストで固定している。
 ///
 /// LLM が直接 schema 内の URL を辿るわけではないが、未使用の型定義はノイズなので削るとプロンプトが軽くなる。
 public enum SchemaPruner {
 
     // MARK: - Public API
 
-    /// `server_to_client` の `oneOf` と `$defs` を allowed messages で絞り込む。
+    /// 公式 `A2uiCatalog.with_pruning` 相当: カタログ三点セットへ 3 段の pruning を適用する。
     ///
-    /// - Parameters:
-    ///   - serverToClient: 元の server_to_client schema（パース済み）
-    ///   - allowedMessages: 残すメッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）
-    /// - Returns: oneOf が絞られ、到達不能な `$defs` が除去された schema
+    /// 1. `allowedComponents` 指定時: catalog の `components` と `$defs.anyComponent.oneOf` を絞る
+    /// 2. `allowedMessages` 指定時: server_to_client の oneOf / properties と `$defs` を絞る
+    /// 3. **常時**: pruning 後の catalog + s2c から到達可能な common_types の `$defs` のみ残す
+    ///
+    /// 順序が規範: common_types の到達可能性は **絞った後の** catalog / s2c から計算される。
+    public static func withPruning(
+        catalog: StructuredValue,
+        serverToClient: StructuredValue,
+        commonTypes: StructuredValue,
+        allowedComponents: Set<String>? = nil,
+        allowedMessages: Set<String>? = nil
+    ) -> (catalog: StructuredValue, serverToClient: StructuredValue, commonTypes: StructuredValue) {
+        var catalog = catalog
+        var s2c = serverToClient
+        if let allowedComponents {
+            catalog = pruneComponents(catalog: catalog, allowedComponents: allowedComponents)
+        }
+        if let allowedMessages {
+            s2c = pruneMessages(serverToClient: s2c, allowedMessages: allowedMessages)
+        }
+        let common = pruneCommonTypes(commonTypes: commonTypes, reachableFrom: [catalog, s2c])
+        return (catalog, s2c, common)
+    }
+
+    /// 公式 `_with_pruned_components` 相当: catalog の `components` を allowed で絞り、
+    /// `$defs.anyComponent.oneOf` から不許可コンポーネントへの `$ref` を除去する。
+    ///
+    /// 公式と同じく空の allowlist は no-op（全量保持）。oneOf 内の `$ref` 以外の項目や
+    /// `#/components/` で始まらない参照は公式同様スキップ（除去）される。
+    public static func pruneComponents(
+        catalog: StructuredValue,
+        allowedComponents: Set<String>
+    ) -> StructuredValue {
+        guard !allowedComponents.isEmpty,
+              case .object(var root) = catalog else { return catalog }
+
+        // 1. components をフィルタ
+        if case .object(let components)? = root["components"] {
+            root["components"] = .object(OrderedObject(components.filter { allowedComponents.contains($0.key) }))
+        }
+
+        // 2. $defs.anyComponent.oneOf から不許可の "#/components/X" 参照を除去
+        if case .object(var defs)? = root["$defs"],
+           case .object(var anyComponent)? = defs["anyComponent"],
+           case .array(let oneOf)? = anyComponent["oneOf"] {
+            let prefix = "#/components/"
+            let filtered = oneOf.filter { item in
+                guard case .object(let dict) = item,
+                      case .string(let ref)? = dict["$ref"],
+                      ref.hasPrefix(prefix) else {
+                    return false  // 公式: 非 $ref / 未知形式はスキップ
+                }
+                return allowedComponents.contains(String(ref.dropFirst(prefix.count)))
+            }
+            anyComponent["oneOf"] = .array(filtered)
+            defs["anyComponent"] = .object(anyComponent)
+            root["$defs"] = .object(defs)
+        }
+
+        return .object(root)
+    }
+
+    /// 公式 `_with_pruned_messages` 相当: server_to_client をメッセージ allowlist で絞り込む。
+    ///
+    /// - v0.9+ 形式（`oneOf` + `$defs`）: oneOf を `#/$defs/X` の allowed のみ残し、
+    ///   `$defs` を到達可能性 BFS で絞る
+    /// - v0.8 形式（`properties` 直下）: `properties` を到達可能性 BFS で絞る
+    ///
+    /// 公式と同じく空の allowlist は no-op。oneOf 内の `$ref` 以外や `#/$defs/` で
+    /// 始まらない参照は除去される。
     public static func pruneMessages(
         serverToClient: StructuredValue,
         allowedMessages: Set<String>
     ) -> StructuredValue {
-        guard case .object(var root) = serverToClient else { return serverToClient }
+        guard !allowedMessages.isEmpty,
+              case .object(var root) = serverToClient else { return serverToClient }
 
-        // 1. oneOf を allowed の "#/$defs/X" にマッチするもののみ残す
         if case .array(let oneOf)? = root["oneOf"] {
+            // v0.9+: oneOf を allowed の "#/$defs/X" のみ残す（公式: 非該当はすべて除去）
             let filtered = oneOf.filter { item in
                 guard case .object(let dict) = item,
                       case .string(let ref)? = dict["$ref"],
                       let name = lastSegment(ofInternalRef: ref) else {
-                    return true  // 形式不明のものは保守的に残す
+                    return false
                 }
                 return allowedMessages.contains(name)
             }
             root["oneOf"] = .array(filtered)
-        }
 
-        // 2. $defs を allowed_messages から到達可能性 BFS で絞る
-        if case .object(let defs)? = root["$defs"] {
+            if case .object(let defs)? = root["$defs"] {
+                let pruned = pruneByReachability(
+                    defs: defs,
+                    roots: allowedMessages,
+                    internalRefPrefix: "#/$defs/"
+                )
+                root["$defs"] = .object(pruned)
+            }
+        } else if case .object(let properties)? = root["properties"] {
+            // v0.8: properties 直下がメッセージ
             let pruned = pruneByReachability(
-                defs: defs,
+                defs: properties,
                 roots: allowedMessages,
-                internalRefPrefix: "#/$defs/"
+                internalRefPrefix: "#/properties/"
             )
-            root["$defs"] = .object(pruned)
+            root["properties"] = .object(pruned)
         }
 
         return .object(root)

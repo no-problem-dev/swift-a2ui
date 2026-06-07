@@ -46,7 +46,10 @@ extension BasicCatalog: RenderableCatalog {
             ListNodeView(component: c, ctx: ctx)
 
         case .card(let c):
+            // スタイル（solid / glass）はホストの `surfaceStyle` 環境で決まる（DS の Card が解決）。
+            // 出現・スクロール時の奥行き演出は CardMotionModifier に集約。
             Card(elevation: .level1) { ctx.child(c.child) }
+                .modifier(CardMotionModifier())
 
         case .tabs(let c):
             TabsNodeView(component: c, ctx: ctx)
@@ -237,6 +240,25 @@ extension BasicCatalog: RenderableCatalog {
 /// `Row` — weight(flex-grow)と justify を FlexRowLayout で仕様の意味論どおりに解釈する。
 /// 旧 "spaceBetween first child greedy"(2 番目以降を fixedSize)は、長文の weighted Column に
 /// 当たると intrinsic 1 行幅で Row が画面外まで膨張するため廃止した。
+/// カードの出現・スクロール演出。
+///
+/// - 挿入時: フェード + わずかなスケールで「組み上がる」出現（`A2UISurfaceView` が
+///   `structureVersion` でアニメーション文脈を張るため、ストリーミング挿入で発火する）。
+/// - スクロール時: 画面端に近づくカードを減光・縮小・ブラーして奥行きを表現する
+///   （ホストの ScrollView 内でのみ作用。ScrollView 外では恒等）。
+struct CardMotionModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            .scrollTransition(.interactive, axis: .vertical) { view, phase in
+                view
+                    .opacity(phase.isIdentity ? 1 : 0.55)
+                    .scaleEffect(phase.isIdentity ? 1 : 0.97)
+                    .blur(radius: phase.isIdentity ? 0 : 3)
+            }
+    }
+}
+
 /// 全子が Button のチップ行(weight なし)だけは横スクロールを維持。Child-kind detection is
 /// type-safe via the typed node (`.known(.button)`), not a string compare. Children resolve via
 /// `ctx.children`, so `{componentId, path}` templates expand with per-element data scopes.

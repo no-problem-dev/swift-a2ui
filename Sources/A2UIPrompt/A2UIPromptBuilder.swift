@@ -25,12 +25,13 @@ public struct A2UIPromptBuilder: Sendable {
     private let _commonTypesSchema: String?
     private let _catalogSchema: String?
 
+    /// 残す catalog コンポーネント名（例: `["Text", "Button"]`）。
+    /// `nil` = プルーニング無効、catalog の components を全て残す。
+    private let _allowedComponents: Set<String>?
+
     /// 残す server_to_client メッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）。
     /// `nil` = プルーニング無効、bundled の oneOf を全て残す。
     private let _allowedMessages: Set<String>?
-
-    /// `true` のとき、catalog と server_to_client から到達可能な common_types の `$defs` のみ残す。
-    private let _pruneCommonTypes: Bool
 
     // MARK: - Init
 
@@ -40,8 +41,8 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = nil
+        _allowedComponents = nil
         _allowedMessages = nil
-        _pruneCommonTypes = false
     }
 
     /// Initialize with custom schema strings, bypassing the bundled resources.
@@ -55,45 +56,48 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = serverToClientSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
+        _allowedComponents = nil
         _allowedMessages = nil
-        _pruneCommonTypes = false
     }
 
     /// Initialize with a custom **catalog** schema while keeping the bundled server-to-client and
     /// common-types schemas.
     public init(
         catalogSchema: String,
-        allowedMessages: Set<String>? = nil,
-        pruneCommonTypes: Bool = false
+        allowedComponents: Set<String>? = nil,
+        allowedMessages: Set<String>? = nil
     ) {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = catalogSchema
+        _allowedComponents = allowedComponents
         _allowedMessages = allowedMessages
-        _pruneCommonTypes = pruneCommonTypes
     }
 
     /// 全パラメタを任意で渡せる統合 init。`nil` 指定のフィールドは bundled リソースにフォールバックする。
     /// 派生 builder (`A2UIPromptCompact` 等) が部分カスタムを渡す用途を想定。
     ///
+    /// 公式 `with_pruning` と同じく、common_types は allowlist の有無に関わらず常に
+    /// catalog / s2c からの到達可能性で絞られる。
+    ///
     /// - Parameters:
     ///   - serverToClientSchema: server_to_client schema を上書き。`nil` = bundled
     ///   - commonTypesSchema: common_types schema を上書き。`nil` = bundled
     ///   - catalogSchema: catalog schema を上書き。`nil` = bundled basic catalog
+    ///   - allowedComponents: catalog `components` を絞る。Python `with_pruning(allowed_components:)` 相当
     ///   - allowedMessages: server_to_client `oneOf` を絞る。Python `with_pruning(allowed_messages:)` 相当
-    ///   - pruneCommonTypes: catalog と s2c から到達可能な common_types の `$defs` のみ残す
     public init(
         serverToClientSchema: String?,
         commonTypesSchema: String?,
         catalogSchema: String?,
-        allowedMessages: Set<String>? = nil,
-        pruneCommonTypes: Bool = false
+        allowedComponents: Set<String>? = nil,
+        allowedMessages: Set<String>? = nil
     ) {
         _serverToClientSchema = serverToClientSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
+        _allowedComponents = allowedComponents
         _allowedMessages = allowedMessages
-        _pruneCommonTypes = pruneCommonTypes
     }
 
     // MARK: - Bundled resources (public)
@@ -158,26 +162,26 @@ public struct A2UIPromptBuilder: Sendable {
     /// Build just the schema block portion of the prompt.
     ///
     /// The block is formatted by `SchemaBlockFormatter` and contains the
-    /// server-to-client, common types, and catalog schemas. Applies `allowedMessages` and
-    /// `pruneCommonTypes` opt-ins when set.
+    /// server-to-client, common types, and catalog schemas, after applying the official
+    /// `with_pruning` pipeline: components → messages → common-types reachability (always).
     public func schemaBlock() -> String {
-        let catalogString = resolvedCatalogSchema
+        var catalogString = resolvedCatalogSchema
         var s2cString = resolvedServerToClientSchema
         var commonString = resolvedCommonTypesSchema
 
-        // allowed_messages: server_to_client の oneOf / $defs を絞る
-        if let allowed = _allowedMessages,
-           let parsed = Self.parseJSON(s2cString) {
-            let pruned = SchemaPruner.pruneMessages(serverToClient: parsed, allowedMessages: allowed)
-            s2cString = Self.serializeJSON(pruned) ?? s2cString
-        }
-
-        // prune_common_types: catalog と (絞られた) s2c から到達可能な $defs だけ残す
-        if _pruneCommonTypes,
+        if let catalog = Self.parseJSON(catalogString),
+           let s2c = Self.parseJSON(s2cString),
            let common = Self.parseJSON(commonString) {
-            let externals = [catalogString, s2cString].compactMap(Self.parseJSON)
-            let pruned = SchemaPruner.pruneCommonTypes(commonTypes: common, reachableFrom: externals)
-            commonString = Self.serializeJSON(pruned) ?? commonString
+            let pruned = SchemaPruner.withPruning(
+                catalog: catalog,
+                serverToClient: s2c,
+                commonTypes: common,
+                allowedComponents: _allowedComponents,
+                allowedMessages: _allowedMessages
+            )
+            catalogString = Self.serializeJSON(pruned.catalog) ?? catalogString
+            s2cString = Self.serializeJSON(pruned.serverToClient) ?? s2cString
+            commonString = Self.serializeJSON(pruned.commonTypes) ?? commonString
         }
 
         return SchemaBlockFormatter.format(

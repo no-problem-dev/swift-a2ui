@@ -220,6 +220,9 @@ public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
             .opacity(busy ? 0.55 : 1)
             .overlay(alignment: .topTrailing) { if busy { busyPill } }
             .animation(.easeInOut(duration: 0.2), value: busy)
+            // ストリーミングで部品が流れ込むたびに、挿入トランジション（カードの
+            // フェード+スケール等）をアニメーション付きで再生する（カスケード組み上がり）
+            .animation(.smooth(duration: 0.45), value: surface.structureVersion)
     }
 
     @ViewBuilder private var content: some View {

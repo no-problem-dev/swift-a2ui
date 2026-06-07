@@ -28,6 +28,9 @@ public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
     private var nodes: [ComponentId: CatalogNode<Catalog.Node>]
     /// Bumped on every data-model write; binding readers depend on it for reactivity.
     private(set) var dataVersion = 0
+    /// Bumped on every `updateComponents` batch. `A2UISurfaceView` animates on this so
+    /// streamed-in components enter with a transition (cascading assembly) instead of popping.
+    private(set) var structureVersion = 0
 
     public init(
         id: String? = nil,
@@ -52,6 +55,7 @@ public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
     /// it wholesale (the id may even change component type), which a dictionary upsert handles.
     public func applyUpdateComponents(_ incoming: [CatalogNode<Catalog.Node>]) {
         for node in incoming { nodes[node.id] = node }
+        structureVersion += 1
     }
 
     /// Apply `updateDataModel`: write a value at a JSON-Pointer path and trigger re-resolution.

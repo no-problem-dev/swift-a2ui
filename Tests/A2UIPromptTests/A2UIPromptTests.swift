@@ -261,7 +261,7 @@ struct A2UIPromptBuilderBundledTests {
         #expect(pruned.contains("UpdateComponentsMessage"))
     }
 
-    @Test("pruneCommonTypes drops $defs not reachable from the active catalog")
+    @Test("common_types は常に catalog/s2c からの到達可能性で絞られる（公式 with_pruning 準拠）")
     func pruneCommonTypesShrinksCommon() {
         // catalog で DynamicNumber / DynamicStringList を一切参照しないケース
         let minimalCatalog = """
@@ -272,14 +272,11 @@ struct A2UIPromptBuilderBundledTests {
             }
         }
         """
-        let baseline = A2UIPromptBuilder(catalogSchema: minimalCatalog).schemaBlock()
         let pruned = A2UIPromptBuilder(
             catalogSchema: minimalCatalog,
-            allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"],
-            pruneCommonTypes: true
+            allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"]
         ).schemaBlock()
-        #expect(pruned.count < baseline.count)
-        // catalog から到達できない型は消える（DynamicNumber / DynamicStringList が典型）
+        // catalog からも s2c からも到達できない型は消える（DynamicNumber / DynamicStringList が典型）
         #expect(!pruned.contains("\"DynamicNumber\":"))
         #expect(!pruned.contains("\"DynamicStringList\":"))
         // DynamicString は catalog 直接参照なので残る

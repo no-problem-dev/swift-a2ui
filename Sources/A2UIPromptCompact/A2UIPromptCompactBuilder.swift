@@ -28,17 +28,20 @@ public struct A2UIPromptCompactBuilder: Sendable {
 
     /// - Parameters:
     ///   - catalogSchema: カスタム catalog JSON。`nil` で A2UIPrompt の bundled basic catalog を使用
+    ///   - allowedComponents: catalog `components` を絞る（例: `["Text", "Button"]`）
     ///   - allowedMessages: server_to_client `oneOf` を絞る（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）
     public init(
         catalogSchema: String? = nil,
+        allowedComponents: Set<String>? = nil,
         allowedMessages: Set<String>? = nil
     ) {
         self.builder = A2UIPromptBuilder(
             serverToClientSchema: nil,                      // bundled
             commonTypesSchema: Self.compactCommonTypes,     // compact 版
             catalogSchema: catalogSchema,                   // 渡されたものを優先、nil なら bundled
-            allowedMessages: allowedMessages,
-            pruneCommonTypes: true                          // compact では常時 true
+            allowedComponents: allowedComponents,
+            allowedMessages: allowedMessages
+            // common_types の到達可能性 pruning は公式 with_pruning 準拠で常時適用される
         )
     }
 
