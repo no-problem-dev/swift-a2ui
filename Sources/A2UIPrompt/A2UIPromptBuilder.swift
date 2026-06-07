@@ -27,11 +27,13 @@ public struct A2UIPromptBuilder: Sendable {
 
     /// 残す catalog コンポーネント名（例: `["Text", "Button"]`）。
     /// `nil` = プルーニング無効、catalog の components を全て残す。
-    private let _allowedComponents: Set<String>?
+    /// 公開: `SendA2UIToClientTool` がプロンプトと同じ許可セットで検証する（prompt と enforcement の同期）。
+    public let allowedComponents: Set<String>?
 
     /// 残す server_to_client メッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）。
     /// `nil` = プルーニング無効、bundled の oneOf を全て残す。
-    private let _allowedMessages: Set<String>?
+    /// 公開: `SendA2UIToClientTool` がプロンプトと同じ許可セットで検証する（prompt と enforcement の同期）。
+    public let allowedMessages: Set<String>?
 
     // MARK: - Init
 
@@ -41,8 +43,8 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = nil
-        _allowedComponents = nil
-        _allowedMessages = nil
+        allowedComponents = nil
+        allowedMessages = nil
     }
 
     /// Initialize with custom schema strings, bypassing the bundled resources.
@@ -56,8 +58,8 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = serverToClientSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
-        _allowedComponents = nil
-        _allowedMessages = nil
+        allowedComponents = nil
+        allowedMessages = nil
     }
 
     /// Initialize with a custom **catalog** schema while keeping the bundled server-to-client and
@@ -70,8 +72,8 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = catalogSchema
-        _allowedComponents = allowedComponents
-        _allowedMessages = allowedMessages
+        self.allowedComponents = allowedComponents
+        self.allowedMessages = allowedMessages
     }
 
     /// 全パラメタを任意で渡せる統合 init。`nil` 指定のフィールドは bundled リソースにフォールバックする。
@@ -96,8 +98,26 @@ public struct A2UIPromptBuilder: Sendable {
         _serverToClientSchema = serverToClientSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
-        _allowedComponents = allowedComponents
-        _allowedMessages = allowedMessages
+        self.allowedComponents = allowedComponents
+        self.allowedMessages = allowedMessages
+    }
+
+    // MARK: - Presets
+
+    /// presenter（コンテンツ提示）サブセット構成の builder（公式 `with_pruning` 準拠）。
+    ///
+    /// カタログを `A2UIExample.presenterComponentNames` の 9 コンポーネント、
+    /// server_to_client を `A2UIExample.presenterMessageNames` の 3 メッセージに絞る。
+    /// 手本（`A2UIExample.presenterSurface`）と同じサブセットで組まれる対 —
+    /// pruning したスキーマと手本が矛盾しないことはテストで固定される。
+    public static func presenter() -> A2UIPromptBuilder {
+        A2UIPromptBuilder(
+            serverToClientSchema: nil,
+            commonTypesSchema: nil,
+            catalogSchema: nil,
+            allowedComponents: A2UIExample.presenterComponentNames,
+            allowedMessages: A2UIExample.presenterMessageNames
+        )
     }
 
     // MARK: - Bundled resources (public)
@@ -176,8 +196,8 @@ public struct A2UIPromptBuilder: Sendable {
                 catalog: catalog,
                 serverToClient: s2c,
                 commonTypes: common,
-                allowedComponents: _allowedComponents,
-                allowedMessages: _allowedMessages
+                allowedComponents: allowedComponents,
+                allowedMessages: allowedMessages
             )
             catalogString = Self.serializeJSON(pruned.catalog) ?? catalogString
             s2cString = Self.serializeJSON(pruned.serverToClient) ?? s2cString

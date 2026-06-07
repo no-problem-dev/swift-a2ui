@@ -283,6 +283,24 @@ struct A2UIPromptBuilderBundledTests {
         #expect(pruned.contains("\"DynamicString\":"))
     }
 
+    @Test("presenter preset は手本と同じサブセットへ pruning される")
+    func presenterPresetMatchesExampleSubset() {
+        let block = A2UIPromptBuilder.presenter().schemaBlock()
+        // presenter の 9 コンポーネントは残る
+        for name in A2UIExample.presenterComponentNames {
+            #expect(block.contains("\"\(name)\""), "missing presenter component \(name)")
+        }
+        // 提示に使わないコンポーネント・メッセージは消える
+        #expect(!block.contains("\"Tabs\""))
+        #expect(!block.contains("\"Modal\""))
+        #expect(!block.contains("\"TextField\""))
+        #expect(!block.contains("DeleteSurfaceMessage"))
+        #expect(!block.contains("CallFunctionMessage"))
+        for name in A2UIExample.presenterMessageNames {
+            #expect(block.contains(name), "missing presenter message \(name)")
+        }
+    }
+
     @Test("schema block remains valid: each labelled JSON re-parses cleanly")
     func bundledSchemaJSONIsReparsable() throws {
         let builder = A2UIPromptBuilder()
