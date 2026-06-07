@@ -60,16 +60,22 @@ struct ButtonNodeView: View {
         }
     }
 
-    /// borderless（チップ）の背景。glass ではタッチに反応するガラスカプセル。
+    /// borderless（チップ）の背景。glass ではフロストマテリアルのカプセル。
+    /// チップは横スクロール行に並ぶことが多く、glassEffect だとスクロール領域
+    /// 全幅のガラス板（帯）を描くアーティファクトが出るため、マテリアルで統一する。
     @ViewBuilder private var chipBackground: some View {
         if isGlass {
-            if #available(iOS 26.0, macOS 26.0, *) {
-                Capsule().fill(.clear)
-                    .glassEffect(.regular.interactive(true), in: Capsule())
-            } else {
-                Capsule().fill(.ultraThinMaterial)
-                    .overlay { Capsule().strokeBorder(colors.outlineVariant, lineWidth: 1) }
-            }
+            Capsule().fill(.ultraThinMaterial)
+                .overlay {
+                    Capsule().strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.4), .white.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                }
         } else {
             Capsule().fill(colors.surfaceVariant)
         }
