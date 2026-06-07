@@ -24,6 +24,7 @@ public enum A2UIValidation {
         var componentsBySurface: [String: [StructuredValue]] = [:]
         var order: [String] = []
         var sawSurface = false
+        var sawStateChange = false
         var activeSurfaces: Set<String> = []
         var duplicateIssues: [String] = []
 
@@ -54,12 +55,17 @@ public enum A2UIValidation {
                 // toward duplicate-id / topology checks.
                 activeSurfaces.remove(ds.surfaceId)
                 componentsBySurface[ds.surfaceId] = nil
+                sawStateChange = true
+            case .updateDataModel:
+                // A data-model-only batch is a legitimate incremental update to an existing
+                // surface (the smallest change a turn can make) — never "no output".
+                sawStateChange = true
             default:
                 break
             }
         }
 
-        if !sawSurface && componentsBySurface.isEmpty {
+        if !sawSurface && componentsBySurface.isEmpty && !sawStateChange {
             return ["no A2UI surface or components were produced"]
         }
 
@@ -87,7 +93,12 @@ public enum A2UIValidation {
             do {
                 try ComponentValidator.validateTopology(components: byId)
             } catch ComponentValidator.ValidationError.missingRoot {
-                issues.append("surface '\(surfaceId)': missing a component with id 'root'")
+                // First paint must include 'root'. An update batch (no createSurface for this
+                // surface in the turn) may legitimately touch only subtrees — the root already
+                // lives on the client.
+                if activeSurfaces.contains(surfaceId) {
+                    issues.append("surface '\(surfaceId)': missing a component with id 'root'")
+                }
             } catch let ComponentValidator.ValidationError.circularReference(id) {
                 issues.append("surface '\(surfaceId)': circular reference at component '\(id)'")
             } catch ComponentValidator.ValidationError.depthLimitExceeded {

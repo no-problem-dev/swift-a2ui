@@ -23,7 +23,17 @@ public enum A2UIPayloadFixer {
         if let messages = decodeStrict(removeTrailingCommas(normalized)) {
             return messages
         }
-        throw ParseError(description: "Failed to parse JSON: payload is not a valid A2UI message or array of messages.")
+        // LaTeX-heavy content frequently arrives with under-escaped backslashes ("\infty"
+        // instead of "\\infty"), which is invalid JSON. Repair invalid escapes and retry.
+        let repaired = repairInvalidEscapes(normalized)
+        if let messages = decodeStrict(repaired) {
+            return messages
+        }
+        if let messages = decodeStrict(removeTrailingCommas(repaired)) {
+            return messages
+        }
+        throw ParseError(description: "Failed to parse JSON: payload is not a valid A2UI message or array of messages. "
+            + "If string values contain LaTeX, every backslash must be escaped for JSON (write \\\\int, not \\int).")
     }
 
     // MARK: - Private
@@ -50,5 +60,12 @@ public enum A2UIPayloadFixer {
 
     private static func removeTrailingCommas(_ json: String) -> String {
         json.replacingOccurrences(of: #",(?=\s*[\]}])"#, with: "", options: .regularExpression)
+    }
+
+    /// Double any backslash that does not start a valid JSON escape (`\" \\ \/ \b \f \n \r \t \u`).
+    /// Repairs LaTeX written with single backslashes (`\infty` → `\\infty`); already-valid escapes
+    /// are left untouched.
+    private static func repairInvalidEscapes(_ json: String) -> String {
+        json.replacingOccurrences(of: #"\\(?!["\\/bfnrtu])"#, with: #"\\\\"#, options: .regularExpression)
     }
 }

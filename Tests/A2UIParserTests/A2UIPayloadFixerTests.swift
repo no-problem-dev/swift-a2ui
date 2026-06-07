@@ -60,4 +60,30 @@ struct A2UIPayloadFixerTests {
             try A2UIPayloadFixer.parseAndFix("")
         }
     }
+
+    @Test("LaTeX のエスケープ不足バックスラッシュを修復してパース")
+    func repairsUnderEscapedLatex() throws {
+        // \int / \infty の "\i" は不正な JSON エスケープ — 修復後にパースできること
+        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"problem":"$\int_{0}^{\infty} e^{-x^2} dx$"}}}]"#
+        let messages = try A2UIPayloadFixer.parseAndFix(payload)
+        #expect(messages.count == 1)
+        guard case .updateDataModel(let udm) = messages[0] else {
+            Issue.record("expected updateDataModel")
+            return
+        }
+        #expect(udm.value?["problem"].stringValue == #"$\int_{0}^{\infty} e^{-x^2} dx$"#)
+    }
+
+    @Test("正しいエスケープは修復で壊さない")
+    func preservesValidEscapes() throws {
+        // \\theta（正しくエスケープ済み）と \infty（不足）の混在 — 公式 flash 系の実出力パターン
+        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"a":"$\\theta$","b":"$\infty$"}}}]"#
+        let messages = try A2UIPayloadFixer.parseAndFix(payload)
+        guard case .updateDataModel(let udm) = messages[0] else {
+            Issue.record("expected updateDataModel")
+            return
+        }
+        #expect(udm.value?["a"].stringValue == #"$\theta$"#)
+        #expect(udm.value?["b"].stringValue == #"$\infty$"#)
+    }
 }

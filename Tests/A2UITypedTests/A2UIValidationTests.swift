@@ -32,14 +32,35 @@ struct A2UIValidationTests {
         #expect(issues([]) == ["no A2UI surface or components were produced"])
     }
 
-    @Test("missing root is flagged")
+    @Test("missing root on first paint is flagged")
     func missingRoot() {
         let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"t","component":"Text","text":"hi"}"#),
             ])),
         ]
         #expect(issues(messages).contains { $0.contains("root") })
+    }
+
+    @Test("partial component update without root is valid for an existing surface")
+    func partialUpdateWithoutRoot() {
+        // createSurface がこのバッチに無い surface への updateComponents は差分更新 —
+        // root はクライアント側に既にあるため必須にしない。
+        let messages: [ServerMessage] = [
+            .updateComponents(UpdateComponents(surfaceId: "existing", components: [
+                comp(#"{"id":"extra","component":"Text","text":"appended"}"#),
+            ])),
+        ]
+        #expect(issues(messages).isEmpty)
+    }
+
+    @Test("data-model-only batch is a valid incremental update")
+    func dataModelOnlyBatch() {
+        let messages: [ServerMessage] = [
+            .updateDataModel(UpdateDataModel(surfaceId: "existing", path: "/", value: .object(["title": .string("更新")]))),
+        ]
+        #expect(issues(messages).isEmpty)
     }
 
     @Test("unknown component name is flagged")
