@@ -140,3 +140,70 @@ struct A2UIValidationTests {
         #expect(!issues(messages).isEmpty)
     }
 }
+
+// プロンプト側のプルーニング（A2UIPromptBuilder の allowedComponents / allowedMessages）と
+// 同じ許可セットを渡したとき、モデルに提示していないコンポーネント・メッセージが
+// issue として弾かれることを固定する。
+@Suite("A2UIValidation (allowlist enforcement)")
+struct A2UIValidationAllowlistTests {
+
+    private func comp(_ json: String) -> StructuredValue {
+        try! JSONDecoder().decode(StructuredValue.self, from: Data(json.utf8))
+    }
+
+    private let presenterComponents: Set<String> = ["Column", "Row", "Text", "Image", "Icon", "Divider", "List", "Card", "Button"]
+    private let presenterMessages: Set<String> = ["CreateSurfaceMessage", "UpdateComponentsMessage", "UpdateDataModelMessage"]
+
+    @Test("a catalog-valid component outside the allowed set is flagged as not allowed")
+    func disallowedComponent() {
+        let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+            .updateComponents(UpdateComponents(surfaceId: "s", components: [
+                comp(#"{"id":"root","component":"Column","children":["sl"]}"#),
+                comp(#"{"id":"sl","component":"Slider","value":3,"max":10}"#),
+            ])),
+        ]
+        let issues = A2UIValidation.issues(
+            in: messages, for: BasicCatalog.self, allowedComponents: presenterComponents)
+        #expect(issues.contains { $0.contains("component 'Slider' (id: sl) is not allowed") })
+        // 「unknown」ではなく許可セット違反として報告される（モデルが見たスキーマと一致する語彙）
+        #expect(!issues.contains { $0.contains("unknown component") })
+    }
+
+    @Test("components inside the allowed set pass")
+    func allowedComponentsPass() {
+        let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+            .updateComponents(UpdateComponents(surfaceId: "s", components: [
+                comp(#"{"id":"root","component":"Column","children":["t"]}"#),
+                comp(#"{"id":"t","component":"Text","text":"hi"}"#),
+            ])),
+        ]
+        let issues = A2UIValidation.issues(
+            in: messages, for: BasicCatalog.self,
+            allowedComponents: presenterComponents, allowedMessages: presenterMessages)
+        #expect(issues.isEmpty)
+    }
+
+    @Test("a message type outside the allowed set is flagged")
+    func disallowedMessage() {
+        let messages: [ServerMessage] = [
+            .deleteSurface(DeleteSurface(surfaceId: "s")),
+        ]
+        let issues = A2UIValidation.issues(
+            in: messages, for: BasicCatalog.self, allowedMessages: presenterMessages)
+        #expect(issues.contains { $0.contains("message type 'DeleteSurfaceMessage' is not allowed") })
+    }
+
+    @Test("nil allowlists keep full-catalog behavior")
+    func nilAllowlists() {
+        let messages: [ServerMessage] = [
+            .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
+            .updateComponents(UpdateComponents(surfaceId: "s", components: [
+                comp(#"{"id":"root","component":"Column","children":["sl"]}"#),
+                comp(#"{"id":"sl","component":"Slider","value":3,"max":10}"#),
+            ])),
+        ]
+        #expect(A2UIValidation.issues(in: messages, for: BasicCatalog.self).isEmpty)
+    }
+}

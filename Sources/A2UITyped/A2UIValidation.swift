@@ -16,9 +16,16 @@ public enum A2UIValidation {
     /// Collect validation issues for the messages of a turn. Empty result means the output is valid
     /// and safe to render. Components are aggregated per `surfaceId` across `createSurface`
     /// (v0.10 inline components) and `updateComponents` before validating.
+    ///
+    /// `allowedComponents` / `allowedMessages` mirror `A2UIPromptBuilder`'s pruning sets: when a
+    /// host prunes the prompt-side schema to a subset, it passes the same sets here so a component
+    /// or message the model was never offered is rejected — prompt and enforcement stay in lockstep
+    /// (`nil` = no restriction beyond the catalog itself).
     public static func issues<Catalog: A2UICatalog>(
         in messages: [ServerMessage],
-        for catalog: Catalog.Type
+        for catalog: Catalog.Type,
+        allowedComponents: Set<String>? = nil,
+        allowedMessages: Set<String>? = nil
     ) -> [String] {
         var componentsBySurface: [String: [StructuredValue]] = [:]
         var order: [String] = []
@@ -29,6 +36,16 @@ public enum A2UIValidation {
 
         func note(_ surfaceId: String) {
             if !order.contains(surfaceId) { order.append(surfaceId) }
+        }
+
+        // Message-allowlist check first: a pruned-out message type was never in the model's schema,
+        // so the corrective feedback names the violation directly instead of a downstream symptom.
+        var messageIssues: [String] = []
+        if let allowedMessages {
+            for name in Set(messages.map(\.schemaMessageName)).subtracting(allowedMessages).sorted() {
+                messageIssues.append("message type '\(name)' is not allowed for this agent"
+                    + " (allowed: \(allowedMessages.sorted().joined(separator: ", ")))")
+            }
         }
 
         for message in messages {
@@ -65,10 +82,10 @@ public enum A2UIValidation {
         }
 
         if !sawSurface && componentsBySurface.isEmpty && !sawStateChange {
-            return ["no A2UI surface or components were produced"]
+            return messageIssues + ["no A2UI surface or components were produced"]
         }
 
-        var issues: [String] = duplicateIssues
+        var issues: [String] = messageIssues + duplicateIssues
         for surfaceId in order {
             let comps = componentsBySurface[surfaceId] ?? []
             // A createSurface with no components yet is valid (components may arrive in a later message
@@ -104,9 +121,20 @@ public enum A2UIValidation {
                 issues.append("surface '\(surfaceId)': component tree exceeds the depth limit")
             } catch {}
 
-            // 3) Per-component: unknown component names + malformed known components.
+            // 3) Per-component: allowlist miss + unknown component names + malformed known components.
             for component in comps {
                 let probedId = (try? component.decode(IdProbe.self))?.id ?? ""
+                // Allowlist before catalog checks: a pruned-out component is "not allowed" — the
+                // message that matches the schema the model actually saw — not "unknown"/"malformed".
+                if let allowedComponents,
+                   case .object(let dict) = component, case .string(let name) = dict["component"],
+                   !allowedComponents.contains(name) {
+                    issues.append("surface '\(surfaceId)': component '\(name)'"
+                        + (probedId.isEmpty ? "" : " (id: \(probedId))")
+                        + " is not allowed for this agent"
+                        + " (allowed: \(allowedComponents.sorted().joined(separator: ", ")))")
+                    continue
+                }
                 do {
                     let node = try component.decode(CatalogNode<Catalog.Node>.self)
                     if case .unknown(let name, let id, _) = node {

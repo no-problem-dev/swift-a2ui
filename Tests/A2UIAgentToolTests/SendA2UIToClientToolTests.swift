@@ -110,3 +110,40 @@ struct A2UIToolResultExtractorTests {
         #expect(messages == nil)
     }
 }
+
+// promptBuilder の許可セット（プロンプト側プルーニング）が検証にも適用されることを固定する —
+// モデルに提示していないコンポーネントはツールエラーとなり、同一ループ内で自己修正される。
+@Suite("SendA2UIToClientTool (promptBuilder allowlist enforcement)")
+struct SendA2UIToClientToolAllowlistTests {
+
+    private let sliderPayload = """
+    [{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
+    {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[\
+    {"id":"root","component":"Column","children":["sl"]},\
+    {"id":"sl","component":"Slider","value":3,"max":10}]}}]
+    """
+
+    private func execute(_ tool: SendA2UIToClientTool<BasicCatalog>, a2uiJSON: String) async throws -> ToolResult {
+        struct Args: Encodable { let a2ui_json: String }
+        return try await tool.execute(with: try JSONEncoder().encode(Args(a2ui_json: a2uiJSON)))
+    }
+
+    @Test("プルーニング済み promptBuilder は許可外コンポーネントをツールエラーで弾く")
+    func prunedBuilderRejectsDisallowedComponent() async throws {
+        let tool = SendA2UIToClientTool<BasicCatalog>(promptBuilder: .presenter())
+        let result = try await execute(tool, a2uiJSON: sliderPayload)
+        guard case .error(let message) = result else {
+            Issue.record("expected .error, got \(result)"); return
+        }
+        #expect(message.contains("component 'Slider' (id: sl) is not allowed"))
+    }
+
+    @Test("デフォルト promptBuilder（プルーニングなし）はフルカタログを許可する")
+    func defaultBuilderAcceptsFullCatalog() async throws {
+        let tool = SendA2UIToClientTool<BasicCatalog>()
+        let result = try await execute(tool, a2uiJSON: sliderPayload)
+        guard case .json = result else {
+            Issue.record("expected .json, got \(result)"); return
+        }
+    }
+}

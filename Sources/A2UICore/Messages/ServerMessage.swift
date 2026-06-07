@@ -77,3 +77,20 @@ extension ServerMessage: Codable {
         }
     }
 }
+
+extension ServerMessage {
+    /// The official `server_to_client.json` `$defs` name for this message
+    /// (e.g. `"CreateSurfaceMessage"`). This is the same vocabulary
+    /// `A2UIPromptBuilder(allowedMessages:)` prunes by, so prompt-side pruning and
+    /// post-generation validation share a single identifier set.
+    public var schemaMessageName: String {
+        switch self {
+        case .createSurface: "CreateSurfaceMessage"
+        case .updateComponents: "UpdateComponentsMessage"
+        case .updateDataModel: "UpdateDataModelMessage"
+        case .deleteSurface: "DeleteSurfaceMessage"
+        case .callFunction: "CallFunctionMessage"
+        case .actionResponse: "ActionResponseMessage"
+        }
+    }
+}

@@ -71,7 +71,15 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
             return failure("\(error)")
         }
 
-        let issues = A2UIValidation.issues(in: messages, for: Catalog.self)
+        // Validate with the SAME allowlists the promptBuilder pruned the schema by: a component or
+        // message the model was never offered must fail here (and self-correct in-loop), not slip
+        // through to the renderer.
+        let issues = A2UIValidation.issues(
+            in: messages,
+            for: Catalog.self,
+            allowedComponents: promptBuilder.allowedComponents,
+            allowedMessages: promptBuilder.allowedMessages
+        )
         guard issues.isEmpty else {
             return failure(issues.joined(separator: "; "))
         }
