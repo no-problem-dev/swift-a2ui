@@ -24,6 +24,10 @@ let package = Package(
         // declaration, ServerMessage/ClientMessage ⇄ A2A Part coding, and the message
         // metadata vocabulary (a2uiClientCapabilities / a2uiClientDataModel).
         .library(name: "A2UIA2A", targets: ["A2UIA2A"]),
+        // Orchestration policy over A2UIA2A (mirror of the official orchestrator sample):
+        // surface ownership ledger, deterministic userAction routing, data-model stripping.
+        // Pure functions over A2A parts — host runtimes wire these in as hooks.
+        .library(name: "A2UIOrchestration", targets: ["A2UIOrchestration"]),
     ],
     dependencies: [
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
@@ -69,9 +73,16 @@ let package = Package(
             "A2UICore",
             .product(name: "A2ACore", package: "swift-a2a"),
         ]),
+        // Orchestration policy. Same layer as the official samples/agent/adk/orchestrator —
+        // composition logic over the protocol vocabulary, kept UI- and runtime-free.
+        .target(name: "A2UIOrchestration", dependencies: [
+            "A2UICore", "A2UIA2A",
+            .product(name: "A2ACore", package: "swift-a2a"),
+        ]),
         .testTarget(name: "A2UICoreTests", dependencies: ["A2UICore"],
                     resources: [.copy("Fixtures")]),
         .testTarget(name: "A2UIA2ATests", dependencies: ["A2UIA2A"]),
+        .testTarget(name: "A2UIOrchestrationTests", dependencies: ["A2UIOrchestration"]),
         .testTarget(name: "A2UICatalogTests", dependencies: ["A2UICatalog"],
                     resources: [.copy("Fixtures")]),
         .testTarget(name: "A2UIPromptTests", dependencies: ["A2UIPrompt"]),
