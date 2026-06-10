@@ -35,7 +35,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.5.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.6.3"),
         // 1.4.0: mediaViewable（メディアビューア）/ SurfaceStyle 環境 / Glass Card / motion トークンを使用
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "1.4.0"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "1.2.0"),
