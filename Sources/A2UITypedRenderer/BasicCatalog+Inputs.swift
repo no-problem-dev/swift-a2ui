@@ -26,19 +26,16 @@ struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
         content.disabled(!ctx.checksPass(component.checks))
     }
 
+    // ボタンは DS のスタイル（glass / solid）に統一して描画する。macOS の適正寸法・内容幅は
+    // DesignSystem 側（ButtonSize / 各 ButtonStyle）が platform-aware に処理するため、レンダラに
+    // プラットフォーム分岐は持たない。iOS は従来の glass / pill のまま。
     @ViewBuilder private var content: some View {
         switch component.variant {
         case .primary:
-            let button = Button { ctx.dispatch(component.action, from: component.id) } label: {
-                ctx.child(component.child).frame(maxWidth: .infinity)
-            }
-            if isGlass {
-                button.buttonStyle(.primaryGlass)
-            } else {
-                button.buttonStyle(PrimaryButtonStyle())
-            }
+            let button = Button(action: action) { ctx.child(component.child) }
+            if isGlass { button.buttonStyle(.primaryGlass) } else { button.buttonStyle(PrimaryButtonStyle()) }
         case .borderless:
-            Button { ctx.dispatch(component.action, from: component.id) } label: {
+            Button(action: action) {
                 ctx.child(component.child)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -49,16 +46,12 @@ struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
             }
             .buttonStyle(.plain)
         case .default, .none:
-            let button = Button { ctx.dispatch(component.action, from: component.id) } label: {
-                ctx.child(component.child)
-            }
-            if isGlass {
-                button.buttonStyle(.glass)
-            } else {
-                button.buttonStyle(SecondaryButtonStyle())
-            }
+            let button = Button(action: action) { ctx.child(component.child) }
+            if isGlass { button.buttonStyle(.glass) } else { button.buttonStyle(SecondaryButtonStyle()) }
         }
     }
+
+    private func action() { ctx.dispatch(component.action, from: component.id) }
 
     /// borderless（チップ）の背景。glass ではフロストマテリアルのカプセル。
     /// チップは横スクロール行に並ぶことが多く、glassEffect だとスクロール領域
@@ -90,6 +83,7 @@ struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: B
     var body: some View {
         let label = ctx.resolve(component.label)
         let placeholder = component.placeholder.map { ctx.resolve($0) } ?? label
+        // DSTextField に統一。macOS のフィールド高は DesignSystem 側が platform-aware に縮める。
         let field = DSTextField(
             label,
             text: ctx.binding(component.value),
@@ -158,12 +152,66 @@ struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node
             if let label = component.label {
                 Text(ctx.resolve(label)).typography(.labelMedium).foregroundStyle(colors.onSurfaceVariant)
             }
+            #if os(macOS)
+            // macOS 標準の選択コントロール: 複数=チェックボックス群 / 単一=少数は radio group・
+            // 多数は pop-up（menu）。チップ群（iOS）は使わない。
+            macSelection
+            #else
             FlowChips(
                 options: component.options.map { (label: ctx.resolve($0.label), value: $0.value) },
                 selection: ctx.resolveStringList(component.value)
             ) { toggle($0) }
+            #endif
         }
     }
+
+    #if os(macOS)
+    @ViewBuilder private var macSelection: some View {
+        let options = component.options.map { (label: ctx.resolve($0.label), value: $0.value) }
+        if multiple {
+            VStack(alignment: .leading, spacing: spacing.xs) {
+                ForEach(options, id: \.value) { option in
+                    Toggle(option.label, isOn: checkboxBinding(option.value))
+                        .toggleStyle(.checkbox)
+                }
+            }
+        } else {
+            let picker = Picker(selection: singleBinding) {
+                ForEach(options, id: \.value) { option in
+                    Text(option.label).tag(option.value)
+                }
+            } label: { EmptyView() }
+                .labelsHidden()
+            if options.count <= 6 {
+                picker.pickerStyle(.radioGroup)
+            } else {
+                picker.pickerStyle(.menu)
+            }
+        }
+    }
+
+    private var singleBinding: Binding<String> {
+        Binding(
+            get: { ctx.resolveStringList(component.value).first ?? "" },
+            set: { ctx.writeStringList(component.value, [$0]) }
+        )
+    }
+
+    private func checkboxBinding(_ value: String) -> Binding<Bool> {
+        Binding(
+            get: { ctx.resolveStringList(component.value).contains(value) },
+            set: { isOn in
+                var current = ctx.resolveStringList(component.value)
+                if isOn {
+                    if !current.contains(value) { current.append(value) }
+                } else {
+                    current.removeAll { $0 == value }
+                }
+                ctx.writeStringList(component.value, current)
+            }
+        )
+    }
+    #endif
 
     private func toggle(_ value: String) {
         var current = ctx.resolveStringList(component.value)
