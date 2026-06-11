@@ -59,7 +59,7 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
             .error("Failed to call A2UI tool \(A2UIToolConstants.toolName): \(message)")
         }
 
-        guard let a2uiJSON = (try? JSONDecoder().decode(ToolArgs.self, from: argumentsData))?.a2ui_json,
+        guard let a2uiJSON = Self.normalizedA2UIJSON(from: argumentsData),
               !a2uiJSON.isEmpty else {
             return failure("Failed to call tool \(A2UIToolConstants.toolName) because missing required arg \(A2UIToolConstants.jsonArgName)")
         }
@@ -85,6 +85,31 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
         }
 
         return .json(try JSONEncoder().encode(ValidatedPayload(validated_a2ui_json: messages)))
+    }
+
+    /// `a2ui_json` 引数を正規化された JSON 文字列として取り出す。
+    ///
+    /// 公式契約（Python SDK 準拠）では `a2ui_json` は「A2UI JSON 配列を文字列化したもの」だが、
+    /// 一部のモデル（例: gemini flash-lite 系）は文字列化せず生の JSON 配列／オブジェクトを
+    /// そのまま引数に積む。その場合 `String?` への decode は失敗し「引数欠落」と誤認されるため、
+    /// 生 JSON を再シリアライズして後段パーサが期待する文字列形に揃える。
+    static func normalizedA2UIJSON(from data: Data) -> String? {
+        // Fast path: 公式契約どおり文字列で渡されたケース。
+        if let s = (try? JSONDecoder().decode(ToolArgs.self, from: data))?.a2ui_json {
+            return s
+        }
+        // Tolerant path: 生 JSON（配列／オブジェクト）で渡されたケースを再文字列化する。
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let raw = root[A2UIToolConstants.jsonArgName] else {
+            return nil
+        }
+        if let s = raw as? String { return s }
+        guard JSONSerialization.isValidJSONObject(raw),
+              let reencoded = try? JSONSerialization.data(withJSONObject: raw),
+              let s = String(data: reencoded, encoding: .utf8) else {
+            return nil
+        }
+        return s
     }
 }
 

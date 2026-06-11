@@ -47,6 +47,20 @@ struct SendA2UIToClientToolTests {
         #expect(payload.validated_a2ui_json.count == 2)
     }
 
+    @Test("寛容化: a2ui_json を生の JSON 配列で渡しても受理する（flash-lite 対策）")
+    func acceptsRawJSONArrayArgument() async throws {
+        // gemini flash-lite 等は a2ui_json を文字列化せず生の配列で積む。
+        // validPayload は配列リテラルなので、クォートせず埋め込めばその失敗モードを再現できる。
+        let data = Data(#"{"a2ui_json": \#(validPayload)}"#.utf8)
+        let tool = SendA2UIToClientTool<BasicCatalog>()
+        let result = try await tool.execute(with: data)
+        guard case .json(let out) = result else {
+            Issue.record("expected .json, got \(result)"); return
+        }
+        struct Payload: Decodable { let validated_a2ui_json: [ServerMessage] }
+        #expect(try JSONDecoder().decode(Payload.self, from: out).validated_a2ui_json.count == 2)
+    }
+
     @Test("引数欠落: missing required arg エラー")
     func missingArgumentIsError() async throws {
         let result = try await execute(a2uiJSON: nil)
