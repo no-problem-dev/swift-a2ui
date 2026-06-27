@@ -34,6 +34,7 @@ let package = Package(
         .library(name: "A2UIOrchestration", targets: ["A2UIOrchestration"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
         .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.6.3"),
         // 1.4.0: mediaViewable（メディアビューア）/ SurfaceStyle 環境 / Glass Card / motion トークンを使用
