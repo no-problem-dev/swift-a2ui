@@ -1,3 +1,4 @@
+/// A scalar or collection value that can be a literal, a data-model binding, or a function-call result.
 public enum DynamicValue: Sendable, Equatable {
     case string(String)
     case number(Double)

@@ -1,3 +1,4 @@
+/// Patches the surface data model at a JSON Pointer `path` with a new `value`.
 public struct UpdateDataModel: Codable, Sendable, Equatable {
     public let surfaceId: String
     public let path: String?

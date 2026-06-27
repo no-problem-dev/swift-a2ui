@@ -1,3 +1,4 @@
+/// A UI action: either a named event dispatched to the host or a server-side function call.
 public enum Action: Sendable, Equatable {
     case event(EventAction)
     case functionCall(FunctionCall)

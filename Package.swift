@@ -55,7 +55,7 @@ let package = Package(
         .target(name: "A2UIPromptCompact", dependencies: ["A2UICore", "A2UICatalog", "A2UIPrompt"]),
         .target(name: "A2UIParser", dependencies: ["A2UICore"]),
         .target(name: "A2UISurface", dependencies: ["A2UICore"]),
-        .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface", "A2UICatalog"]),
+        .target(name: "A2UIRuntime", dependencies: ["A2UICore", "A2UISurface"]),
         // Generic catalog/node layer. No SwiftUI — builds on macOS for fast type-level iteration.
         .target(name: "A2UITyped", dependencies: ["A2UICore", "A2UICatalog", "A2UISurface"]),
         // Generic SwiftUI renderer: A2UISurfaceView<Catalog> dispatches CatalogNode via a recursive

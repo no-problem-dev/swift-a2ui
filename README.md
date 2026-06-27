@@ -125,11 +125,11 @@ let parser = A2UIStreamingParser()
 for chunk in llmStream {
     let parts = parser.feed(chunk)
     for part in parts {
-        switch part {
-        case .messages(let messages):
+        if let messages = part.messages {
             // A2UI ServerMessage 配列を描画系へ流す
             await surface.apply(messages)
-        case .text(let text):
+        }
+        if let text = part.text {
             // プレーンテキスト部分
             print(text)
         }
@@ -185,7 +185,10 @@ var body: some View {
 
 ```swift
 // 独自コンポーネントを BasicCatalog に上乗せ
-typealias AppCatalog = Catalog<CombinedNode<MyNode, BasicComponent>>
+enum AppCatalog: A2UICatalog {
+    typealias Node = CombinedNode<MyNode, BasicComponent>
+    static let catalogId = "com.example.my-app"
+}
 
 // BasicEmbeddingNode 準拠で BasicCatalog のレンダラーを再利用
 extension MyNode: BasicEmbeddingNode { ... }
@@ -223,7 +226,7 @@ let tools = A2UIPresenterAgent.tools(
 )
 
 // 3. A2A card の extensions に宣言
-let extension = A2UIPresenterAgent.agentExtension()
+let agentExtension = A2UIPresenterAgent.agentExtension()
 
 // 4. オーケストレータの system prompt に注入する制約
 let constraint = A2UIPresenterAgent.hostOutputConstraint(agentName: agentName)

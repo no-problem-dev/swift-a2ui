@@ -5,7 +5,7 @@ import A2UICore
 /// A2UI's whole extensibility model is "the client owns a catalog of trusted components; the agent
 /// may only request what is in it." Here that catalog is a *type* the consumer supplies. The
 /// library ships `BasicCatalog`; an application composes it with its own design-system components
-/// via `CombinedNode`, e.g. `typealias AppCatalog = Catalog<CombinedNode<MyNode, BasicNode>>`.
+/// via `CombinedNode`, e.g. `enum AppCatalog: A2UICatalog { typealias Node = CombinedNode<MyNode, BasicComponent>; ... }`.
 ///
 /// The renderer is generic over this protocol (`A2UIRenderer<some A2UICatalog>`), so dispatch is
 /// total and exhaustive at compile time while staying open to consumer extension at the type level.
