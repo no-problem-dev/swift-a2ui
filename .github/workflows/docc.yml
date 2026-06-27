@@ -33,7 +33,8 @@ jobs:
         run: |
           swift package --allow-writing-to-directory ./docs \
             generate-documentation \
-            --target A2UICore \
+            --enable-experimental-combined-documentation \
+            --target A2UICore --target A2UICatalog --target A2UIPrompt --target A2UIPromptCompact --target A2UIParser --target A2UISurface --target A2UIRuntime --target A2UITyped --target A2UITypedRenderer --target A2UIAgentTool --target A2UIAgent --target A2UIA2A --target A2UIOrchestration \
             --disable-indexing \
             --transform-for-static-hosting \
             --hosting-base-path swift-a2ui \
