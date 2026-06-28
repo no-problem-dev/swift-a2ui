@@ -1,10 +1,10 @@
 import Foundation
 import A2UICore
 
-/// Incrementally parses streaming LLM output, extracting complete `<a2ui-json>` blocks
-/// as they arrive without waiting for the full response.
+/// ストリーミング LLM 出力をインクリメンタルにパースし、完全なレスポンスを待たずに
+/// `<a2ui-json>` ブロックが到着した時点で抽出する。
 ///
-/// Usage:
+/// 使い方:
 /// ```swift
 /// let parser = A2UIStreamingParser()
 /// for chunk in stream {
@@ -18,25 +18,25 @@ public final class A2UIStreamingParser: @unchecked Sendable {
 
     public init() {}
 
-    /// Feed a chunk of text from the LLM stream.
+    /// LLM ストリームのテキストチャンクを受け取る。
     ///
-    /// Returns any complete `A2UIResponsePart` values that can be extracted from
-    /// the accumulated buffer. Text before the first open tag is held until a
-    /// complete block is found or `finalize()` is called.
+    /// 蓄積済みバッファから抽出できる完結した `A2UIResponsePart` を返す。
+    /// 最初の開きタグより前のテキストは、完結したブロックが見つかるか `finalize()` が
+    /// 呼ばれるまで保留される。
     ///
-    /// - Parameter chunk: A new chunk of text from the stream.
-    /// - Returns: Zero or more complete response parts.
+    /// - Parameter chunk: ストリームからの新しいテキストチャンク。
+    /// - Returns: 0 個以上の完結したレスポンスパーツ。
     public func feed(_ chunk: String) -> [A2UIResponsePart] {
         buffer.append(chunk)
         return extractCompleteParts()
     }
 
-    /// Flush any remaining buffered content after the stream ends.
+    /// ストリーム終了後、バッファに残ったコンテンツをフラッシュする。
     ///
-    /// Call this once the LLM stream is complete. Any buffered text that does not
-    /// contain a complete `<a2ui-json>` block is returned as a `.text` part.
+    /// LLM ストリームが完了したら一度だけ呼び出す。完結した `<a2ui-json>` ブロックを
+    /// 含まないバッファ済みテキストは `.text` パーツとして返される。
     ///
-    /// - Returns: Zero or more response parts for the remaining buffer content.
+    /// - Returns: 残りバッファコンテンツの 0 個以上のレスポンスパーツ。
     public func finalize() -> [A2UIResponsePart] {
         defer { buffer = "" }
         let remaining = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -44,16 +44,16 @@ public final class A2UIStreamingParser: @unchecked Sendable {
         return [.text(remaining)]
     }
 
-    /// Reset the parser to its initial state, discarding any buffered content.
+    /// パーサを初期状態にリセットし、バッファ済みコンテンツを破棄する。
     public func reset() {
         buffer = ""
     }
 
     // MARK: - Private
 
-    /// Extract all complete open+close tag pairs from the front of the buffer,
-    /// emitting text and message parts. Leaves incomplete content (e.g., an open
-    /// tag with no matching close tag) in the buffer for the next `feed` call.
+    /// バッファの先頭から完結した開きタグ＋閉じタグのペアをすべて抽出し、
+    /// テキストとメッセージパーツを発行する。不完全なコンテンツ（例: 閉じタグのない
+    /// 開きタグ）は次回の `feed` 呼び出しのためにバッファに残す。
     private func extractCompleteParts() -> [A2UIResponsePart] {
         var parts: [A2UIResponsePart] = []
 

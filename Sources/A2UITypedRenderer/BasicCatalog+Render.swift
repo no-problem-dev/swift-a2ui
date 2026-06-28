@@ -6,24 +6,20 @@ import A2UICatalog
 import A2UIRuntime
 import A2UITyped
 
-/// Basic catalog → SwiftUI as a single **exhaustive** `@ViewBuilder switch` over `BasicComponent`.
+/// `BasicComponent` を網羅する単一の `@ViewBuilder switch` で Basic カタログを SwiftUI へ描画する。
 ///
-/// Zero string matching, zero `AnyView`, no `default` escape. Layout components (`Row`/`Column`/
-/// `List`) are driven purely by `justify`/`align` — there is no child-type sniffing, so the
-/// original "isChipRow hijacks spaceBetween" bug class cannot recur here.
-///
-/// Phase-2 scope: structure + display are real; interactive inputs render their current bound value
-/// read-only (two-way write + `functionCall` side effects land in the reactive phase). Visual polish
-/// (DesignSystem typography/colors) swaps in next; this pass uses plain SwiftUI for a reliable lock.
+/// 文字列照合ゼロ・`AnyView` ゼロ・`default` 逃げゼロ。レイアウトコンポーネント（`Row` /
+/// `Column` / `List`）は `justify` / `align` のみで駆動し、子タイプのスニッフィングをしないため
+/// 旧 "isChipRow が spaceBetween をハイジャックする" バグクラスは再発しない。
 extension BasicCatalog: RenderableCatalog {
     public static func view(for node: BasicComponent, in ctx: RenderContext<BasicCatalog>) -> some View {
         BasicComponentView(component: node, ctx: ctx)
     }
 }
 
-/// Renders a `BasicComponent` inside ANY catalog whose node embeds the basic catalog —
-/// the renderer-side counterpart of `CombinedNode` composition. A composed catalog's
-/// `view(for:in:)` delegates its basic case here:
+/// `BasicComponent` を埋め込む任意のカタログ内で `BasicComponent` を描画するビュー —
+/// レンダラーサイドの `CombinedNode` 合成の対応物。合成カタログの `view(for:in:)` は
+/// basic ケースをここへ委譲する:
 ///
 /// ```swift
 /// extension AppCatalog: RenderableCatalog {
@@ -303,9 +299,9 @@ struct CardMotionModifier: ViewModifier {
     }
 }
 
-/// 全子が Button のチップ行(weight なし)だけは横スクロールを維持。Child-kind detection is
-/// type-safe via the typed node (`.known(.button)`), not a string compare. Children resolve via
-/// `ctx.children`, so `{componentId, path}` templates expand with per-element data scopes.
+/// 全子が Button のチップ行（weight なし）だけは横スクロールを維持。子の種別検出は
+/// 文字列比較でなく型付きノード（`.known(.button)`）で型安全に行う。子は `ctx.children` で
+/// 解決するため、`{componentId, path}` テンプレートは要素ごとのデータスコープで展開される。
 struct RowNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.spacingScale) private var spacing
     let component: RowComponent
@@ -352,7 +348,7 @@ struct RowNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEm
     }
 }
 
-/// `Column` — faithful port of A2UIRenderer.ColumnView. Template children expand via `ctx.children`.
+/// `Column` — A2UIRenderer.ColumnView の忠実な移植。テンプレート子は `ctx.children` で展開される。
 struct ColumnNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.spacingScale) private var spacing
     let component: ColumnComponent
@@ -368,8 +364,8 @@ struct ColumnNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
     }
 }
 
-/// `List` — faithful port of A2UIRenderer.ListView (vertical: hairline separators; horizontal:
-/// scroll). Template children expand via `ctx.children`.
+/// `List` — A2UIRenderer.ListView の忠実な移植（縦: 細線セパレータ、横: スクロール）。
+/// テンプレート子は `ctx.children` で展開される。
 struct ListNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -399,7 +395,7 @@ struct ListNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicE
     }
 }
 
-/// `Image` — faithful port of A2UIRenderer.A2UIImage (variant sizing + clip shape).
+/// `Image` — A2UIRenderer.A2UIImage の忠実な移植（バリアントサイズ + クリップシェイプ）。
 struct ImageNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     let component: ImageComponent
     let ctx: RenderContext<Catalog>
@@ -524,7 +520,7 @@ struct MediaNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
     #endif
 }
 
-/// `Tabs` — faithful port of A2UIRenderer.TabsView (scrollable underline tab bar, fixed baseline).
+/// `Tabs` — A2UIRenderer.TabsView の忠実な移植（スクロール可能なアンダーラインタブバー、固定ベースライン）。
 struct TabsNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -571,7 +567,7 @@ struct TabsNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicE
     }
 }
 
-/// `Modal` — faithful port of A2UIRenderer.ModalView (trigger → sheet with detents).
+/// `Modal` — A2UIRenderer.ModalView の忠実な移植（trigger → detents 付きシート）。
 struct ModalNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.spacingScale) private var spacing
     let component: ModalComponent

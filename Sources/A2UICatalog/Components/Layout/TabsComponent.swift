@@ -1,5 +1,6 @@
 import A2UICore
 
+/// タブの 1 項目。タイトルと子コンポーネント ID を持つ。
 public struct TabItem: Codable, Sendable, Equatable {
     public let title: DynamicString
     public let child: ComponentId
@@ -10,6 +11,7 @@ public struct TabItem: Codable, Sendable, Equatable {
     }
 }
 
+/// タブコンポーネント。複数のタブを切り替えて表示する。
 public struct TabsComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Tabs"
 

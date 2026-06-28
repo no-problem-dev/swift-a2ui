@@ -3,13 +3,12 @@ import A2UICatalog
 import A2UICore
 import JSONParsing
 
-/// Builds LLM system prompts in the official Google A2UI format.
+/// 公式 Google A2UI 形式で LLM システムプロンプトを組み立てるビルダー。
 ///
-/// `A2UIPromptBuilder` assembles the four sections that the Python SDK
-/// produces: role description, workflow rules, optional UI description,
-/// and the JSON schema block (server-to-client, common types, catalog).
+/// Python SDK が生成する 4 セクション（role 説明・ワークフロールール・UI 説明（オプション）・
+/// JSON スキーマブロック（サーバ→クライアント・共通型・カタログ））を組み立てる。
 ///
-/// ### Example
+/// ### 使用例
 /// ```swift
 /// let builder = A2UIPromptBuilder()
 /// let prompt = builder.buildSystemPrompt(
@@ -37,8 +36,8 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - Init
 
-    /// Initialize using the schemas bundled with A2UIPrompt (server_to_client.json,
-    /// common_types.json) and the catalog.json bundled with A2UICatalog.
+    /// A2UIPrompt にバンドルされたスキーマ（server_to_client.json, common_types.json）と
+    /// A2UICatalog にバンドルされた catalog.json を使用して初期化する。
     public init() {
         _serverToClientSchema = nil
         _commonTypesSchema = nil
@@ -47,9 +46,9 @@ public struct A2UIPromptBuilder: Sendable {
         allowedMessages = nil
     }
 
-    /// Initialize with custom schema strings, bypassing the bundled resources.
+    /// カスタムスキーマ文字列を使用して初期化し、バンドルリソースをバイパスする。
     ///
-    /// Useful for testing or when targeting a different A2UI spec version.
+    /// テストや異なる A2UI スペックバージョンを対象にする場合に有用。
     public init(
         serverToClientSchema: String,
         commonTypesSchema: String,
@@ -62,8 +61,8 @@ public struct A2UIPromptBuilder: Sendable {
         allowedMessages = nil
     }
 
-    /// Initialize with a custom **catalog** schema while keeping the bundled server-to-client and
-    /// common-types schemas.
+    /// カスタム **catalog** スキーマを指定しつつ、バンドルの server-to-client・
+    /// common-types スキーマはそのまま使用して初期化する。
     public init(
         catalogSchema: String,
         allowedComponents: Set<String>? = nil,
@@ -134,24 +133,21 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - Public API
 
-    /// Build a complete system prompt in the official A2UI format.
+    /// 公式 A2UI 形式でシステムプロンプト全体を組み立てる。
     ///
-    /// The prompt sections are joined with `\n\n` to produce clean spacing.
-    /// Sections are assembled in this order:
+    /// 各セクションは `\n\n` で連結する。以下の順で組み立てる:
     ///
-    /// 1. `role` — required, describes the assistant's persona.
-    /// 2. `## Workflow Description:` — workflow rules (default or custom).
-    /// 3. `## UI Description:` — optional free-form UI description.
-    /// 4. The JSON schema block — included when `includeSchema` is `true`.
+    /// 1. `role` — 必須。アシスタントのペルソナ説明。
+    /// 2. `## Workflow Description:` — ワークフロールール（デフォルトまたはカスタム）。
+    /// 3. `## UI Description:` — オプション。UI 構造の自由記述。
+    /// 4. JSON スキーマブロック — `includeSchema` が `true` の場合に追記。
     ///
     /// - Parameters:
-    ///   - role: A description of the LLM's role / persona.
-    ///   - workflowRules: Custom workflow rules. Pass `nil` to use
-    ///     `A2UIWorkflowRules.default`.
-    ///   - uiDescription: Optional description of the expected UI structure.
-    ///   - includeSchema: Whether to append the JSON schema block.
-    ///     Defaults to `true`.
-    /// - Returns: A fully assembled system prompt string.
+    ///   - role: LLM のロール / ペルソナ説明。
+    ///   - workflowRules: カスタムワークフロールール。`nil` で `A2UIWorkflowRules.default` を使用。
+    ///   - uiDescription: 期待する UI 構造のオプション説明。
+    ///   - includeSchema: JSON スキーマブロックを追記するか。デフォルトは `true`。
+    /// - Returns: 完全に組み立てられたシステムプロンプト文字列。
     public func buildSystemPrompt(
         role: String,
         workflowRules: String? = nil,
@@ -179,11 +175,11 @@ public struct A2UIPromptBuilder: Sendable {
         return sections.joined(separator: "\n\n")
     }
 
-    /// Build just the schema block portion of the prompt.
+    /// プロンプトのスキーマブロック部分のみを組み立てる。
     ///
-    /// The block is formatted by `SchemaBlockFormatter` and contains the
-    /// server-to-client, common types, and catalog schemas, after applying the official
-    /// `with_pruning` pipeline: components → messages → common-types reachability (always).
+    /// `SchemaBlockFormatter` が整形し、公式の `with_pruning` パイプライン
+    ///（components → messages → common-types 到達可能性、常時実行）を適用した後の
+    /// サーバ → クライアント・共通型・カタログスキーマを含む。
     public func schemaBlock() -> String {
         var catalogString = resolvedCatalogSchema
         var s2cString = resolvedServerToClientSchema

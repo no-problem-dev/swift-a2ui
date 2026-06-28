@@ -1,5 +1,6 @@
 import A2UICore
 
+/// モーダルコンポーネント。`trigger` をインタラクトするとオーバーレイとして `content` を表示する。
 public struct ModalComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Modal"
 

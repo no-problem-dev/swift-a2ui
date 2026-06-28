@@ -1,4 +1,4 @@
-/// A scalar or collection value that can be a literal, a data-model binding, or a function-call result.
+/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表されるスカラー/コレクション値。
 public enum DynamicValue: Sendable, Equatable {
     case string(String)
     case number(Double)

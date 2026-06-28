@@ -1,5 +1,6 @@
 import A2UICore
 
+/// スライダーコンポーネント。指定した範囲内の数値を連続または離散的に入力する。
 public struct SliderComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Slider"
 

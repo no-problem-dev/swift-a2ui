@@ -1,20 +1,20 @@
 import Foundation
 import A2UICore
 
-/// Parses `<a2ui-json>` blocks embedded in LLM text output.
+/// LLM のテキスト出力に埋め込まれた `<a2ui-json>` ブロックをパースする。
 public enum A2UIBlockParser {
-    /// The opening tag that delimits an A2UI JSON block.
+    /// A2UI JSON ブロックを区切る開きタグ。
     public static let openTag = "<a2ui-json>"
-    /// The closing tag that delimits an A2UI JSON block.
+    /// A2UI JSON ブロックを区切る閉じタグ。
     public static let closeTag = "</a2ui-json>"
 
-    /// Parse text containing zero or more `<a2ui-json>` blocks.
+    /// 0 個以上の `<a2ui-json>` ブロックを含むテキストをパースする。
     ///
-    /// Returns an array of `A2UIResponsePart` values — `.text` parts for content
-    /// outside the tags, and `.messages` parts for decoded content inside the tags.
+    /// タグの外側のコンテンツには `.text` パーツを、タグ内のデコード済みコンテンツには
+    /// `.messages` パーツを含む `A2UIResponsePart` の配列を返す。
     ///
-    /// - Parameter text: The raw LLM output string to parse.
-    /// - Returns: An ordered array of response parts.
+    /// - Parameter text: パース対象の生 LLM 出力文字列。
+    /// - Returns: 順序付きのレスポンスパーツ配列。
     public static func parse(_ text: String) -> [A2UIResponsePart] {
         var parts: [A2UIResponsePart] = []
         var remaining = text[...]
@@ -61,13 +61,14 @@ public enum A2UIBlockParser {
 
     // MARK: - Private
 
-    /// Decode a JSON string into `ServerMessage`s, **resiliently**: a single malformed message must
-    /// not discard the whole surface (LLM output is frequently partially-invalid).
+    /// JSON 文字列を `ServerMessage` の配列に**寛容な**デコードで変換する。
+    /// 単一の不正形式メッセージがサーフェス全体を破棄しないよう耐障害性を持つ
+    /// （LLM 出力は部分的に不正である場合が多い）。
     ///
-    /// 1. Fast path — decode the whole `[ServerMessage]` array.
-    /// 2. Single-message fallback.
-    /// 3. Resilient path — parse the top-level array and decode **each element independently**,
-    ///    keeping the valid messages and skipping the bad ones (e.g. one wrong `version`).
+    /// 1. 高速パス — `[ServerMessage]` 配列全体をデコード。
+    /// 2. 単一メッセージへのフォールバック。
+    /// 3. 寛容パス — トップレベルの配列を解析し各要素を独立してデコード、
+    ///    有効なメッセージを残して不正なもの（例: `version` が誤り）をスキップ。
     static func decodeMessages(from json: String) -> [ServerMessage]? {
         guard let data = json.data(using: .utf8) else { return nil }
 

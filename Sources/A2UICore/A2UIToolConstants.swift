@@ -1,12 +1,12 @@
-/// Constants for the official A2UI tool-call generation pattern — the Swift counterpart of the
-/// Python SDK's `a2ui.schema.constants` tool block (`A2UI_TOOL_NAME` etc.).
+/// 公式 A2UI ツールコール生成パターンの定数群 — Python SDK の `a2ui.schema.constants`
+/// ツールブロック（`A2UI_TOOL_NAME` 等）に対応する Swift 版。
 public enum A2UIToolConstants {
-    /// The function name the LLM calls to send UI to the client.
+    /// LLM がクライアントへ UI を送信する際に呼び出す関数名。
     public static let toolName = "send_a2ui_json_to_client"
-    /// Result key carrying the validated payload on success.
+    /// 検証成功時にペイロードを格納するリザルトキー。
     public static let validatedJSONKey = "validated_a2ui_json"
-    /// Result key carrying the failure description (returned to the model, never to the client).
+    /// 失敗内容を格納するリザルトキー（モデルに返す。クライアントには渡さない）。
     public static let errorKey = "error"
-    /// The tool's single required string argument.
+    /// ツールの唯一の必須文字列引数。
     public static let jsonArgName = "a2ui_json"
 }

@@ -1,14 +1,14 @@
-/// Formats few-shot examples for the system prompt — the Swift counterpart of the official
-/// Python `A2uiCatalog.load_examples()` marker format. Workflow prompts reference examples by
-/// these markers (e.g. "Use the JSON from `---BEGIN chart---`").
+/// システムプロンプト向けのフューショット例をマーカー形式に整形する —
+/// 公式 Python `A2uiCatalog.load_examples()` のマーカー形式に対応する Swift 版。
+/// ワークフロープロンプトはこれらのマーカーで例を参照する（例: "Use the JSON from `---BEGIN chart---`"）。
 public enum A2UIExampleFormatter {
 
-    /// Wrap one example in `---BEGIN {name}---` / `---END {name}---` markers.
+    /// 一つの例を `---BEGIN {name}---` / `---END {name}---` マーカーで囲む。
     public static func format(name: String, content: String) -> String {
         "---BEGIN \(name)---\n\(content)\n---END \(name)---"
     }
 
-    /// Merge multiple named examples, separated by blank lines (Python joins with `\n\n`).
+    /// 複数の名前付き例を空行区切りで結合する（Python は `\n\n` で結合）。
     public static func merge(_ examples: [(name: String, content: String)]) -> String {
         examples.map { format(name: $0.name, content: $0.content) }.joined(separator: "\n\n")
     }

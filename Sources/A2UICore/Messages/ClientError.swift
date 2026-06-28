@@ -1,14 +1,14 @@
-/// A client→server error (A2UI v0.10 `error`).
+/// クライアント → サーバのエラー（A2UI v0.10 `error`）。
 ///
-/// `VALIDATION_FAILED` errors correlate to a surface (`surfaceId` + `path`). Generic errors must
-/// carry exactly one of `surfaceId` (surface-scoped) or `functionCallId` (a failed server-initiated
-/// function call) — enforced by the wire schema; the Swift type keeps both optional.
+/// `VALIDATION_FAILED` エラーはサーフェス（`surfaceId` + `path`）と対応付ける。汎用エラーは
+/// `surfaceId`（サーフェススコープ）か `functionCallId`（失敗したサーバ起動の関数呼び出し）の
+/// いずれか一方を持つ — ワイヤースキーマで強制されるが、Swift 型は両方オプション扱いにしている。
 public struct ClientError: Codable, Sendable, Equatable {
     public let code: String
     public let message: String
     public let surfaceId: String?
     public let path: String?
-    /// v0.10: set when this error correlates to a failed server-initiated function call.
+    /// v0.10: 失敗したサーバ起動の関数呼び出しと対応付ける場合に設定する。
     public let functionCallId: CallId?
 
     public init(

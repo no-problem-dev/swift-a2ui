@@ -1,29 +1,28 @@
 import A2UICore
 
-/// RFC 6901 JSON Pointer implementation for StructuredValue.
+/// `StructuredValue` に対する RFC 6901 JSON Pointer の実装。
 ///
-/// Supports absolute paths starting with "/", e.g. "/user/name" or "/items/0".
-/// Escaping sequences are handled: ~1 → / and ~0 → ~.
+/// `"/"` で始まる絶対パス（`/user/name`、`/items/0` など）をサポート。
+/// エスケープシーケンスも処理する: `~1` → `/`、`~0` → `~`。
 public enum JSONPointer {
 
-    /// Resolve a path against a base scope, supporting A2UI relative paths.
+    /// ベーススコープに対してパスを解決する（A2UI 相対パスをサポート）。
     ///
-    /// A2UI extends RFC 6901 (`renderer_guide.md` §3): a path that does NOT start with `/`
-    /// is **relative** and resolves against `scope` (the current collection scope, e.g. `/users/0`).
-    /// A path starting with `/` is **absolute** and ignores the scope.
+    /// A2UI は RFC 6901 を拡張している（`renderer_guide.md` §3）:
+    /// `/` で始まらないパスは**相対パス**として `scope`（例: `/users/0`）に対して解決される。
+    /// `/` で始まるパスは**絶対パス**で scope は無視される。
     ///
     /// - Parameters:
-    ///   - path: absolute (`/a/b`) or relative (`a/b`) pointer.
-    ///   - scope: the base path for relative resolution (default root `""`).
-    ///   - data: the document root.
+    ///   - path: 絶対パス（`/a/b`）または相対パス（`a/b`）。
+    ///   - scope: 相対解決のベースパス（デフォルトはルート `""`）。
+    ///   - data: ドキュメントルート。
     public static func resolve(path: String, scope: String, in data: StructuredValue) -> StructuredValue? {
         resolve(path: absolutePath(path, scope: scope), in: data)
     }
 
-    /// Combine a (possibly relative) path with a scope into an absolute path.
-    /// Absolute paths (leading `/`) are returned unchanged. `""` and `"."` reference the scope
-    /// element itself (official web_core `resolvePath` parity — used to bind elements of scalar
-    /// arrays inside templates).
+    /// 相対パスとスコープを組み合わせて絶対パスを生成する。
+    /// 先頭に `/` を持つ絶対パスはそのまま返す。`""` および `"."` はスコープ要素自体を参照する
+    /// （公式 web_core `resolvePath` との互換性 — テンプレート内スカラー配列要素のバインドに使用）。
     public static func absolutePath(_ path: String, scope: String) -> String {
         if path.hasPrefix("/") { return path }
         let normalizedScope = scope == "/" ? "" : scope
@@ -32,8 +31,8 @@ public enum JSONPointer {
         return "\(base)/\(path)"
     }
 
-    /// Resolve a JSON Pointer path in an StructuredValue value.
-    /// Returns nil if the path doesn't exist or any intermediate node is the wrong type.
+    /// `StructuredValue` 内の JSON Pointer パスを解決する。
+    /// パスが存在しない、または中間ノードの型が不正な場合は nil を返す。
     public static func resolve(path: String, in data: StructuredValue) -> StructuredValue? {
         let tokens = parseTokens(path)
         var current = data
@@ -54,7 +53,7 @@ public enum JSONPointer {
         return current
     }
 
-    /// Set a value at a JSON Pointer path, creating intermediate objects as needed.
+    /// JSON Pointer パスに値を設定する。中間オブジェクトは必要に応じて生成される。
     public static func set(path: String, value: StructuredValue, in data: inout StructuredValue) {
         let tokens = parseTokens(path)
         guard !tokens.isEmpty else {
@@ -65,8 +64,7 @@ public enum JSONPointer {
         setRecursive(tokens: tokens[...], value: value, in: &data)
     }
 
-    /// Remove the node at the given JSON Pointer path.
-    /// No-op if the path doesn't exist.
+    /// 指定した JSON Pointer パスのノードを削除する。パスが存在しない場合はノーオペレーション。
     public static func remove(path: String, in data: inout StructuredValue) {
         let tokens = parseTokens(path)
         guard !tokens.isEmpty else { return }

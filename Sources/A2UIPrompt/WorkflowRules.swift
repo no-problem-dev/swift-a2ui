@@ -1,12 +1,9 @@
-/// Default workflow rules injected into every A2UI system prompt.
+/// 全 A2UI システムプロンプトに挿入するデフォルトのワークフロールール群。
 ///
-/// These rules instruct the LLM how to produce valid A2UI responses:
-/// which XML-like tags to wrap JSON in, ordering constraints for the
-/// `components` array, and so on. The text matches the Python SDK's
-/// `DEFAULT_WORKFLOW_RULES` constant verbatim.
+/// JSON を包むタグ・`components` 配列の順序制約など、LLM が有効な A2UI レスポンスを
+/// 生成するための指示。テキストは Python SDK の `DEFAULT_WORKFLOW_RULES` 定数と完全一致。
 public enum A2UIWorkflowRules {
-    /// The default set of rules, matching the Python SDK's
-    /// `DEFAULT_WORKFLOW_RULES` string exactly.
+    /// Python SDK の `DEFAULT_WORKFLOW_RULES` 文字列と完全一致するデフォルトルールセット。
     public static let `default` = """
     The generated response MUST follow these rules:
     - The response can contain one or more A2UI JSON blocks.
@@ -19,12 +16,11 @@ public enum A2UIWorkflowRules {
         This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.
     """
 
-    /// Workflow rules for the **tool-call** generation pattern (the official
-    /// `send_a2ui_json_to_client` tool, mirroring the Python SDK's `SendA2uiToClientToolset`).
+    /// **ツールコール**生成パターン向けのワークフロールール（公式 `send_a2ui_json_to_client`
+    /// ツール、Python SDK の `SendA2uiToClientToolset` に対応）。
     ///
-    /// Replaces the tag-wrapping clauses of `default` with tool-call clauses; ordering and
-    /// validation constraints are unchanged. The validation/apology clauses match the official
-    /// rizzcharts sample's workflow instructions.
+    /// `default` のタグ包み条件をツールコール条件に置き換え、順序・バリデーション制約は同じ。
+    /// バリデーション/謝罪条件は公式の rizzcharts サンプルの workflow instructions に準拠する。
     public static let toolCall = """
     The generated response MUST follow these rules:
     - You MUST send UI to the client by calling the `send_a2ui_json_to_client` tool with the `a2ui_json` argument set to the A2UI JSON payload.
@@ -38,10 +34,11 @@ public enum A2UIWorkflowRules {
     - If you get an error in the tool response apologize to the user and let them know they should try again.
     """
 
-    /// Path-resolution scope rules (spec §"Path resolution & scope", v0.10). The JSON schemas can
-    /// express the template `ChildList` *shape* but not the scope *semantics*, so models invent
-    /// absolute paths inside templates (resolving to undefined → empty UI). This prose ports the
-    /// normative spec wording for the prompt.
+    /// データバインディングのスコープルール（仕様 §"Path resolution & scope"、v0.10）。
+    ///
+    /// JSON スキーマはテンプレート `ChildList` の形状は表現できるがスコープのセマンティクスは
+    /// 表現できないため、モデルがテンプレート内で絶対パスを使用し未解決になることがある。
+    /// 仕様の規範的な記述をプロンプト用の散文として移植する。
     public static let scopeRules = """
     Data binding scope rules:
     - Paths starting with '/' are ABSOLUTE: they always resolve from the root of the data model, even inside a template.
@@ -50,12 +47,12 @@ public enum A2UIWorkflowRules {
     - To bind the array element itself (e.g. iterating an array of strings), use {"path": "."}.
     """
 
-    /// Required-property reminders for the **basic catalog** components.
+    /// **basic catalog** コンポーネント向けの必須プロパティリマインダー。
     ///
-    /// These mirror the natural-language hints the Google Python SDK includes alongside the basic
-    /// catalog: although the required properties are already encoded in the schema's `required`
-    /// arrays, LLMs follow an explicit prose reminder more reliably. This is basic-catalog domain
-    /// knowledge, so it lives here in the library rather than in each consuming app.
+    /// Google Python SDK が basic catalog に付属させる自然言語ヒントのミラー。
+    /// 必須プロパティはスキーマの `required` 配列に既に記載されているが、LLM は
+    /// 明示的な散文リマインダーの方がより確実に従う。basic catalog のドメイン知識として
+    /// 各アプリでなくこのライブラリに置く。
     public static let basicCatalogRules = """
     Instructions specific to the basic catalog:
     **REQUIRED PROPERTIES:** You MUST include ALL required properties for every component, even if they are inside a template or will be bound to data.
@@ -65,6 +62,7 @@ public enum A2UIWorkflowRules {
     - For 'TextField', 'CheckBox', etc., you MUST provide 'label'.
     """
 
+    /// `Text` コンポーネント内の数式 LaTeX デリミタに関するルール。
     public static let textMathRules = """
     - Math formulas MUST be LaTeX wrapped in `$...$` (inline) or `$$...$$` (display) inside a 'Text' component whose 'variant' is 'body' or omitted; other variants show them as raw text.
     """

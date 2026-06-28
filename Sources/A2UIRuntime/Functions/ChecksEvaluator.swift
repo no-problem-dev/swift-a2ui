@@ -1,13 +1,13 @@
 import A2UICore
 
-/// Evaluates a component's `checks` (spec §"Client-side logic & validation").
+/// コンポーネントの `checks`（仕様 §"Client-side logic & validation"）を評価する。
 ///
-/// Each `CheckRule` has a boolean `condition` and a `message`. A check **passes** when its
-/// condition resolves to `true`. The first failing check's message is the active validation error.
-/// Per spec, a `Button` with failing checks should be disabled.
+/// 各 `CheckRule` はブール値の `condition` と `message` を持つ。条件が `true` に解決されると
+/// 検証が通過する。最初に失敗した検証のメッセージが有効な検証エラーとなる。
+/// 仕様によれば、検証失敗がある `Button` は無効化すべき。
 public enum ChecksEvaluator {
 
-    /// Returns the message of the first failing check, or nil if all checks pass.
+    /// 最初に失敗した検証のメッセージを返す。全検証が通過した場合は nil。
     public static func firstFailure(_ checks: [CheckRule], in context: DataContext) -> String? {
         for check in checks where !context.resolveBool(check.condition) {
             return check.message
@@ -15,7 +15,7 @@ public enum ChecksEvaluator {
         return nil
     }
 
-    /// True if every check passes (or there are none).
+    /// 全検証が通過している（または検証がない）場合は true。
     public static func allPass(_ checks: [CheckRule], in context: DataContext) -> Bool {
         firstFailure(checks, in: context) == nil
     }

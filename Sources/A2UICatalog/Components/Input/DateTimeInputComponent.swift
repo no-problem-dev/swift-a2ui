@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 日時入力コンポーネント。日付・時刻の有効化を個別に制御できる。
 public struct DateTimeInputComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "DateTimeInput"
 

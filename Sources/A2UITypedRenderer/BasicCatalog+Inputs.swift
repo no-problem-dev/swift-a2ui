@@ -7,7 +7,7 @@ import A2UITyped
 // Interactive components — faithful ports of A2UIRenderer.InputViews, fed by typed props and the
 // two-way `RenderContext.binding(_:)` helpers instead of `ResolvedComponent`/`Writable`.
 
-/// `Button` — variant styles + action dispatch (faithful port of ButtonView).
+/// `Button` — バリアントスタイルとアクションディスパッチ（ButtonView の忠実な移植）。
 ///
 /// ホストの `surfaceStyle` 環境に応答する: `.glass` 系ではソリッド塗りではなく
 /// Liquid Glass ボタン（primary はティント付き、default は中立ガラス、borderless は
@@ -75,7 +75,7 @@ struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
     }
 }
 
-/// `TextField` — faithful port of TextFieldView.
+/// `TextField` — TextFieldView の忠実な移植。
 struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     let component: TextFieldComponent
     let ctx: RenderContext<Catalog>
@@ -99,7 +99,7 @@ struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: B
     }
 }
 
-/// `CheckBox` — faithful port of CheckBoxView.
+/// `CheckBox` — CheckBoxView の忠実な移植。
 struct CheckBoxNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     let component: CheckBoxComponent
@@ -113,7 +113,7 @@ struct CheckBoxNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Ba
     }
 }
 
-/// `Slider` — faithful port of SliderView.
+/// `Slider` — SliderView の忠実な移植。
 struct SliderNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -138,7 +138,7 @@ struct SliderNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
     }
 }
 
-/// `ChoicePicker` — faithful port of ChoicePickerView + FlowChips.
+/// `ChoicePicker` — ChoicePickerView + FlowChips の忠実な移植。
 struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -224,7 +224,7 @@ struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node
     }
 }
 
-/// `DateTimeInput` — faithful port of DateTimeInputView.
+/// `DateTimeInput` — DateTimeInputView の忠実な移植。
 struct DateTimeInputNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -257,7 +257,7 @@ struct DateTimeInputNodeView<Catalog: RenderableCatalog>: View where Catalog.Nod
     }
 }
 
-/// Selectable chip group for ChoicePicker (faithful port of the private FlowChips).
+/// `ChoicePicker` 用の選択可能なチップグループ（FlowChips の忠実な移植）。
 private struct FlowChips: View {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing

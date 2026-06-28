@@ -1,4 +1,4 @@
-/// A string value that is either a literal, a data-model binding, or a function-call result.
+/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される文字列値。
 public enum DynamicString: Sendable, Equatable {
     case literal(String)
     case binding(DataBinding)

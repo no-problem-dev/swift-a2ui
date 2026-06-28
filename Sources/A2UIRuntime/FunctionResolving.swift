@@ -1,17 +1,17 @@
 import A2UICore
 
-/// Hook for evaluating `FunctionCall`s during dynamic-value resolution.
+/// 動的値の解決中に `FunctionCall` を評価するフック。
 ///
-/// The actual function registry (Basic Catalog functions: `formatString`, `required`, ...) is
-/// implemented in Step 3. `DataContext` depends only on this narrow protocol so that Step 2
-/// (binding resolution) and Step 3 (functions) stay decoupled.
+/// 実際の関数レジストリ（Basic Catalog 関数: `formatString`、`required` など）はステップ 3 で
+/// 実装する。`DataContext` はこのプロトコルのみに依存し、ステップ 2（バインド解決）と
+/// ステップ 3（関数）を疎結合に保つ。
 public protocol FunctionResolving: Sendable {
-    /// Evaluate a function call within the given data context, returning its result (or nil).
+    /// 指定のデータコンテキスト内で関数呼び出しを評価し、結果（または nil）を返す。
     func evaluate(_ call: FunctionCall, in context: DataContext) -> StructuredValue?
 }
 
-/// A no-op resolver: every function call resolves to nil.
-/// Used as the default until the Basic Catalog function registry is wired in (Step 3).
+/// 何もしないリゾルバ: あらゆる関数呼び出しを nil に解決する。
+/// Basic Catalog 関数レジストリが注入されるステップ 3 まで、デフォルトとして使用する。
 public struct NoFunctionResolver: FunctionResolving {
     public init() {}
     public func evaluate(_ call: FunctionCall, in context: DataContext) -> StructuredValue? { nil }

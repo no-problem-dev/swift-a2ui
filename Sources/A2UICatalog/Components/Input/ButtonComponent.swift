@@ -1,5 +1,6 @@
 import A2UICore
 
+/// ボタンコンポーネント。タップすると `action` を実行する。
 public struct ButtonComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Button"
 

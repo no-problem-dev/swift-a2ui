@@ -1,11 +1,15 @@
+/// サーバ → クライアント方向の全メッセージをまとめる enum（A2UI v0.10）。
+///
+/// `version` フィールドはデコード時に検証するが、Postel 則に従い欠落は許容（現行バージョンと仮定）。
+/// バージョンが存在しかつ現行と異なる場合のみエラーを投げる。
 public enum ServerMessage: Sendable, Equatable {
     case createSurface(CreateSurface)
     case updateComponents(UpdateComponents)
     case updateDataModel(UpdateDataModel)
     case deleteSurface(DeleteSurface)
-    /// v0.10: server invokes a function on the client.
+    /// v0.10: サーバがクライアント上の関数を呼び出す。
     case callFunction(CallFunctionMessage)
-    /// v0.10: server answers a client action that requested a response.
+    /// v0.10: サーバが応答要求付きのクライアントアクションに答える。
     case actionResponse(ActionResponseMessage)
 }
 
@@ -79,10 +83,9 @@ extension ServerMessage: Codable {
 }
 
 extension ServerMessage {
-    /// The official `server_to_client.json` `$defs` name for this message
-    /// (e.g. `"CreateSurfaceMessage"`). This is the same vocabulary
-    /// `A2UIPromptBuilder(allowedMessages:)` prunes by, so prompt-side pruning and
-    /// post-generation validation share a single identifier set.
+    /// 公式 `server_to_client.json` の `$defs` 名（例: `"CreateSurfaceMessage"`）。
+    /// `A2UIPromptBuilder(allowedMessages:)` による pruning と生成後バリデーションで
+    /// 共通して使う識別子セットであり、プロンプト側の絞り込みと検証が同一の定義を参照することを保証する。
     public var schemaMessageName: String {
         switch self {
         case .createSurface: "CreateSurfaceMessage"

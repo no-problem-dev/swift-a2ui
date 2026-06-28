@@ -1,17 +1,22 @@
 import A2UICore
 
-/// Validates component topology and ID uniqueness.
+/// コンポーネントのトポロジーと ID 一意性を検証する。
 public enum ComponentValidator {
 
+    /// バリデーションエラー。
     public enum ValidationError: Error, Sendable, Equatable {
+        /// 同一 id を持つコンポーネントが複数存在する。
         case duplicateId(String)
+        /// id "root" のコンポーネントが存在しない。
         case missingRoot
+        /// コンポーネントの循環参照を検出した。
         case circularReference(String)
+        /// ツリーの深さが上限を超過した。
         case depthLimitExceeded
     }
 
-    /// Validate component topology using the tree resolver.
-    /// Checks for: missing root, circular references, depth limit.
+    /// ツリーリゾルバーを使ってコンポーネントのトポロジーを検証する。
+    /// root 欠如・循環参照・深度超過を検出する。
     public static func validateTopology(components: [String: StructuredValue]) throws {
         guard components["root"] != nil else {
             throw ValidationError.missingRoot
@@ -28,8 +33,8 @@ public enum ComponentValidator {
         }
     }
 
-    /// Validate that all component IDs within a flat StructuredValue array are unique.
-    /// Each element is expected to be an object with an "id" string field.
+    /// フラットな `StructuredValue` 配列内のすべてのコンポーネント ID が一意であることを検証する。
+    /// 各要素は "id" 文字列フィールドを持つオブジェクトであることを前提とする。
     public static func validateUniqueIds(components: [StructuredValue]) throws {
         var seen: Set<String> = []
         for component in components {

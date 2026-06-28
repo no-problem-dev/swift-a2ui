@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 選択肢コンポーネントの 1 つの選択項目。
 public struct ChoiceOption: Codable, Sendable, Equatable {
     public let label: DynamicString
     public let value: String
@@ -10,6 +11,7 @@ public struct ChoiceOption: Codable, Sendable, Equatable {
     }
 }
 
+/// 選択肢の一覧から 1 つまたは複数の項目を選択するコンポーネント。
 public struct ChoicePickerComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "ChoicePicker"
 

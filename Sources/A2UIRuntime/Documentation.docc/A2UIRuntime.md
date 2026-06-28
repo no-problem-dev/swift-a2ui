@@ -4,11 +4,11 @@
 
 ## Overview
 
-`A2UIRuntime` は `A2UISurface` が保持するコンポーネントツリーとデータモデルを元に、テンプレートの展開・組み込み関数の評価・条件規則のチェックを実行します。SwiftUI には依存せず、ロジック層として独立してテストできます。
+`A2UIRuntime` は `A2UISurface` が保持するコンポーネントツリーとデータモデルを元に、テンプレートの展開・組み込み関数の評価・条件規則のチェックを実行する。SwiftUI には依存せず、ロジック層として独立してテストできる。
 
-`TemplateExpander` はリストコンポーネントなどのデータ駆動繰り返しを、データモデルのコレクションに基づいて実際のノード列に展開します。各展開済みノードは `ResolvedChild` として返され、そのデータコンテキスト（`DataContext`）を保持します。
+`TemplateExpander` はリストコンポーネントなどのデータ駆動繰り返しを、データモデルのコレクションに基づいて実際のノード列に展開する。各展開済みノードは `ResolvedChild` として返され、`componentId` と `basePath` を保持する。
 
-`FunctionResolving` プロトコルは `callFunction` アクション発生時に呼び出す関数の解決インターフェースを定義します。`BasicFunctions` はビルトイン関数の実装を提供します。関数が存在しない場合は `NoFunctionResolver` を差し込むことで無害な no-op にできます。`ChecksEvaluator` は `CheckRule` の配列を評価し、バリデーション結果（エラーメッセージ・有効フラグ）を返します。
+`FunctionResolving` プロトコルは `callFunction` アクション発生時に呼び出す関数の解決インターフェースを定義する。`BasicFunctions` はビルトイン関数の実装を提供する。関数が存在しない場合は `NoFunctionResolver` を差し込むことで無害な no-op にできる。`ChecksEvaluator` は `CheckRule` の配列を評価し、バリデーション結果（エラーメッセージ・有効フラグ）を返す。
 
 ```swift
 import A2UIRuntime
@@ -16,12 +16,12 @@ import A2UISurface
 
 // ビルトイン関数リゾルバーを使ってデータコンテキストを構築する
 let resolver = BasicFunctions()
-let context = DataContext(model: DataModel(), resolver: resolver)
+let context = DataContext(dataModel: DataModel(), functions: resolver)
 
-// リストノードをテンプレート展開する
-let children = TemplateExpander.expand(listNode, context: context)
+// ChildList をテンプレート展開する
+let children = TemplateExpander.expand(listNode, in: context)
 for child in children {
-    print(child.componentId, child.context.indexPath)
+    print(child.componentId, child.basePath)
 }
 ```
 

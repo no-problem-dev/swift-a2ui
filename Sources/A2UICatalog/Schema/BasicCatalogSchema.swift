@@ -53,15 +53,15 @@ Examples:
 - 'EEEE, d MMMM' -> 'Friday, 16 January'
 """
 
-/// The Basic Catalog, described entirely in Swift (no hand-written `catalog.json`).
+/// Basic カタログを Swift で完全に記述したもの（手書き `catalog.json` は不要）。
 ///
-/// Aggregates every basic component's `CatalogSchemaDescribing.componentSchema` plus the basic
-/// function schemas, and renders the LLM-facing catalog document via `SchemaRenderer`.
+/// 各 basic コンポーネントの `CatalogSchemaDescribing.componentSchema` と基本関数スキーマを集約し、
+/// `SchemaRenderer` で LLM 向けカタログドキュメントをレンダリングする。
 public enum BasicCatalogSchema {
 
     public static let catalogId = BasicComponentCatalog.catalogId
 
-    /// All basic-catalog component schemas (type-derived).
+    /// すべての basic カタログコンポーネントスキーマ（型から導出）。
     public static let components: [ComponentSchema] = [
         TextComponent.componentSchema,
         ImageComponent.componentSchema,
@@ -83,8 +83,8 @@ public enum BasicCatalogSchema {
         DateTimeInputComponent.componentSchema,
     ]
 
-    /// All basic-catalog function schemas (spec §7). Every `description` and arg shape is reproduced
-    /// verbatim from the official `catalog.json` (pinned by `GeneratedCatalogFidelityTests`).
+    /// すべての basic カタログ関数スキーマ（仕様 §7）。各 `description` と引数形状は
+    /// 公式 `catalog.json` からそのまま転記（`GeneratedCatalogFidelityTests` で固定）。
     public static let functions: [FunctionSchema] = [
         FunctionSchema(name: "required", description: "Checks that the value is not null, undefined, or empty.",
             argsObject: .object([
@@ -157,7 +157,7 @@ public enum BasicCatalogSchema {
             argsObject: argsObj(props: ["value": fnRefD("DynamicBoolean", "The boolean value to negate.")], required: ["value"]), returnType: "boolean"),
     ]
 
-    /// Render the basic catalog document as a minified JSON string for the LLM prompt.
+    /// LLM プロンプト用の最小化 JSON 文字列として basic カタログドキュメントをレンダリングする。
     public static func render() -> String {
         SchemaRenderer.renderCatalog(
             catalogId: catalogId,

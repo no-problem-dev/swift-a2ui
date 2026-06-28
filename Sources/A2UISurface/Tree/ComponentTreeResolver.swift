@@ -1,21 +1,26 @@
 import A2UICore
 
-/// Resolves a flat component dictionary into a tree rooted at the "root" component.
+/// フラットなコンポーネント辞書を "root" コンポーネントを頂点とするツリーへ解決する。
 public enum ComponentTreeResolver {
 
+    /// ツリー解決時のエラー。
     public enum TreeError: Error, Sendable, Equatable {
+        /// id "root" を持つコンポーネントが存在しない。
         case missingRoot
+        /// 指定した id でコンポーネントの循環参照を検出した。
         case circularReference(String)
+        /// ツリーの深さが `maxDepth` を超過した。
         case depthLimitExceeded(Int)
+        /// どのコンポーネントからも参照されない孤立コンポーネントが存在する。
         case orphanedComponents([String])
     }
 
-    /// Maximum tree depth before throwing `depthLimitExceeded`.
+    /// `depthLimitExceeded` を throw するツリー深度の上限。
     public static let maxDepth = 50
 
-    /// Build a tree from a flat component dictionary.
-    /// The component with id "root" is the required tree root.
-    /// Throws `TreeError.missingRoot` when no "root" component is present.
+    /// フラットなコンポーネント辞書からツリーを構築する。
+    /// id "root" を持つコンポーネントが必須のルートとなる。
+    /// "root" コンポーネントが存在しない場合は `TreeError.missingRoot` を throw する。
     public static func resolve(components: [String: StructuredValue]) throws -> ComponentNode {
         guard let rootComponent = components["root"] else {
             throw TreeError.missingRoot

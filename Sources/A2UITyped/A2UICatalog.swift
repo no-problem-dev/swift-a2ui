@@ -1,28 +1,28 @@
 import A2UICore
 
-/// A consumer-injected **catalog**: the compile-time set of components a renderer may draw.
+/// コンシューマーが注入する**カタログ**型プロトコル。レンダラーが描画できるコンポーネントの集合をコンパイル時に確定する。
 ///
-/// A2UI's whole extensibility model is "the client owns a catalog of trusted components; the agent
-/// may only request what is in it." Here that catalog is a *type* the consumer supplies. The
-/// library ships `BasicCatalog`; an application composes it with its own design-system components
-/// via `CombinedNode`, e.g. `enum AppCatalog: A2UICatalog { typealias Node = CombinedNode<MyNode, BasicComponent>; ... }`.
+/// A2UI の拡張モデルは「クライアントが信頼するコンポーネントのカタログを持ち、
+/// エージェントはその中のものだけリクエストできる」という思想。
+/// ライブラリは `BasicCatalog` を同梱する。アプリケーションは `CombinedNode` でこれと
+/// 独自の Design System コンポーネントを組み合わせる
+/// （例: `enum AppCatalog: A2UICatalog { typealias Node = CombinedNode<MyNode, BasicComponent>; ... }`）。
 ///
-/// The renderer is generic over this protocol (`A2UIRenderer<some A2UICatalog>`), so dispatch is
-/// total and exhaustive at compile time while staying open to consumer extension at the type level.
+/// レンダラーはこのプロトコルを型パラメータとして受け取る（`A2UIRenderer<some A2UICatalog>`）。
+/// ディスパッチはコンパイル時に全ケースを網羅しながらも、コンシューマーによる型レベルの拡張を受け入れる。
 public protocol A2UICatalog: Sendable {
-    /// The closed sum of components this catalog renders.
+    /// このカタログがレンダリングできるコンポーネントの closed sum 型。
     associatedtype Node: ComponentNode
 
-    /// The canonical catalog identifier URI (matches the A2UI `catalogId` on the wire).
+    /// A2UI の `catalogId` と一致するカノニカルな識別子 URI。
     static var catalogId: String { get }
 }
 
-/// Composes two node types into one, routing each `component` name to the catalog that declares it.
+/// 2 つのノード型を合成し、`component` 名に基づいて各カタログへルーティングする。
 ///
-/// `Primary` wins on name collisions, so a consumer can shadow/override a basic component with their
-/// own implementation. The library keeps ownership (and completeness guarantees) of whichever node
-/// it ships — typically `BasicNode` placed as `Fallback` — so "forgot to list Card" is impossible:
-/// the consumer embeds the basic node whole rather than re-enumerating its cases.
+/// `Primary` が名前衝突に優先するため、コンシューマーは Basic コンポーネントを自前実装で上書きできる。
+/// ライブラリは `Fallback` に Basic ノードを配置することで網羅性を保持する。
+/// コンシューマーは Basic ノード全体を埋め込むだけでよく、個別ケースを再列挙する必要はない。
 public enum CombinedNode<Primary: ComponentNode, Fallback: ComponentNode>: ComponentNode {
     case primary(Primary)
     case fallback(Fallback)

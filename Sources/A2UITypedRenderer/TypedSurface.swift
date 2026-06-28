@@ -4,32 +4,32 @@ import A2UICore
 import A2UISurface
 import A2UITyped
 
-/// A rendered surface for a specific `Catalog`: the flat id→node map plus the data model.
+/// 特定の `Catalog` に対応したレンダリング済みサーフェス: フラットな id → ノードマップとデータモデル。
 ///
-/// Mirrors A2UI's wire model (components are a flat map keyed by id; parents reference children by
-/// id string) — so the live store is `[ComponentId: CatalogNode<Catalog.Node>]`, fully typed, no
-/// `any`. `@Observable`, so SwiftUI re-renders on the two A2UI partial-update kinds:
-/// - `updateComponents` mutates `nodes` (tracked) → structure re-renders.
-/// - `updateDataModel` writes the (non-observable) `DataModel` and bumps `dataVersion` (tracked);
-///   binding-reading views depend on `dataVersion`, so they re-resolve. (Coarse but correct;
-///   per-path subscription is a later optimization.)
+/// A2UI のワイヤーモデルをミラーする（コンポーネントは id をキーとするフラットマップで、
+/// 親は id 文字列で子を参照）— ライブストアは `[ComponentId: CatalogNode<Catalog.Node>]`、
+/// 完全型付き・`any` なし。`@Observable` のため SwiftUI は 2 種の A2UI 部分更新で再描画する:
+/// - `updateComponents`: `nodes` を変更（追跡対象）→ 構造を再描画。
+/// - `updateDataModel`: 非 Observable の `DataModel` に書き込み `dataVersion` を加算（追跡対象）。
+///   バインディング読み取りビューは `dataVersion` に依存するため再解決される
+///   （粗い粒度だが正しい。パスごとの購読は将来の最適化）。
 @MainActor
 @Observable
 public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
-    /// Surface identifier (the A2UI `surfaceId`). Defaults to `rootId` for single-surface use.
+    /// サーフェス識別子（A2UI `surfaceId`）。単一サーフェス使用時は `rootId` に合わせる。
     public let id: String
     public let catalogId: String
     public let rootId: ComponentId
     public let dataModel: DataModel
-    /// Host sink for user-dispatched events (Button `action.event` etc.): `(name, context, sourceComponentId)`.
-    /// Default no-op.
+    /// ホストのユーザーイベントシンク（`Button` の `action.event` 等）: `(name, context, sourceComponentId)`。
+    /// デフォルトは no-op。
     let onEvent: (String, [String: StructuredValue], ComponentId) -> Void
 
     private var nodes: [ComponentId: CatalogNode<Catalog.Node>]
-    /// Bumped on every data-model write; binding readers depend on it for reactivity.
+    /// データモデルへの書き込みのたびに加算される。バインディング読み取りビューがリアクティビティのために依存する。
     private(set) var dataVersion = 0
-    /// Bumped on every `updateComponents` batch. `A2UISurfaceView` animates on this so
-    /// streamed-in components enter with a transition (cascading assembly) instead of popping.
+    /// `updateComponents` バッチのたびに加算される。`A2UISurfaceView` がこれをアニメーション値にすることで、
+    /// ストリーミングで流れ込むコンポーネントがポップではなくトランジション付きで現れる（カスケード組み上がり）。
     private(set) var structureVersion = 0
 
     public init(
@@ -51,26 +51,26 @@ public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
 
     // MARK: - Partial updates (A2UI processing layer)
 
-    /// Apply `updateComponents`: upsert by id. Per the spec, a new node for an existing id replaces
-    /// it wholesale (the id may even change component type), which a dictionary upsert handles.
+    /// `updateComponents` を適用する: id でアップサート。仕様に従い、既存 id に対する新しいノードは
+    /// 丸ごと置き換える（コンポーネント型の変更も可）。辞書のアップサートで実現する。
     public func applyUpdateComponents(_ incoming: [CatalogNode<Catalog.Node>]) {
         for node in incoming { nodes[node.id] = node }
         structureVersion += 1
     }
 
-    /// Apply `updateDataModel`: write a value at a JSON-Pointer path and trigger re-resolution.
+    /// `updateDataModel` を適用する: JSON Pointer パスに値を書き込み、再解決をトリガーする。
     public func applyUpdateDataModel(path: String, value: StructuredValue?) {
         dataModel.set(path, value)
         touchData()
     }
 
-    /// Bump the data version so binding readers re-resolve (used by two-way input writes).
+    /// データバージョンを加算してバインディング読み取りビューを再解決させる（双方向入力書き込み時に使用）。
     func touchData() { dataVersion += 1 }
 
     // MARK: - Decoding
 
-    /// Decode an A2UI `updateComponents.components` array (each `{id, component, ...}`) into nodes.
-    /// Unknown component names degrade to `.unknown` rather than throwing (spec graceful handling).
+    /// A2UI の `updateComponents.components` 配列（各 `{id, component, ...}`）をノードへデコードする。
+    /// 未知のコンポーネント名はエラーを投げず `.unknown` へ降格する（仕様のグレースフルハンドリング）。
     public static func decodeNodes(fromJSONArray data: Data) throws -> [CatalogNode<Catalog.Node>] {
         try JSONDecoder().decode([CatalogNode<Catalog.Node>].self, from: data)
     }

@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 横方向レイアウトコンポーネント。子コンポーネントを水平に配置する。
 public struct RowComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Row"
 

@@ -1,17 +1,17 @@
 import A2UICore
 import Foundation
 
-/// A reactive store for a single surface's application data.
+/// 単一サーフェスのアプリケーションデータを保持するリアクティブストア。
 ///
-/// Implements the `DataModel` contract from `renderer_guide.md` §3:
-/// - JSON Pointer `get` / `set` (absolute + A2UI relative paths) with auto-vivification.
-/// - Reactive `subscribe(path:)` that fires the current value synchronously, then on every
-///   relevant change. Cancellation is provided via `A2UISubscription`.
-/// - **Bubble & Cascade** notification: a write at `path` notifies subscribers of `path` itself,
-///   of every ancestor path (bubble), and of every descendant path (cascade).
+/// `renderer_guide.md` §3 の `DataModel` 契約を実装する:
+/// - JSON Pointer の `get` / `set`（絶対パス + A2UI 相対パス）と中間コンテナの自動生成。
+/// - `subscribe(path:)`: 現在値を同期的に一度発火した後、関連する変更のたびに再発火。
+///   キャンセルは `A2UISubscription` で行う。
+/// - **Bubble & Cascade 通知**: `path` への書き込みは `path` 自身・すべての祖先（bubble）・
+///   すべての子孫（cascade）のサブスクライバーへ通知する。
 ///
-/// This is a reference type (not `@Observable`): SwiftUI does not subscribe to it directly —
-/// the Binder layer translates path subscriptions into `@Observable` `ResolvedProps`.
+/// 参照型（`@Observable` ではない）。SwiftUI は直接購読しない。
+/// Binder 層がパスサブスクリプションを `@Observable` の `ResolvedProps` に変換する。
 public final class DataModel: @unchecked Sendable {
 
     private var root: StructuredValue
@@ -23,7 +23,7 @@ public final class DataModel: @unchecked Sendable {
         self.root = initial
     }
 
-    /// Snapshot of the entire data model.
+    /// データモデル全体のスナップショット。
     public var snapshot: StructuredValue {
         lock.lock(); defer { lock.unlock() }
         return root
@@ -31,8 +31,8 @@ public final class DataModel: @unchecked Sendable {
 
     // MARK: - Read
 
-    /// Resolve a path to its current value. Supports absolute (`/a/b`) and relative (`a/b`) paths.
-    /// Returns nil when the path does not resolve (treated as `undefined` by callers).
+    /// パスを現在値に解決する。絶対パス（`/a/b`）と相対パス（`a/b`）の両方をサポート。
+    /// パスが解決できない場合は nil を返す（呼び出し元は `undefined` として扱う）。
     public func get(_ path: String, scope: String = "") -> StructuredValue? {
         lock.lock(); defer { lock.unlock() }
         return JSONPointer.resolve(path: path, scope: scope, in: root)
@@ -40,11 +40,11 @@ public final class DataModel: @unchecked Sendable {
 
     // MARK: - Write
 
-    /// Set (or remove, when `value == nil`) the value at `path`, then notify affected subscribers.
+    /// `path` の値を設定（`value == nil` の場合は削除）し、影響するサブスクライバーへ通知する。
     ///
-    /// - `value == nil` removes the key (object) / empties the index preserving length (array),
-    ///   per the spec's Undefined Handling rule.
-    /// - Intermediate containers are auto-created; a numeric next-segment yields an Array.
+    /// - `value == nil` の場合: オブジェクトのキーを削除 / 配列のインデックスを空にする
+    ///   （仕様の Undefined Handling ルールに準拠）。
+    /// - 中間コンテナは自動生成される。数値の次セグメントは Array を生成する。
     public func set(_ path: String, _ value: StructuredValue?, scope: String = "") {
         lock.lock()
         let absolute = JSONPointer.absolutePath(path, scope: scope)
@@ -67,8 +67,8 @@ public final class DataModel: @unchecked Sendable {
 
     // MARK: - Subscribe
 
-    /// Subscribe to changes at `path`. The callback fires **synchronously once** with the current
-    /// value, then again whenever a write affects this path (bubble & cascade).
+    /// `path` への変更をサブスクライブする。コールバックは現在値で**同期的に一度**発火し、
+    /// その後この path に影響する書き込みのたびに再発火する（bubble & cascade）。
     @discardableResult
     public func subscribe(
         _ path: String,

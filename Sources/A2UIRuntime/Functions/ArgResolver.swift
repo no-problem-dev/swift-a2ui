@@ -2,17 +2,17 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// Resolves a function-call argument (raw `StructuredValue`) into a concrete value, interpreting any
-/// embedded data bindings (`{"path": "..."}`) or nested function calls (`{"call": "..."}`).
+/// 関数呼び出しの引数（生の `StructuredValue`）を具体値に解決するリゾルバ。
+/// 埋め込まれたデータバインド（`{"path": "..."}`）やネストした関数呼び出し（`{"call": "..."}`）を解釈する。
 ///
-/// Per `renderer_guide.md` §2, the Context layer resolves dynamic arguments before a function's
-/// pure logic runs. Arguments may themselves be `Dynamic*` values, so resolution is recursive.
+/// `renderer_guide.md` §2 の通り、コンテキスト層は関数の純粋ロジックが実行される前に
+/// 動的な引数を解決する。引数自体が `Dynamic*` 値になりうるため、解決は再帰的に行う。
 enum ArgResolver {
 
-    /// Resolve an argument value against the given context.
-    /// - Plain scalars/arrays/objects pass through (with nested bindings resolved).
-    /// - `{"path": "..."}` resolves to the bound data-model value.
-    /// - `{"call": "..."}` evaluates the nested function.
+    /// 指定のコンテキストに対して引数値を解決する。
+    /// - 平スカラー / 配列 / オブジェクトはそのまま通過（ネストしたバインドは再帰解決）。
+    /// - `{"path": "..."}` はデータモデルの値に解決する。
+    /// - `{"call": "..."}` はネストした関数を評価する。
     static func resolve(_ value: StructuredValue, in context: DataContext, functions: any FunctionResolving) -> StructuredValue? {
         switch value {
         case .object(let dict):
@@ -38,19 +38,19 @@ enum ArgResolver {
         }
     }
 
-    /// Resolve and coerce an argument to String.
+    /// 引数を解決して String に変換する。
     static func string(_ value: StructuredValue?, in context: DataContext, functions: any FunctionResolving) -> String {
         guard let value else { return "" }
         return TypeCoercion.toString(resolve(value, in: context, functions: functions))
     }
 
-    /// Resolve and coerce an argument to Double.
+    /// 引数を解決して Double に変換する。
     static func number(_ value: StructuredValue?, in context: DataContext, functions: any FunctionResolving) -> Double {
         guard let value else { return 0 }
         return TypeCoercion.toNumber(resolve(value, in: context, functions: functions))
     }
 
-    /// Resolve and coerce an argument to Bool.
+    /// 引数を解決して Bool に変換する。
     static func bool(_ value: StructuredValue?, in context: DataContext, functions: any FunctionResolving) -> Bool {
         guard let value else { return false }
         return TypeCoercion.toBool(resolve(value, in: context, functions: functions))

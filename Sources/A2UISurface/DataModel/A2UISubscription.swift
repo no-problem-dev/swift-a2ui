@@ -1,7 +1,8 @@
-/// A cancellable subscription handle.
+/// キャンセル可能なサブスクリプションハンドル。
 ///
-/// Per `renderer_guide.md` §3, every stateful subscription MUST provide a clear way to
-/// unsubscribe to prevent memory leaks. Calling `cancel()` (or deinit) detaches the listener.
+/// `renderer_guide.md` §3 の規約に従い、すべてのステートフルサブスクリプションは
+/// メモリリークを防ぐため明示的なキャンセル手段を持たなければならない。
+/// `cancel()` の呼び出しまたは `deinit` によってリスナーが切り離される。
 public final class A2UISubscription {
     private var onCancel: (() -> Void)?
 
@@ -9,13 +10,13 @@ public final class A2UISubscription {
         self.onCancel = onCancel
     }
 
-    /// An inert subscription (nothing to cancel). Useful for literal/static bindings that have
-    /// no underlying data-model path to observe.
+    /// 無効なサブスクリプション（キャンセル対象なし）。
+    /// リテラルや静的バインディングのように監視するデータモデルパスが存在しない場合に使う。
     public static var inert: A2UISubscription {
         A2UISubscription(onCancel: {})
     }
 
-    /// Detach the listener. Idempotent.
+    /// リスナーを切り離す。冪等。
     public func cancel() {
         onCancel?()
         onCancel = nil

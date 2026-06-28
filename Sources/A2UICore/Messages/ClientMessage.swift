@@ -1,7 +1,10 @@
+/// クライアント → サーバ方向の全メッセージをまとめる enum（A2UI v0.10）。
+///
+/// `version` フィールドはデコード時に検証し、`A2UIVersion.current` と異なる場合はエラーを投げる。
 public enum ClientMessage: Sendable, Equatable {
     case action(UserAction)
     case error(ClientError)
-    /// v0.10: client returns the result of a server-initiated function call.
+    /// v0.10: クライアントがサーバ起動の関数呼び出し結果を返す。
     case functionResponse(FunctionResponse)
 }
 

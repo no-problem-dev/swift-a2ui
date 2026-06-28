@@ -1,5 +1,6 @@
-/// Replaces or inserts components on a surface. Catalog-agnostic: typed decode happens in A2UICatalog.
-// components stored as [StructuredValue] to be catalog-agnostic; typed decode happens in A2UICatalog
+/// サーフェス上のコンポーネントを差し替え・挿入するメッセージ（A2UI v0.10）。
+///
+/// カタログ非依存: 型付きデコードは `A2UICatalog` 側で行う。
 public struct UpdateComponents: Codable, Sendable, Equatable {
     public let surfaceId: String
     public let components: [StructuredValue]

@@ -1,5 +1,7 @@
 import A2UICore
 
+/// リストコンポーネント。子コンポーネントを縦または横方向に並べる。
+/// テンプレート子リストによるデータドリブンなリスト生成もサポートする。
 public struct ListComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "List"
 

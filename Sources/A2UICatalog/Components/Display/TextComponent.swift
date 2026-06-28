@@ -1,5 +1,6 @@
 import A2UICore
 
+/// テキスト表示コンポーネント。Markdown の基本書式をサポートする。
 public struct TextComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Text"
 

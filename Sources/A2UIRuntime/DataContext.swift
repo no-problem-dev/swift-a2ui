@@ -1,15 +1,15 @@
 import A2UICore
 import A2UISurface
 
-/// A transient, scoped window into a `DataModel`, used during rendering to resolve data bindings.
+/// レンダリング中にデータバインドを解決するための、`DataModel` への一時的なスコープ付きビュー。
 ///
-/// Implements the Context Layer from `renderer_guide.md` §3. A `DataContext` carries the current
-/// **evaluation scope** (a JSON Pointer path). Relative bindings (`name`) resolve against the scope;
-/// absolute bindings (`/company`) resolve from the root. Template iteration creates child scopes
-/// via `nested(_:)`.
+/// `renderer_guide.md` §3 のコンテキスト層を実装する。`DataContext` は現在の**評価スコープ**
+/// （JSON Pointer パス）を保持する。相対バインド（`name`）はスコープを起点に解決し、
+/// 絶対バインド（`/company`）はルートから解決する。テンプレートの反復は `nested(_:)` で
+/// 子スコープを生成する。
 public struct DataContext: Sendable {
     public let dataModel: DataModel
-    /// The current scope path (e.g. `/employees/0`). Empty string means root scope.
+    /// 現在のスコープパス（例: `/employees/0`）。空文字列はルートスコープを意味する。
     public let path: String
     private let functions: any FunctionResolving
 
@@ -19,8 +19,8 @@ public struct DataContext: Sendable {
         self.functions = functions
     }
 
-    /// Create a child context scoped to `relativePath` resolved against the current scope.
-    /// Used by template list rendering: each item gets `nested("/items/<index>")` (absolute index path).
+    /// 現在のスコープに対して `relativePath` を解決し、その位置にスコープを持つ子コンテキストを生成する。
+    /// テンプレートリストのレンダリングで使用。各アイテムは `nested("/items/<index>")` (絶対インデックスパス) を受け取る。
     public func nested(_ relativePath: String) -> DataContext {
         let childPath = JSONPointer.absolutePath(relativePath, scope: path)
         return DataContext(dataModel: dataModel, path: childPath, functions: functions)
@@ -28,7 +28,7 @@ public struct DataContext: Sendable {
 
     // MARK: - Resolution (snapshot)
 
-    /// Resolve a `DynamicValue` to its current concrete value (or nil = undefined).
+    /// `DynamicValue` を現在の具体値に解決する。未定義の場合は nil。
     public func resolve(_ value: DynamicValue) -> StructuredValue? {
         switch value {
         case .string(let s): return .string(s)
@@ -40,7 +40,7 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// Resolve a `DynamicString` to a String, applying A2UI type coercion (nil → "").
+    /// `DynamicString` を String に解決する。A2UI 型変換を適用（nil → ""）。
     public func resolveString(_ value: DynamicString) -> String {
         switch value {
         case .literal(let s): return s
@@ -49,7 +49,7 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// Resolve a `DynamicBoolean` to a Bool, applying A2UI type coercion (nil → false).
+    /// `DynamicBoolean` を Bool に解決する。A2UI 型変換を適用（nil → false）。
     public func resolveBool(_ value: DynamicBoolean) -> Bool {
         switch value {
         case .literal(let b): return b
@@ -58,7 +58,7 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// Resolve a `DynamicNumber` to a Double, applying A2UI type coercion (nil → 0).
+    /// `DynamicNumber` を Double に解決する。A2UI 型変換を適用（nil → 0）。
     public func resolveNumber(_ value: DynamicNumber) -> Double {
         switch value {
         case .literal(let n): return n
@@ -69,8 +69,8 @@ public struct DataContext: Sendable {
 
     // MARK: - Subscription (reactive)
 
-    /// Subscribe to a `DynamicValue`. For bindings this tracks the underlying path reactively
-    /// (initial value fires synchronously). For literals/functions it fires once with the value.
+    /// `DynamicValue` を購読する。バインドの場合は対象パスをリアクティブに追跡し（初期値は同期発火）、
+    /// リテラル / 関数は値を一度だけ発火する。
     @discardableResult
     public func subscribe(
         _ value: DynamicValue,
@@ -85,7 +85,7 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// Subscribe to a `DynamicString`, delivering coerced String values.
+    /// `DynamicString` を購読し、変換済みの String 値を届ける。
     @discardableResult
     public func subscribeString(
         _ value: DynamicString,
@@ -102,7 +102,7 @@ public struct DataContext: Sendable {
 
     // MARK: - Write
 
-    /// Write a value at a (possibly relative) path within this scope. Used by two-way bindings.
+    /// このスコープ内の（相対または絶対）パスに値を書き込む。双方向バインドで使用。
     public func set(_ relativeOrAbsolutePath: String, _ value: StructuredValue?) {
         dataModel.set(relativeOrAbsolutePath, value, scope: path)
     }

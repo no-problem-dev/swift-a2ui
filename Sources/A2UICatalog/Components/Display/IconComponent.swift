@@ -1,5 +1,6 @@
 import A2UICore
 
+/// アイコンコンポーネント。`name` で指定したアイコンを表示する。
 public struct IconComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Icon"
 

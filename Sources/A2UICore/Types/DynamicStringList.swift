@@ -1,3 +1,4 @@
+/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される文字列配列。
 public enum DynamicStringList: Sendable, Equatable {
     case literal([String])
     case binding(DataBinding)

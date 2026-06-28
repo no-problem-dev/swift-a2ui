@@ -1,5 +1,6 @@
 import A2UICore
 
+/// A2UI が定義するプリセットアイコン名（Material Symbols ベース）。
 public enum IconName: String, Codable, Sendable, Equatable, CaseIterable {
     case accountCircle
     case add

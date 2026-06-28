@@ -1,4 +1,4 @@
-/// Instructs the client to tear down and discard the named surface entirely.
+/// 指定したサーフェスを破棄するようクライアントに指示する（A2UI v0.10）。
 public struct DeleteSurface: Codable, Sendable, Equatable {
     public let surfaceId: String
 

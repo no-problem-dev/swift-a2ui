@@ -1,5 +1,6 @@
 import A2UICore
 
+/// チェックボックスコンポーネント。ラベル付きのオン/オフ入力。
 public struct CheckBoxComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "CheckBox"
 

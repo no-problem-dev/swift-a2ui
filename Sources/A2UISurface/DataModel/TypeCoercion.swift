@@ -1,25 +1,25 @@
 import A2UICore
 import Foundation
 
-/// A2UI v0.9 Type Coercion Standards.
+/// A2UI v0.9 型強制変換の実装。
 ///
-/// Implements the coercion table from `renderer_guide.md` §3 ("Type Coercion Standards"):
+/// `renderer_guide.md` §3 の型強制変換テーブルを実装する:
 ///
-/// | Input                       | Target  | Result                                              |
-/// | --------------------------- | ------- | --------------------------------------------------- |
-/// | String ("true"/"false")     | Boolean | true/false (case-insensitive); any other → false    |
-/// | Number (non-zero)           | Boolean | true                                                |
-/// | Number (0)                  | Boolean | false                                               |
-/// | Any                         | String  | locale-neutral string representation                |
-/// | null / undefined            | String  | "" (empty string)                                   |
-/// | null / undefined            | Number  | 0                                                   |
-/// | String (numeric)            | Number  | parsed value, or 0                                  |
+/// | 入力                          | 対象型   | 結果                                                |
+/// | ----------------------------- | -------- | --------------------------------------------------- |
+/// | String（"true"/"false"）      | Boolean  | true/false（大文字小文字を区別しない）、その他 → false |
+/// | Number（非ゼロ）              | Boolean  | true                                                |
+/// | Number（0）                   | Boolean  | false                                               |
+/// | Any                           | String   | ロケール非依存の文字列表現                          |
+/// | null / undefined              | String   | ""（空文字列）                                      |
+/// | null / undefined              | Number   | 0                                                   |
+/// | String（数値文字列）          | Number   | パース値、または 0                                  |
 public enum TypeCoercion {
 
-    /// Coerce a value (possibly nil = undefined) to a String per the spec.
+    /// 値（nil = undefined を含む）を仕様に従って String に強制変換する。
     /// - null/undefined → ""
-    /// - Objects/Arrays → JSON-stringified for cross-client consistency
-    /// - Numbers/Booleans → standard string representation
+    /// - オブジェクト/配列 → クライアント間の一貫性のため JSON 文字列化
+    /// - Number/Boolean → 標準的な文字列表現
     public static func toString(_ value: StructuredValue?) -> String {
         guard let value else { return "" }
         switch value {
@@ -42,7 +42,7 @@ public enum TypeCoercion {
         }
     }
 
-    /// Coerce a value (possibly nil = undefined) to a Bool per the spec.
+    /// 値（nil = undefined を含む）を仕様に従って Bool に強制変換する。
     public static func toBool(_ value: StructuredValue?) -> Bool {
         guard let value else { return false }
         switch value {
@@ -65,9 +65,9 @@ public enum TypeCoercion {
         }
     }
 
-    /// Coerce a value (possibly nil = undefined) to a Double per the spec.
+    /// 値（nil = undefined を含む）を仕様に従って Double に強制変換する。
     /// - null/undefined → 0
-    /// - numeric strings → parsed, else 0
+    /// - 数値文字列 → パース値、パース不可なら 0
     public static func toNumber(_ value: StructuredValue?) -> Double {
         guard let value else { return 0 }
         switch value {

@@ -1,4 +1,4 @@
-/// A boolean value that is either a literal, a data-model binding, or a function-call result.
+/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表されるブール値。
 public enum DynamicBoolean: Sendable, Equatable {
     case literal(Bool)
     case binding(DataBinding)

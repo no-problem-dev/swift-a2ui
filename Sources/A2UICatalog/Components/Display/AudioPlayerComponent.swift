@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 音声再生コンポーネント。指定した URL の音声を再生するプレーヤーを表示する。
 public struct AudioPlayerComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "AudioPlayer"
 

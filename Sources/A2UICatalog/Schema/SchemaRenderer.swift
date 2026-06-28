@@ -1,17 +1,17 @@
 import A2UICore
 import Foundation
 
-/// Renders type-safe `ComponentSchema`s into the official A2UI catalog JSON-Schema document.
+/// タイプセーフな `ComponentSchema` を公式 A2UI カタログ JSON-Schema ドキュメントに変換するレンダラー。
 ///
-/// The output is semantically equivalent to `catalogs/basic/catalog.json` — components use the
-/// same `allOf` + common-types `$ref` shape, `component` const discriminator, and `required` list —
-/// but it is GENERATED from Swift types, so there is no hand-written catalog JSON to drift.
+/// 出力は `catalogs/basic/catalog.json` と意味的に等価。`allOf` + common-types `$ref` 形式、
+/// `component` const ディスクリミネータ、`required` リストはすべて公式仕様に準拠する。
+/// ただし生成元は Swift 型であり、手書きのカタログ JSON は存在しない。
 public enum SchemaRenderer {
 
     private static let commonTypesBase = "https://a2ui.org/specification/v0_10/common_types.json#/$defs/"
 
-    /// Render the full catalog document for the given catalog id + component schemas + functions.
-    /// Returns a minified JSON string suitable for embedding in the LLM system prompt.
+    /// 指定したカタログ id・コンポーネントスキーマ・関数スキーマからカタログドキュメントをレンダリングする。
+    /// LLM システムプロンプトへの埋め込みに適した最小化 JSON 文字列を返す。
     public static func renderCatalog(
         catalogId: String,
         title: String,

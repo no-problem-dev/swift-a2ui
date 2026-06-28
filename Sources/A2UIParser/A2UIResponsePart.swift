@@ -1,10 +1,10 @@
 import A2UICore
 
-/// A part of an LLM response — either plain text or decoded A2UI server messages.
+/// LLM レスポンスの一部 — プレーンテキストまたはデコード済み A2UI サーバメッセージ。
 public struct A2UIResponsePart: Sendable, Equatable {
-    /// Plain text content outside of `<a2ui-json>` blocks.
+    /// `<a2ui-json>` ブロック外のプレーンテキストコンテンツ。
     public let text: String?
-    /// Decoded `ServerMessage` values extracted from a `<a2ui-json>` block.
+    /// `<a2ui-json>` ブロックから抽出したデコード済み `ServerMessage` の配列。
     public let messages: [ServerMessage]?
 
     public init(text: String? = nil, messages: [ServerMessage]? = nil) {
@@ -12,12 +12,12 @@ public struct A2UIResponsePart: Sendable, Equatable {
         self.messages = messages
     }
 
-    /// Creates a text-only response part.
+    /// テキストのみのレスポンスパーツを生成する。
     public static func text(_ text: String) -> A2UIResponsePart {
         A2UIResponsePart(text: text)
     }
 
-    /// Creates a messages-only response part.
+    /// メッセージのみのレスポンスパーツを生成する。
     public static func messages(_ messages: [ServerMessage]) -> A2UIResponsePart {
         A2UIResponsePart(messages: messages)
     }

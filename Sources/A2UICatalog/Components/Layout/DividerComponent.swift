@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 区切り線コンポーネント。水平または垂直の仕切りを表示する。
 public struct DividerComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Divider"
 

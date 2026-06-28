@@ -1,4 +1,4 @@
-/// A JSON Pointer reference into the surface data model (`path` follows RFC 6901).
+/// サーフェスデータモデルへの JSON Pointer 参照（`path` は RFC 6901 に従う）。
 public struct DataBinding: Codable, Sendable, Equatable, Hashable {
     public let path: String
 

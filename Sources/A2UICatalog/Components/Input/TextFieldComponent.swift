@@ -1,5 +1,6 @@
 import A2UICore
 
+/// テキスト入力フィールドコンポーネント。
 public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "TextField"
 

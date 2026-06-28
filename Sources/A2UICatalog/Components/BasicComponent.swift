@@ -1,5 +1,9 @@
 import A2UICore
 
+/// Basic カタログのコンポーネントを網羅する closed enum。
+///
+/// `component` フィールドの文字列ディスクリミネータに基づいてデコード/エンコードする。
+/// 各ケースは対応する `A2UIComponentProtocol` 準拠型を保持する。
 public enum BasicComponent: Sendable, Equatable {
     case text(TextComponent)
     case image(ImageComponent)
@@ -101,6 +105,7 @@ extension BasicComponent: Codable {
 }
 
 extension BasicComponent {
+    /// コンポーネントインスタンスの id。
     public var id: ComponentId {
         switch self {
         case .text(let c): c.id
@@ -148,6 +153,7 @@ extension BasicComponent {
         }
     }
 
+    /// ワイヤー上の `component` ディスクリミネータ文字列。
     public var componentName: String {
         switch self {
         case .text: TextComponent.componentName

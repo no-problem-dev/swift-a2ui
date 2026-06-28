@@ -2,13 +2,13 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// The Basic Catalog function registry (spec §7 + basic_catalog_implementation_guide §2).
+/// Basic Catalog 関数レジストリ（仕様 §7 + basic_catalog_implementation_guide §2）。
 ///
-/// Conforms to `FunctionResolving` so it can be injected into `DataContext`. Each function
-/// resolves its (possibly dynamic) arguments through the context, then runs pure logic.
+/// `FunctionResolving` に準拠し、`DataContext` へ注入できる。各関数はコンテキストを通じて
+/// （動的な可能性のある）引数を解決してから、純粋なロジックを実行する。
 public struct BasicFunctions: FunctionResolving {
 
-    /// Locale used by locale-sensitive functions (formatNumber/Currency, pluralize).
+    /// ロケール依存関数（formatNumber / Currency、pluralize）で使用するロケール。
     public let locale: Locale
 
     public init(locale: Locale = Locale(identifier: "en_US")) {
@@ -190,8 +190,8 @@ public struct BasicFunctions: FunctionResolving {
         return ""
     }
 
-    /// CLDR plural category. Implements English rules + a generic fallback.
-    /// (Full CLDR per-locale rules can be layered in later; English covers the Basic examples.)
+    /// CLDR 複数形カテゴリ。英語ルールと汎用フォールバックを実装する。
+    /// （完全な CLDR ロケール別ルールは後から追加可能; 英語は Basic 例をカバーする）
     private func pluralCategory(for n: Double) -> String {
         if locale.identifier.hasPrefix("en") {
             return n == 1 ? "one" : "other"

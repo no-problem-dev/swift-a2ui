@@ -1,4 +1,4 @@
-/// The unique identifier for a server-initiated function call (A2UI v0.10 `CallId`).
+/// サーバ起動の関数呼び出しを一意に識別する ID（A2UI v0.10 `CallId`）。
 ///
-/// Echoed verbatim from a `CallFunctionMessage` into the matching `functionResponse` or `error`.
+/// `CallFunctionMessage` から対応する `functionResponse` または `error` へそのまま複写する。
 public typealias CallId = String

@@ -3,30 +3,31 @@ import A2UICore
 import A2UISurface
 import A2UITyped
 
-/// Applies A2UI `ServerMessage`s to a set of typed surfaces — the typed counterpart of
-/// `A2UISurface.MessageProcessor`, producing `TypedSurface<Catalog>` instead of `SurfaceModel`.
+/// A2UI `ServerMessage` を型付きサーフェス群に適用するプロセッサ —
+/// `A2UISurface.MessageProcessor` の型付き版で `SurfaceModel` の代わりに
+/// `TypedSurface<Catalog>` を生成する。
 ///
-/// A host (e.g. the Studio app) parses the agent's `<a2ui-json>` into `[ServerMessage]` and feeds
-/// them here; `surfaces` is then rendered with `A2UISurfaceView`. User actions surface through
-/// `onAction` as `UserAction`, matching the old processor so host logic is unchanged.
+/// ホスト（Studio アプリ等）はエージェントの `<a2ui-json>` を `[ServerMessage]` へパースして
+/// ここへ渡す。`surfaces` は `A2UISurfaceView` でレンダリングする。ユーザーアクションは
+/// `onAction` として `UserAction` に変換されて返り、旧プロセッサとの互換性を保つ。
 @MainActor
 @Observable
 public final class TypedMessageProcessor<Catalog: A2UICatalog> {
     public private(set) var surfaces: [String: TypedSurface<Catalog>] = [:]
 
-    /// Surface ids in the order they were first created. Drives paging/stacking so a newly created
-    /// surface (a "new canvas") appends after existing ones instead of jumping by id sort order.
+    /// 作成順に並んだサーフェス ID。新しいサーフェスが ID ソート順でなく末尾に追加されるよう
+    /// ページング / スタック表示を駆動する。
     private var creationOrder: [String] = []
 
-    /// Host sink for user actions (Button events etc.). Mirrors `MessageProcessor.onAction`.
+    /// ホストのユーザーアクションシンク（Button イベント等）。`MessageProcessor.onAction` に対応。
     public var onAction: (UserAction) -> Void
 
     public init(onAction: @escaping (UserAction) -> Void = { _ in }) {
         self.onAction = onAction
     }
 
-    /// Surfaces in creation order (for `ForEach` / paging). Falls back to id sort for any surface
-    /// that predates creation tracking (defensive; normally every surface is recorded on create).
+    /// 作成順のサーフェス配列（`ForEach` / ページング用）。作成記録より前に存在するサーフェスは
+    /// id ソートにフォールバックする（防御的処理。通常は全サーフェスが作成時に記録される）。
     public var ordered: [TypedSurface<Catalog>] {
         creationOrder.compactMap { surfaces[$0] }
     }
@@ -80,7 +81,7 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
         creationOrder.removeAll()
     }
 
-    /// Append a surface id to the creation order the first time it is seen.
+    /// 初回確認時にサーフェス id を作成順リストへ追加する。
     private func record(_ id: String) {
         if !creationOrder.contains(id) { creationOrder.append(id) }
     }

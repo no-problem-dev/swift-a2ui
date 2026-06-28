@@ -1,5 +1,6 @@
 import A2UICore
 
+/// カードコンポーネント。単一の子コンポーネントをカードスタイルのコンテナで囲む。
 public struct CardComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Card"
 

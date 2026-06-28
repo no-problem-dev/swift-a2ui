@@ -1,4 +1,4 @@
-/// A numeric value that is either a literal, a data-model binding, or a function-call result.
+/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される数値。
 public enum DynamicNumber: Sendable, Equatable {
     case literal(Double)
     case binding(DataBinding)

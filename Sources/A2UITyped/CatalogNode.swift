@@ -1,17 +1,15 @@
 import A2UICore
 
-/// Wraps a catalog's `Known` node with A2UI's mandated unknown-component handling.
+/// カタログの `Known` ノード型に A2UI が定める unknown コンポーネント処理を追加するラッパー。
 ///
-/// The spec distinguishes two cases the renderer must treat differently, so they are separated
-/// here at the type level instead of collapsing into a stringly-typed `default:` branch:
+/// レンダラーが異なる対応を取るべき 2 つのケースを型レベルで分離する:
 ///
-/// - **Catalog miss** (`component` name not in `Known.componentNames`): the agent referenced a
-///   component this client does not have. Per the A2UI renderer guide this must degrade gracefully
-///   (placeholder / skip, never crash) — represented as a first-class `.unknown` case carrying the
-///   name + raw payload so the renderer can show a "Not Supported" fallback and report it.
-/// - **Structural failure** (name is known but props are malformed): a genuine validation error.
-///   `Known(from:)` is allowed to `throw`, which the decode pipeline surfaces as an error to send
-///   back to the agent (the spec's prompt→generate→validate loop).
+/// - **カタログミス**（`component` 名が `Known.componentNames` に存在しない）: エージェントがこのクライアントに
+///   存在しないコンポーネントをリクエストした。A2UI renderer guide に従いグレースフルデグラデーション
+///   （プレースホルダー表示/スキップ、クラッシュなし）が必要。名前・生データを保持する `.unknown` ケースで表現する。
+/// - **構造的障害**（名前は既知だがプロパティが不正）: 正規のバリデーションエラー。
+///   `Known(from:)` は `throw` を許可し、デコードパイプラインがエラーをエージェントへのフィードバックとして伝搬する
+///   （仕様の prompt→generate→validate ループ）。
 public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
     case known(Known)
     case unknown(name: String, id: ComponentId, raw: StructuredValue)
@@ -30,10 +28,9 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         }
     }
 
-    /// Decode a component **leniently**: a known name with malformed props degrades to an `.unknown`
-    /// placeholder (carrying the raw payload) instead of throwing. Used by the live message processor
-    /// so one bad component renders a visible "Not Supported" marker rather than silently vanishing —
-    /// the gap is diagnosable, and the rest of the surface still renders.
+    /// 寛容デコード: 既知の名前でもプロパティ不正の場合に `throw` せず `.unknown` プレースホルダーに降格する。
+    /// ライブメッセージプロセッサで使用し、1 つの不正コンポーネントがサーフェス全体の描画を妨げないようにする。
+    /// 問題箇所は "Not Supported" マーカーとして表示され診断可能なまま残る。
     public static func lenientDecode(_ value: StructuredValue) -> CatalogNode<Known> {
         if let node = try? value.decode(CatalogNode<Known>.self) {
             return node
@@ -44,7 +41,7 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
 
     private struct Probe: Decodable { let component: String?; let id: String? }
 
-    /// The instance id, whichever variant. Unknown components still carry an id on the wire.
+    /// コンポーネントインスタンスの id（どちらのケースも保持）。unknown コンポーネントもワイヤー上に id を持つ。
     public var id: ComponentId {
         switch self {
         case .known(let node): return node.id
@@ -52,7 +49,7 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         }
     }
 
-    /// The wire `component` discriminator (the unknown name is preserved verbatim).
+    /// ワイヤー上の `component` ディスクリミネータ（unknown の場合は名前をそのまま保持）。
     public var componentName: String {
         switch self {
         case .known(let node): return node.componentName

@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 動画再生コンポーネント。指定した URL の動画を表示する。
 public struct VideoComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Video"
 

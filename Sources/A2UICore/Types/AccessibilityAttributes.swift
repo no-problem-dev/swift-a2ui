@@ -1,3 +1,6 @@
+/// コンポーネントのアクセシビリティ情報。
+///
+/// JSON キー名の衝突を避けるため、`description` は `accessibilityDescription` にマッピングする。
 public struct AccessibilityAttributes: Codable, Sendable, Equatable {
     public let label: DynamicString?
     public let accessibilityDescription: DynamicString?

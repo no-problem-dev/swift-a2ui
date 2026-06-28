@@ -2,11 +2,11 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// A resolved child slot produced from a `ChildList` — what the View layer needs to recurse.
+/// `ChildList` から生成された解決済み子スロット — View 層が再帰するために必要な情報。
 ///
-/// `basePath` is the data scope for this child instance. For static lists it equals the parent's
-/// scope; for template instances it is `/<path>/<index>` (or `/<path>/<key>` for objects), so that
-/// relative bindings inside the template resolve against the correct array element (spec §scope).
+/// `basePath` はこの子インスタンスのデータスコープ。静的リストの場合は親スコープと同一。
+/// テンプレートインスタンスの場合は `/<path>/<index>`（またはオブジェクトなら `/<path>/<key>`）となり、
+/// テンプレート内の相対バインドが正しい配列要素に解決される（仕様 §scope）。
 public struct ResolvedChild: Sendable, Hashable {
     public let componentId: String
     public let basePath: String
@@ -17,15 +17,15 @@ public struct ResolvedChild: Sendable, Hashable {
     }
 }
 
-/// Expands a `ChildList` into concrete child slots, applying A2UI template/collection-scope rules.
+/// `ChildList` を具体的な子スロットへ展開し、A2UI のテンプレート / コレクションスコープ規則を適用する。
 ///
-/// Spec §"Collection scopes (relative paths)":
-/// - Static `ids` list → each id keeps the parent scope.
-/// - `template(componentId, path)` → iterate the array (or object) at `path` (resolved against the
-///   parent scope), instantiating the template once per element with a child scope.
+/// 仕様 §"Collection scopes (relative paths)":
+/// - 静的 `ids` リスト → 各 id は親スコープを維持する。
+/// - `template(componentId, path)` → 親スコープを起点に解決した `path` の配列（またはオブジェクト）を
+///   反復し、要素ごとに子スコープでテンプレートをインスタンス化する。
 public enum TemplateExpander {
 
-    /// Expand a `ChildList` within `context`. `context.path` is the parent's scope.
+    /// `context` 内で `ChildList` を展開する。`context.path` は親のスコープ。
     public static func expand(_ children: ChildList, in context: DataContext) -> [ResolvedChild] {
         switch children {
         case .ids(let ids):
@@ -53,8 +53,8 @@ public enum TemplateExpander {
         }
     }
 
-    /// Convenience: decode a raw `children` property (`StructuredValue`) into a `ChildList` and expand.
-    /// Returns nil if the property isn't a valid `ChildList`.
+    /// 生の `children` プロパティ（`StructuredValue`）を `ChildList` にデコードして展開するユーティリティ。
+    /// 有効な `ChildList` でない場合は nil を返す。
     public static func expandRaw(_ childrenProperty: StructuredValue, in context: DataContext) -> [ResolvedChild]? {
         guard let childList = decodeChildList(childrenProperty) else { return nil }
         return expand(childList, in: context)

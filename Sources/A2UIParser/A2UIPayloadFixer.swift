@@ -1,20 +1,20 @@
 import Foundation
 import A2UICore
 
-/// Strict parser for A2UI payloads passed as a **tool argument** — the Swift counterpart of the
-/// official Python `payload_fixer.parse_and_fix()`.
+/// **ツール引数** として渡された A2UI ペイロードの厳格なパーサ — 公式 Python
+/// `payload_fixer.parse_and_fix()` の Swift 対応。
 ///
-/// Applies the same autofixes as the Python SDK (smart-quote normalization, then trailing-comma
-/// removal on a failed first parse) and wraps a single message object in an array. Unlike
-/// `A2UIBlockParser`'s resilient per-element recovery, this is **strict**: an undecodable payload
-/// throws, so the error can flow back to the model as a tool error for self-correction.
+/// Python SDK と同じ自動修正（スマートクォート正規化、初回パース失敗時の末尾カンマ除去）を
+/// 適用し、単一メッセージオブジェクトを配列でラップする。`A2UIBlockParser` の寛容な要素単位
+/// 復旧とは異なり、**厳格モード**: デコード不可能なペイロードはスローし、エラーをモデルへの
+/// ツールエラーとして返すことで自己修正を促す。
 public enum A2UIPayloadFixer {
 
     public struct ParseError: Error, CustomStringConvertible {
         public let description: String
     }
 
-    /// Validate and autofix a raw JSON string from the LLM, returning the decoded messages.
+    /// LLM から渡された生 JSON 文字列を検証・自動修正し、デコードされたメッセージを返す。
     public static func parseAndFix(_ payload: String) throws -> [ServerMessage] {
         let normalized = normalizeSmartQuotes(payload)
         if let messages = decodeStrict(normalized) {
@@ -38,7 +38,7 @@ public enum A2UIPayloadFixer {
 
     // MARK: - Private
 
-    /// Decode as `[ServerMessage]`, wrapping a single object in an array (Python `_parse`).
+    /// `[ServerMessage]` としてデコードし、単一オブジェクトを配列でラップする（Python `_parse` 相当）。
     private static func decodeStrict(_ json: String) -> [ServerMessage]? {
         let data = Data(json.utf8)
         guard let root = try? JSONParser().parse(data) else { return nil }
@@ -62,9 +62,8 @@ public enum A2UIPayloadFixer {
         json.replacingOccurrences(of: #",(?=\s*[\]}])"#, with: "", options: .regularExpression)
     }
 
-    /// Double any backslash that does not start a valid JSON escape (`\" \\ \/ \b \f \n \r \t \u`).
-    /// Repairs LaTeX written with single backslashes (`\infty` → `\\infty`); already-valid escapes
-    /// are left untouched.
+    /// 有効な JSON エスケープ（`\" \\ \/ \b \f \n \r \t \u`）で始まらないバックスラッシュを二重化する。
+    /// シングルバックスラッシュで書かれた LaTeX（`\infty` → `\\infty`）を修復する。有効なエスケープはそのまま残す。
     private static func repairInvalidEscapes(_ json: String) -> String {
         json.replacingOccurrences(of: #"\\(?!["\\/bfnrtu])"#, with: #"\\\\"#, options: .regularExpression)
     }

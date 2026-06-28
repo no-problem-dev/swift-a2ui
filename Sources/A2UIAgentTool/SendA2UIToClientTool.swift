@@ -6,14 +6,13 @@ import A2UITyped
 import LLMClient
 import LLMTool
 
-/// The official A2UI tool-call generation pattern — the Swift counterpart of the Python SDK's
-/// `_SendA2uiJsonToClientTool` (`a2ui.adk.send_a2ui_to_client_toolset`).
+/// 公式 A2UI ツール呼び出しパターン — Python SDK の `_SendA2uiJsonToClientTool`
+/// （`a2ui.adk.send_a2ui_to_client_toolset`）の Swift 対応。
 ///
-/// The LLM authors the A2UI JSON itself and passes it as the `a2ui_json` argument; this tool
-/// parses (with autofixes), validates against `Catalog`, and returns the validated payload under
-/// the `validated_a2ui_json` key for the host to deliver to the client. Failures are returned as
-/// tool errors so the model can self-correct within the same loop. As a `TurnEndingTool`, a
-/// successful call ends the turn without a further inference (ADK `skip_summarization`).
+/// LLM が A2UI JSON を作成し `a2ui_json` 引数として渡す。このツールは（自動修正付きで）パースし、
+/// `Catalog` に対して検証を行い、検証済みペイロードを `validated_a2ui_json` キーでホストに届ける。
+/// 失敗はツールエラーとして返し、モデルが同一ループ内で自己修正できる。`TurnEndingTool` として、
+/// 成功した呼び出しはターンを追加推論なしで終了させる（ADK `skip_summarization`）。
 public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
 
     private let examples: String?

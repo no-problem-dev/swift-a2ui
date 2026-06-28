@@ -4,9 +4,9 @@
 
 ## Overview
 
-`A2UIPromptCompact` は `A2UIPrompt` を補完するモジュールです。LLM のコンテキストウィンドウが限られた状況や、多くのコンポーネントを使うときにプロンプトのトークン数が膨らむ問題を解消します。
+`A2UIPromptCompact` は `A2UIPrompt` を補完するモジュール。LLM のコンテキストウィンドウが限られた状況や、多くのコンポーネントを使うときにプロンプトのトークン数が膨らむ問題を解消する。
 
-`CommonTypesCompactor` は `DynamicString`・`DynamicBoolean`・`DataBinding` などの共通型を一度だけ定義する短縮表現に変換し、各コンポーネントスキーマから重複する型定義を除去します。`A2UIPromptCompactBuilder` は `A2UIPromptBuilder` と同じ API を持ちながら、この圧縮処理を内部で適用します。同じコンポーネントセットでも圧縮版はフル版より大幅に短いプロンプトを生成し、コンテキスト消費を抑えながら同等の情報を LLM に伝えられます。
+`CommonTypesCompactor` は `DynamicString`・`DynamicBoolean`・`DataBinding` などの共通型を一度だけ定義する短縮表現に変換し、各コンポーネントスキーマから重複する型定義を除去する。`A2UIPromptCompactBuilder` は `A2UIPromptBuilder` と同じ API を持ちながら、この圧縮処理を内部で適用する。同じコンポーネントセットでも圧縮版はフル版より大幅に短いプロンプトを生成し、コンテキスト消費を抑えながら同等の情報を LLM に伝えられる。
 
 ```swift
 import A2UIPromptCompact

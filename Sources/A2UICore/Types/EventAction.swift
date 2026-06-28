@@ -1,9 +1,13 @@
+/// `Action.event` のペイロード: ホストへ送信する名前付きイベント。
+///
+/// `wantResponse: true` を設定すると、クライアントはサーバからの `actionResponse` を待つ。
+/// `responsePath` が指定された場合、応答値をデータモデルのそのパスへ書き込む。
 public struct EventAction: Codable, Sendable, Equatable {
     public let name: String
     public let context: [String: DynamicValue]?
-    /// v0.10: if true, the client expects an `actionResponse` from the server.
+    /// v0.10: true の場合、クライアントはサーバから `actionResponse` を期待する。
     public let wantResponse: Bool?
-    /// v0.10: optional JSON Pointer where the client saves the response value in its local data model.
+    /// v0.10: クライアントがデータモデルへ応答値を書き込む JSON Pointer パス（オプション）。
     public let responsePath: String?
 
     public init(

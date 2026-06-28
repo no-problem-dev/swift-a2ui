@@ -1,6 +1,10 @@
 import Foundation
 
+/// LLM が出力した JSON を A2UI パーサが受理できる形式に正規化するサニタイザ。
+///
+/// スマートクォート正規化・コードフェンス除去・`//` および `/* */` コメント削除・末尾カンマ除去を適用する。
 public enum JSONSanitizer {
+    /// 生の JSON 文字列を受け取り、正規化して返す。
     public static func sanitize(_ json: String) -> String {
         var result = json.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -36,10 +40,10 @@ public enum JSONSanitizer {
         return result
     }
 
-    /// Remove `//` line comments and `/* */` block comments that appear **outside** string literals.
-    /// JSON forbids comments, but LLMs routinely emit them; stripping lets the block parse instead of
-    /// failing wholesale. String literals (and their escapes) are preserved verbatim, so URLs like
-    /// `https://example.com` are untouched.
+    /// 文字列リテラルの**外側**にある `//` 行コメントと `/* */` ブロックコメントを除去する。
+    /// JSON はコメントを禁止しているが LLM が頻繁に出力するため、除去することでパース失敗を防ぐ。
+    /// 文字列リテラル（とそのエスケープ）はそのまま保持されるため、`https://example.com` などの
+    /// URL は変更されない。
     static func stripComments(_ s: String) -> String {
         let chars = Array(s)
         var out = ""

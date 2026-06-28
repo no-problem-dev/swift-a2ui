@@ -1,10 +1,10 @@
-/// Stable string key that identifies a component instance on a surface (JSON Pointer root).
+/// サーフェス上のコンポーネントインスタンスを一意に識別する文字列キー（JSON Pointer ルート）。
 public typealias ComponentId = String
 
-/// Base protocol every A2UI component struct conforms to.
+/// 全 A2UI コンポーネント struct が準拠する基底プロトコル。
 ///
-/// `componentName` is the wire discriminator (e.g. `"Button"`); `id` is the surface-local
-/// identity used for updates and data-binding scoping.
+/// `componentName` はワイヤー上の判別子（例: `"Button"`）。`id` はサーフェス内の識別子で、
+/// 更新処理とデータバインディングのスコープに使用する。
 public protocol A2UIComponentProtocol: Codable, Sendable, Equatable {
     static var componentName: String { get }
     var id: ComponentId { get }

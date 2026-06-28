@@ -3,16 +3,15 @@ import A2UICore
 import A2UICatalog
 import JSONParsing
 
-/// Builds prompt **examples from the Swift type system** instead of hand-written JSON strings.
+/// 手書き JSON 文字列の代わりに Swift の型システムからプロンプト手本を生成するユーティリティ。
 ///
-/// Hand-authored example strings drift and silently go invalid (wrong `version`, a Modal with
-/// `children` instead of `trigger`/`content`, stray `//` comments, non-existent props). By
-/// constructing the example from the typed components + `ServerMessage`s and serializing, the example
-/// is **guaranteed structurally valid** against the catalog types, and a test can pin it.
+/// 手書きの JSON 文字列は `version` の誤り・`children` を持つ `Modal`・余分な `//` コメント・
+/// 存在しないプロパティなど暗黙の不正が紛れ込む。型付きコンポーネントと `ServerMessage` から
+/// 生成してシリアライズすることで、カタログ型との整合性がコンパイル時に保証され、テストでピン留めできる。
 public enum A2UIExample {
 
-    /// Encode a typed catalog component (e.g. `TextComponent`) into the `StructuredValue` form that
-    /// `UpdateComponents.components` expects.
+    /// 型付きカタログコンポーネント（例: `TextComponent`）を `UpdateComponents.components` が
+    /// 期待する `StructuredValue` 形式にエンコードする。
     public static func component(_ component: some Encodable & Sendable) -> StructuredValue {
         guard let data = try? JSONEncoder().encode(component),
               let value = try? JSONParser().parse(data) else {
@@ -21,14 +20,14 @@ public enum A2UIExample {
         return value
     }
 
-    /// Convenience: an `updateComponents` message from typed components.
+    /// 型付きコンポーネント配列から `updateComponents` メッセージを生成するヘルパー。
     public static func updateComponents(surfaceId: String, _ components: [any (Encodable & Sendable)]) -> ServerMessage {
         .updateComponents(UpdateComponents(surfaceId: surfaceId, components: components.map { component($0) }))
     }
 
-    /// Render a list of messages as a raw JSON array. Keys are sorted and slashes are not escaped,
-    /// so the embedded JSON is deterministic (stable prompt cache) and URL-clean.
-    /// Wrapping conventions (e.g. `<a2ui-json>` tags for the text-tags method) belong to the consumer.
+    /// メッセージ配列を生の JSON 配列文字列に変換する。キーはソート済みでスラッシュは非エスケープ —
+    /// プロンプトキャッシュが安定し URL クリーンな決定論的出力になる。
+    /// `<a2ui-json>` タグ等のラッピング規約は呼び出し側が担う。
     public static func json(_ messages: [ServerMessage]) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -37,18 +36,18 @@ public enum A2UIExample {
 
     // MARK: - Reference example (the canonical prompt example, built from types)
 
-    /// A data-model-driven reference surface covering the catalog palette, built entirely from typed
-    /// components so it is guaranteed valid (no stray comments, no `children`-Modal, correct version).
-    /// Use as the `examples:` argument to `A2UIPromptBuilder.buildSystemPrompt`.
+    /// カタログパレット全体をカバーするデータモデル駆動の参照サーフェス。型付きコンポーネントから
+    /// 生成するため常に有効（余分なコメント・`children` を持つ `Modal`・バージョン誤り等が混入しない）。
+    /// `A2UIPromptBuilder.buildSystemPrompt` の `examples:` 引数として渡す。
     ///
-    /// The root is a full-width `Column` (align: stretch): the host frame defines the surface bounds,
-    /// matching the official v0.9 sample convention. How surfaces are *arranged over a session*
-    /// (single / paged / stacked) is a separate, out-of-protocol concern owned by the consuming app.
+    /// ルートは全幅 `Column`（align: stretch）: ホストフレームがサーフェス境界を定め、
+    /// 公式 v0.9 サンプルの規約に準拠する。セッション内でのサーフェス配置（単一 / ページング /
+    /// スタック）はプロトコル外の関心事であり、アプリ側が担う。
     public static func referenceSurface(surfaceId id: String = "main") -> String {
         json(referenceMessages(surfaceId: id))
     }
 
-    /// The reference surface as typed messages (exposed so tests can assert structure).
+    /// 型付きメッセージ配列としての参照サーフェス（テストで構造を検証するために公開）。
     public static func referenceMessages(surfaceId id: String) -> [ServerMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {
@@ -190,7 +189,7 @@ public enum A2UIExample {
         json(presenterMessages(surfaceId: id))
     }
 
-    /// The presenter surface as typed messages (exposed so tests can assert structure).
+    /// 型付きメッセージ配列としての presenter サーフェス（テストで構造を検証するために公開）。
     public static func presenterMessages(surfaceId id: String) -> [ServerMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {

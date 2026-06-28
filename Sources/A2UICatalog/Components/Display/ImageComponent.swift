@@ -1,5 +1,6 @@
 import A2UICore
 
+/// 画像コンポーネント。指定した URL の画像を表示する。
 public struct ImageComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Image"
 

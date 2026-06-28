@@ -1,4 +1,4 @@
-/// The ordered children of a container component: either explicit IDs or a template expansion.
+/// コンテナコンポーネントの子一覧: 明示的な ID 列またはテンプレート展開のいずれか。
 public enum ChildList: Sendable, Equatable {
     case ids([String])
     case template(componentId: String, path: String)
