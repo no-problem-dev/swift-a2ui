@@ -271,7 +271,7 @@ let metadata = try ownership.outboundMetadata(
 `Package.swift` の `dependencies` に追加:
 
 ```swift
-.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", from: "0.0.1"),
+.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", from: "0.12.5"),
 ```
 
 ターゲットの `dependencies` で必要なモジュールを列挙:
