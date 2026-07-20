@@ -39,7 +39,7 @@ let package = Package(
         .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.6.3"),
         // 1.4.0: mediaViewable（メディアビューア）/ SurfaceStyle 環境 / Glass Card / motion トークンを使用
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "2.0.1"),
-        .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "3.0.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "4.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.4.0"),
     ],
     targets: [
