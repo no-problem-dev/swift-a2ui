@@ -17,12 +17,12 @@ public enum A2UIMediaType {
 extension Part {
     /// サーバ → クライアントの A2UI メッセージをラップする（`create_a2ui_part` のミラー）。
     public static func a2ui(_ message: ServerMessage) throws -> Part {
-        .data(try .encoding(message), mediaType: A2UIMediaType.a2uiJSON)
+        .data(try .encoded(message), mediaType: A2UIMediaType.a2uiJSON)
     }
 
     /// クライアント → サーバの A2UI メッセージ（userAction / functionResponse / error）をラップする。
     public static func a2ui(_ message: ClientMessage) throws -> Part {
-        .data(try .encoding(message), mediaType: A2UIMediaType.a2uiJSON)
+        .data(try .encoded(message), mediaType: A2UIMediaType.a2uiJSON)
     }
 
     /// このパートが A2UI コンテンツを持つか（`is_a2ui_part` のミラー）。

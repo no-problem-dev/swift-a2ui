@@ -148,7 +148,7 @@ struct A2UIPartTests {
 
     @Test func metadataMimeTypeTagIsAccepted() throws {
         // The official v0.x SDK tags via part metadata["mimeType"], not Part.mediaType.
-        let value = try StructuredValue.encoding(makeServerMessage())
+        let value = try StructuredValue.encoded(makeServerMessage())
         let part = Part.data(value, metadata: [A2UIMediaType.metadataKey: .string(A2UIMediaType.a2uiJSON)])
         #expect(part.isA2UI)
         #expect(try part.a2uiServerMessage() == makeServerMessage())

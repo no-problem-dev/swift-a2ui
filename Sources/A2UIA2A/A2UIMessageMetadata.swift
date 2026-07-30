@@ -48,10 +48,10 @@ public enum A2UIMessageMetadata {
     }
 
     public static func embed(_ capabilities: A2UIClientCapabilities, into metadata: inout A2AMetadata) throws {
-        metadata[clientCapabilitiesKey] = try .encoding(capabilities)
+        metadata[clientCapabilitiesKey] = try .encoded(capabilities)
     }
 
     public static func embed(_ dataModel: A2UIClientDataModel, into metadata: inout A2AMetadata) throws {
-        metadata[clientDataModelKey] = try .encoding(dataModel)
+        metadata[clientDataModelKey] = try .encoded(dataModel)
     }
 }

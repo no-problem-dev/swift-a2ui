@@ -32,15 +32,20 @@ let package = Package(
         // surface ownership ledger, deterministic userAction routing, data-model stripping.
         // Pure functions over A2A parts — host runtimes wire these in as hooks.
         .library(name: "A2UIOrchestration", targets: ["A2UIOrchestration"]),
+        // AG-UI integration (mirror of the official ag-ui a2ui-middleware wire contract):
+        // A2UI ops ⇄ ACTIVITY_SNAPSHOT (paint / lifecycle snapshots), the
+        // forwardedProps.a2uiAction return path, and the schema context declaration.
+        .library(name: "A2UIAGUI", targets: ["A2UIAGUI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "1.3.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.6.3"),
+        .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "2.0.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.7.1"),
+        .package(url: "https://github.com/no-problem-dev/swift-agui.git", from: "0.1.1"),
         // 1.4.0: mediaViewable（メディアビューア）/ SurfaceStyle 環境 / Glass Card / motion トークンを使用
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "2.0.1"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "4.0.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.4.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.10.1"),
     ],
     targets: [
         .target(name: "A2UICore", dependencies: [
@@ -95,9 +100,19 @@ let package = Package(
             "A2UICore", "A2UIA2A",
             .product(name: "A2ACore", package: "swift-a2a"),
         ]),
+        // AG-UI integration. Depends on AGUICore the same way A2UIA2A depends on A2ACore.
+        // Mirrors the client-side wire contract of ag-ui's official a2ui-middleware
+        // (activityType "a2ui-surface", content.a2ui_operations, forwardedProps.a2uiAction),
+        // carrying the ecosystem's current A2UI version instead of the middleware's pinned v0.9.
+        // UI-free — tests run on the CLI.
+        .target(name: "A2UIAGUI", dependencies: [
+            "A2UICore",
+            .product(name: "AGUICore", package: "swift-agui"),
+        ]),
         .testTarget(name: "A2UICoreTests", dependencies: ["A2UICore"],
                     resources: [.copy("Fixtures")]),
         .testTarget(name: "A2UIA2ATests", dependencies: ["A2UIA2A"]),
+        .testTarget(name: "A2UIAGUITests", dependencies: ["A2UIAGUI"]),
         .testTarget(name: "A2UIOrchestrationTests", dependencies: ["A2UIOrchestration"]),
         .testTarget(name: "A2UICatalogTests", dependencies: ["A2UICatalog"],
                     resources: [.copy("Fixtures")]),
