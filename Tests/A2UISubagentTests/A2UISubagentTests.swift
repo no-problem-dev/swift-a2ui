@@ -155,21 +155,31 @@ struct GenerateA2UIToolTests {
         #expect(!encoded.contains("a2ui_json"))
     }
 
-    @Test("成功時は createSurface + updateComponents と要約を返す")
-    func buildsMessagesAndSummary() async throws {
+    @Test("成功時は公式のエンベロープ形（a2ui_operations）で返す")
+    func buildsOperationsEnvelope() async throws {
         let subject = tool(invoke: { _, _ in
             RenderA2UIArguments(surfaceId: "s1", components: validComponents, data: nil)
         })
         let result = try await subject.execute(with: Data("{}".utf8))
         #expect(!result.isError)
         let payload = result.stringValue
+        #expect(payload.contains(A2UISubagentConstants.operationsKey))
         #expect(payload.contains("createSurface"))
         #expect(payload.contains("updateComponents"))
         // catalogId はホスト固定（モデルは選べない）。JSONEncoder は / をエスケープする
         #expect(payload.contains(#"catalogs\/delish\/v1\/catalog.json"#))
-        // メイン向けの人間可読な要約が付く
-        #expect(payload.contains("Rendered surface(s): s1"))
-        #expect(payload.contains("こんにちは"))
+    }
+
+    @Test("intent=update は対象サーフェス ID を維持する（モデルが別 ID を返しても上書きしない）")
+    func keepsTargetSurfaceIdOnUpdate() async throws {
+        let subject = tool(invoke: { _, _ in
+            RenderA2UIArguments(surfaceId: "model-invented", components: validComponents, data: nil)
+        })
+        let result = try await subject.execute(
+            with: Data(#"{"intent":"update","target_surface_id":"existing-surface"}"#.utf8)
+        )
+        #expect(result.stringValue.contains("existing-surface"))
+        #expect(!result.stringValue.contains("model-invented"))
     }
 
     @Test("surfaceId が空ならフォールバック ID を使う")

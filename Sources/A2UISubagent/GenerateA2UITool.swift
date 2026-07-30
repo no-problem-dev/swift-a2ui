@@ -80,7 +80,14 @@ public struct GenerateA2UITool: TurnEndingTool {
         let result = try await runner.run(
             basePrompt: basePrompt,
             invoke: invoke,
-            buildMessages: { rendered in Self.messages(from: rendered, catalogId: catalogId) },
+            buildMessages: { rendered in
+                Self.messages(
+                    from: rendered,
+                    catalogId: catalogId,
+                    // 更新時は対象サーフェスを維持する（モデルが別 ID を返しても上書きしない）
+                    surfaceIdOverride: args.targetSurfaceId
+                )
+            },
             validate: validate
         )
 
@@ -92,17 +99,23 @@ public struct GenerateA2UITool: TurnEndingTool {
             )
         }
 
-        return .json(try JSONEncoder().encode(GeneratedPayload(
-            validated_a2ui_json: result.messages,
-            summary: Self.summary(of: result.messages)
-        )))
+        // 公式のエンベロープ形（`wrapAsOperationsEnvelope`）と同じキーで返す。
+        // 生の operations がそのままツール結果として履歴に残り、メインが必要なら読める
+        // （更新時は履歴から前回のサーフェスを復元する設計）。
+        return .json(try JSONEncoder().encode(OperationsEnvelope(a2ui_operations: result.messages)))
     }
 
     /// `render_a2ui` の引数を A2UI メッセージ列へ変換する。
     ///
-    /// `catalogId` はホスト固定。`surfaceId` はモデル出力が untrusted なので空文字を弾く。
-    static func messages(from args: RenderA2UIArguments, catalogId: String) -> [ServerMessage] {
-        let surfaceId = args.surfaceId.isEmpty ? A2UISubagentConstants.defaultSurfaceId : args.surfaceId
+    /// `catalogId` はホスト固定。`surfaceId` はモデル出力が untrusted なので空文字を弾き、
+    /// 更新時は `surfaceIdOverride`（プランナーが指定した対象）を優先する。
+    static func messages(
+        from args: RenderA2UIArguments,
+        catalogId: String,
+        surfaceIdOverride: String? = nil
+    ) -> [ServerMessage] {
+        let resolved = surfaceIdOverride ?? args.surfaceId
+        let surfaceId = resolved.isEmpty ? A2UISubagentConstants.defaultSurfaceId : resolved
         var messages: [ServerMessage] = [
             .createSurface(CreateSurface(surfaceId: surfaceId, catalogId: catalogId)),
         ]
@@ -116,39 +129,6 @@ public struct GenerateA2UITool: TurnEndingTool {
         return messages
     }
 
-    /// メインエージェント向けの人間可読な要約。
-    ///
-    /// 公式にはない delish 側の補強 — 2 段構成ではメインが「何を描画したか」を
-    /// 直接知らないため、後続ターンで参照できる短い説明を添える。
-    static func summary(of messages: [ServerMessage]) -> String {
-        var surfaceIds: [String] = []
-        var componentCount = 0
-        var texts: [String] = []
-        for message in messages {
-            switch message {
-            case .createSurface(let cs):
-                surfaceIds.append(cs.surfaceId)
-            case .updateComponents(let uc):
-                componentCount += uc.components.count
-                for component in uc.components {
-                    if let text = component.rawValue["text"].stringValue, !text.isEmpty {
-                        texts.append(text)
-                    }
-                }
-            default:
-                break
-            }
-        }
-        var parts: [String] = []
-        if !surfaceIds.isEmpty {
-            parts.append("Rendered surface(s): \(surfaceIds.joined(separator: ", "))")
-        }
-        parts.append("\(componentCount) component(s)")
-        if !texts.isEmpty {
-            parts.append("Visible text: \(texts.prefix(8).joined(separator: " / "))")
-        }
-        return parts.joined(separator: ". ")
-    }
 }
 
 /// 外側ツールの引数。全て optional（`intent` 未指定は `create` 扱い）。
@@ -168,7 +148,7 @@ struct GenerateArgs {
     }
 }
 
-private struct GeneratedPayload: Encodable {
-    let validated_a2ui_json: [ServerMessage]
-    let summary: String
+/// 公式 `wrapAsOperationsEnvelope` と同じエンベロープ形。
+private struct OperationsEnvelope: Encodable {
+    let a2ui_operations: [ServerMessage]
 }
