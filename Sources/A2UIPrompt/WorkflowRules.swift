@@ -20,10 +20,14 @@ public enum A2UIWorkflowRules {
     /// ツール、Python SDK の `SendA2uiToClientToolset` に対応）。
     ///
     /// `default` のタグ包み条件をツールコール条件に置き換え、順序・バリデーション制約は同じ。
-    /// バリデーション/謝罪条件は公式の rizzcharts サンプルの workflow instructions に準拠する。
+    ///
+    /// エラー時は「同一ループ内で自己修正」を指示する。ツールエラーはモデルへ結果として返り、
+    /// ターンは終わらない（`TurnEndingTool` の判定が成功時のみ成立する）ため、実際の回復機構は
+    /// 再生成であって謝罪ではない。
     public static let toolCall = """
     The generated response MUST follow these rules:
     - You MUST send UI to the client by calling the `send_a2ui_json_to_client` tool with the `a2ui_json` argument set to the A2UI JSON payload.
+    - NEVER write A2UI JSON in your text response — not as a fenced code block, not inline. The JSON belongs in the tool argument only; text that contains it is shown to the user as raw JSON.
     - The `a2ui_json` argument MUST be a single, raw JSON array of A2UI messages and MUST validate against the provided A2UI JSON SCHEMA.
     - The tool can be called multiple times in the same turn to render multiple UI surfaces.
     - Around tool calls, you can provide conversational text.
@@ -31,7 +35,7 @@ public enum A2UIWorkflowRules {
         - The 'root' component MUST be the FIRST element.
         - Parent components MUST appear before their child components.
     - The payload will be validated against the A2UI JSON SCHEMA and rejected if it does not conform.
-    - If you get an error in the tool response apologize to the user and let them know they should try again.
+    - If the tool returns an error, read the message, fix the payload, and call the tool again in the SAME turn. Do not apologize instead of retrying.
     """
 
     /// データバインディングのスコープルール（仕様 §"Path resolution & scope"、v0.10）。

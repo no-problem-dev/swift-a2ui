@@ -74,6 +74,41 @@ struct A2UIPayloadFixerTests {
         #expect(udm.value?["problem"].stringValue == #"$\int_{0}^{\infty} e^{-x^2} dx$"#)
     }
 
+    @Test("ツール引数に混入したコードフェンスを除去して decode")
+    func stripsCodeFenceInToolArgument() throws {
+        // モデルは a2ui_json 引数の中にも ```json フェンスを混ぜてくる（タグ経路と同じ耐性が必要）
+        let fenced = """
+        ```json
+        [\(createSurfaceJSON)]
+        ```
+        """
+        let messages = try A2UIPayloadFixer.parseAndFix(fenced)
+        #expect(messages == [.createSurface(CreateSurface(surfaceId: "s1", catalogId: "basic"))])
+    }
+
+    @Test("ツール引数に混入した JSON コメントを除去して decode")
+    func stripsCommentsInToolArgument() throws {
+        let commented = """
+        [
+          // 表示用のサーフェスを作る
+          \(createSurfaceJSON)
+        ]
+        """
+        let messages = try A2UIPayloadFixer.parseAndFix(commented)
+        #expect(messages.count == 1)
+    }
+
+    @Test("文字列値の中の URL はコメント除去で壊さない")
+    func preservesURLInStringValue() throws {
+        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"url":"https://example.com/a"}}}]"#
+        let messages = try A2UIPayloadFixer.parseAndFix(payload)
+        guard case .updateDataModel(let udm) = messages[0] else {
+            Issue.record("expected updateDataModel")
+            return
+        }
+        #expect(udm.value?["url"].stringValue == "https://example.com/a")
+    }
+
     @Test("正しいエスケープは修復で壊さない")
     func preservesValidEscapes() throws {
         // \\theta（正しくエスケープ済み）と \infty（不足）の混在 — 公式 flash 系の実出力パターン
