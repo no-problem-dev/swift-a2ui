@@ -14,14 +14,21 @@ import StructuredDataCore
 /// システムプロンプトから A2UI スキーマを外せ、テキストへの JSON 流出も原理的に消える。
 ///
 /// `catalogId` はホストの所有物で、モデルは選べない（副エージェントの引数にも無い）。
-public struct GenerateA2UITool: TurnEndingTool {
+public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
     /// 副エージェントの呼び出し方をホストから注入する。
     ///
     /// - Parameters:
     ///   - prompt: 組み立て済みのシステムプロンプト。
     ///   - attempt: 1 始まりの試行回数（ログ・観測用）。
+    ///   - transcript: 実行時点の会話（進行中の `generate_a2ui` 呼び出しは除去済み）。
+    ///     副エージェントの LLM 呼び出しにそのまま渡す — 同一 run 内で取得したツール結果
+    ///     （検索結果等）が見えないと、モデルはデータを捏造する。
     /// - Returns: `render_a2ui` の引数。ツール呼び出しが得られなければ `nil`。
-    public typealias Invoke = @Sendable (_ prompt: String, _ attempt: Int) async throws -> RenderA2UIArguments?
+    public typealias Invoke = @Sendable (
+        _ prompt: String,
+        _ attempt: Int,
+        _ transcript: [LLMMessage]
+    ) async throws -> RenderA2UIArguments?
 
     /// 生成されたメッセージ列を検証する（ホストのカタログ・allowlist を適用する）。
     public typealias Validate = @Sendable ([ServerMessage]) -> [String]
@@ -64,22 +71,40 @@ public struct GenerateA2UITool: TurnEndingTool {
         )
     }
 
+    /// トランスクリプトなしの実行（`Tool` 要件）。
+    ///
+    /// ループランタイムが `TranscriptAwareTool` に対応していれば呼ばれない。
+    /// 会話文脈なしでは副エージェントがデータを捏造しやすいため、空トランスクリプトで委譲する。
     public func execute(with argumentsData: Data) async throws -> ToolResult {
+        try await execute(with: argumentsData, transcript: [])
+    }
+
+    public func execute(with argumentsData: Data, transcript: [LLMMessage]) async throws -> ToolResult {
         let args = GenerateArgs(argumentsData: argumentsData)
 
-        // 更新意図でも直前サーフェスの復元はホストの責務（履歴の持ち方に依存する）。
-        // ここでは意図と変更要求だけをプロンプトに反映する。
-        let editContext = args.targetSurfaceId.map { surfaceId in
-            A2UISubagentPrompt.EditContext(
-                prior: A2UIPriorSurface(surfaceId: surfaceId, componentsJSON: "[]"),
-                changes: args.changes
-            )
+        // 進行中の generate_a2ui 呼び出しを剥がす（Strands 方式の条件付き除去）。
+        // 対応する結果のない toolUse はプロバイダに拒否され、副エージェントは
+        // このツールを持っていない。
+        let conversation = Self.strippingInFlightCall(from: transcript, toolName: toolName)
+
+        // intent=update: 過去に描画したサーフェスをトランスクリプトから復元する
+        // （公式 findPriorSurface 相当）。見つからなければエラーをモデルに返して
+        // 自己修正させる（公式と同じ帰結）。
+        var editContext: A2UISubagentPrompt.EditContext?
+        if args.isUpdate, let targetSurfaceId = args.targetSurfaceId {
+            guard let prior = Self.findPriorSurface(in: conversation, surfaceId: targetSurfaceId) else {
+                return .error(
+                    "intent='update' requested target_surface_id='\(targetSurfaceId)'"
+                        + " but no prior render of that surface was found in conversation history"
+                )
+            }
+            editContext = A2UISubagentPrompt.EditContext(prior: prior, changes: args.changes)
         }
         let basePrompt = prompt.render(editContext: editContext)
 
         let result = try await runner.run(
             basePrompt: basePrompt,
-            invoke: invoke,
+            invoke: { prompt, attempt in try await invoke(prompt, attempt, conversation) },
             buildMessages: { rendered in
                 Self.messages(
                     from: rendered,
@@ -100,9 +125,95 @@ public struct GenerateA2UITool: TurnEndingTool {
         }
 
         // 公式のエンベロープ形（`wrapAsOperationsEnvelope`）と同じキーで返す。
-        // 生の operations がそのままツール結果として履歴に残り、メインが必要なら読める
-        // （更新時は履歴から前回のサーフェスを復元する設計）。
+        // 生の operations がそのままツール結果として履歴に残り、更新時はここから
+        // 過去サーフェスを復元する。
         return .json(try JSONEncoder().encode(OperationsEnvelope(a2ui_operations: result.messages)))
+    }
+
+    /// 進行中（結果未着）の自ツール呼び出しを含む末尾メッセージを剥がす。
+    ///
+    /// ミラー元: Strands アダプタの `stripInFlightToolCall`。LangGraph の無条件
+    /// `slice(0, -1)` ではなく、「末尾が assistant で、かつ自ツール名の toolUse を含む」
+    /// ときだけ剥がす — ループ構造次第で末尾がツールコールとは限らず、無条件除去は
+    /// ユーザー発話を落とすリスクがあるため。
+    static func strippingInFlightCall(from transcript: [LLMMessage], toolName: String) -> [LLMMessage] {
+        guard let last = transcript.last,
+              last.role == .assistant,
+              last.toolUses.contains(where: { $0.name == toolName }) else {
+            return transcript
+        }
+        return Array(transcript.dropLast())
+    }
+
+    /// トランスクリプトのツール結果から、対象サーフェスの直近の描画状態を復元する。
+    ///
+    /// ミラー元: `@ag-ui/a2ui-toolkit` の `findPriorSurface`。ツール結果メッセージを
+    /// **新しい順**に走査し、`a2ui_operations` エンベロープを含むものからサーフェス状態を
+    /// 組み立てる。メッセージ内のオペレーションは**前方向**に評価する（レンダラと同じ
+    /// document 順。delete の後の create は復活）。最新メッセージで delete で終わっていたら
+    /// 見つからなかったものとして扱う（もう表示されていないサーフェスを復活させない）。
+    static func findPriorSurface(in transcript: [LLMMessage], surfaceId: String) -> A2UIPriorSurface? {
+        var componentsJSON: String?
+        var dataJSON: String?
+
+        for message in transcript.reversed() {
+            for result in message.toolResults.reversed() {
+                guard case .success(let content) = result.content,
+                      let envelope = try? JSONDecoder().decode(
+                          OperationsEnvelope.self, from: Data(content.utf8)
+                      ) else {
+                    continue
+                }
+
+                var seenComponents: String?
+                var seenData: String?
+                var deleted = false
+                for operation in envelope.a2ui_operations {
+                    switch operation {
+                    case .createSurface(let cs) where cs.surfaceId == surfaceId:
+                        deleted = false
+                    case .updateComponents(let uc) where uc.surfaceId == surfaceId:
+                        deleted = false
+                        seenComponents = Self.encodeJSON(uc.components)
+                    case .updateDataModel(let udm) where udm.surfaceId == surfaceId:
+                        deleted = false
+                        if let value = udm.value {
+                            seenData = Self.encodeJSON(value)
+                        }
+                    case .deleteSurface(let ds) where ds.surfaceId == surfaceId:
+                        deleted = true
+                        seenComponents = nil
+                        seenData = nil
+                    default:
+                        break
+                    }
+                }
+
+                // このメッセージが対象サーフェスに触れていなければ次へ
+                guard seenComponents != nil || seenData != nil || deleted else { continue }
+
+                // 最新の言及が delete なら、そのサーフェスはもう存在しない
+                if deleted, componentsJSON == nil, dataJSON == nil {
+                    return nil
+                }
+                // 新しいメッセージの値が勝ち、古いメッセージは未設定フィールドだけを埋める
+                if componentsJSON == nil { componentsJSON = seenComponents }
+                if dataJSON == nil { dataJSON = seenData }
+                if componentsJSON != nil, dataJSON != nil {
+                    return A2UIPriorSurface(
+                        surfaceId: surfaceId, componentsJSON: componentsJSON!, dataJSON: dataJSON
+                    )
+                }
+            }
+        }
+
+        guard let componentsJSON else { return nil }
+        return A2UIPriorSurface(surfaceId: surfaceId, componentsJSON: componentsJSON, dataJSON: dataJSON)
+    }
+
+    private static func encodeJSON(_ value: some Encodable) -> String? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     /// `render_a2ui` の引数を A2UI メッセージ列へ変換する。
@@ -149,6 +260,7 @@ struct GenerateArgs {
 }
 
 /// 公式 `wrapAsOperationsEnvelope` と同じエンベロープ形。
-private struct OperationsEnvelope: Encodable {
+/// Decodable も備える — `findPriorSurface` が過去のツール結果からこの形を読み戻す。
+struct OperationsEnvelope: Codable {
     let a2ui_operations: [ServerMessage]
 }
