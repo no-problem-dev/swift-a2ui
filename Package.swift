@@ -20,6 +20,7 @@ let package = Package(
         // Official tool-call generation pattern (mirror of the Python SDK's a2ui.adk):
         // the send_a2ui_json_to_client tool + the tool-result → ServerMessage extractor.
         .library(name: "A2UIAgentTool", targets: ["A2UIAgentTool"]),
+        .library(name: "A2UISubagent", targets: ["A2UISubagent"]),
         // Self-description of the presenter (content-presentation) A2UI agent:
         // system prompt, official tool, card extension, host delegation constraint.
         // Hosts inject these into their executor the same way they inject any worker agent.
@@ -78,6 +79,16 @@ let package = Package(
             .product(name: "LLMClient", package: "swift-llm-client"),
             .product(name: "LLMTool", package: "swift-llm-client"),
         ]),
+        // Two-stage generation pattern (@ag-ui/a2ui-toolkit port). The outer `generate_a2ui`
+        // tool carries intent only; a subagent LLM call is forced onto `render_a2ui` so the
+        // model has no API-level option to emit prose instead of a tool call. Validation
+        // retries live here too. UI-free — tests run on the CLI.
+        .target(name: "A2UISubagent", dependencies: [
+            "A2UICore", "A2UIParser", "A2UITyped",
+            .product(name: "LLMClient", package: "swift-llm-client"),
+            .product(name: "LLMTool", package: "swift-llm-client"),
+            .product(name: "StructuredDataCore", package: "swift-structured-data"),
+        ]),
         // Presenter agent self-description. Owns ALL the UI knowledge an a2ui worker needs
         // (role, UI rules, presenter-pruned schema + example via the tool) so consuming apps
         // only inject it — the layer that makes a2ui symmetric with other worker agents.
@@ -124,6 +135,7 @@ let package = Package(
         .testTarget(name: "A2UITypedTests", dependencies: ["A2UITyped"]),
         .testTarget(name: "A2UITypedRendererTests", dependencies: ["A2UITypedRenderer"]),
         .testTarget(name: "A2UIAgentToolTests", dependencies: ["A2UIAgentTool"]),
+        .testTarget(name: "A2UISubagentTests", dependencies: ["A2UISubagent"]),
         .testTarget(name: "A2UIAgentTests", dependencies: ["A2UIAgent"]),
     ]
 )
