@@ -15,10 +15,16 @@ import StructuredDataCore
 /// `catalogId` は引数に**含めない** — カタログはホストの所有物であり、副エージェントが
 /// 登録されていないカタログを名乗れないようにする（公式と同じ設計）。
 ///
-/// `components` の要素スキーマは意図的に空（`type: object`）にする。カタログは実行時に
-/// 決まり、巨大な `oneOf` union はプロバイダのスキーマ制約に触れやすく、構造検証は
-/// `A2UIValidation` 側で行うため。カタログ定義は副エージェントの**プロンプト本文**に
-/// 埋め込む（`A2UISubagentPrompt`）。
+/// `components` の要素スキーマはカタログの全コンポーネントを列挙しない — 巨大な `oneOf`
+/// union はプロバイダのスキーマ制約に触れやすく、構造検証は `A2UIValidation` 側で行うため。
+/// カタログ定義は副エージェントの**プロンプト本文**に埋め込む（`A2UISubagentPrompt`）。
+///
+/// ただし公式 TS の `items: { type: "object" }`（中身を一切規定しない）はそのまま使えない。
+/// Gemini の関数宣言スキーマ変換は `additionalProperties` を落とすため、properties が空の
+/// オブジェクトは「フィールドを持てないオブジェクト」になり、モデルが `component` すら
+/// 出せなくなる（実測: 全要素が `Key 'component' not found` で検証失敗）。
+/// そこで A2UI のどのコンポーネントにも共通する骨組みだけを宣言し、コンポーネント固有の
+/// プロパティはプロンプト側のカタログ定義に委ねる。
 public struct RenderA2UITool: Tool {
     /// ツール名。既定は公式と同じ `render_a2ui`。
     public let toolName: String
@@ -37,16 +43,38 @@ public struct RenderA2UITool: Tool {
             properties: [
                 "surfaceId": .string(description: "Unique surface identifier."),
                 "components": .array(
-                    description: "A2UI component array (flat format). The root component must have id 'root'.",
-                    items: .object(properties: [:], additionalProperties: true)
+                    description: "A2UI component array (flat format). The root component must have id 'root'."
+                        + " Each element carries the properties its component type defines in the catalog"
+                        + " (see the system instructions).",
+                    items: Self.componentSchema
                 ),
                 "data": .object(
-                    description: "Optional initial data model for the surface (form values, list items, etc.).",
+                    description: "Optional initial data model for the surface, as a JSON object"
+                        + " (e.g. {\"items\": [...]}). Omit when no path bindings are used.",
                     properties: [:],
                     additionalProperties: true
                 ),
             ],
             required: ["surfaceId", "components"]
+        )
+    }
+
+    /// 全コンポーネントに共通する骨組みだけを宣言する。
+    ///
+    /// コンポーネント固有のプロパティ（`text` / `children` / `action` / カスタム
+    /// コンポーネントのフィールド等）は**カタログ定義から生成されたスキーマ**が
+    /// プロンプト本文（`## Available Components`）で伝える。ここに列挙すると
+    /// カタログとの二重管理になり、同期漏れとレイヤ違反を生む。
+    private static var componentSchema: JSONSchema {
+        .object(
+            properties: [
+                "id": .string(description: "Unique component id within the surface. The root component MUST use 'root'."),
+                "component": .string(
+                    description: "Component type from the catalog in the system instructions."
+                ),
+            ],
+            required: ["id", "component"],
+            additionalProperties: true
         )
     }
 
