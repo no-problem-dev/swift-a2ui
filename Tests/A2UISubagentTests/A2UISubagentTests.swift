@@ -125,6 +125,73 @@ struct RenderA2UIArgumentsTests {
         let arrayData = try #require(RenderA2UIArguments(argumentsData: Data(#"{"surfaceId":"s","components":[],"data":[1]}"#.utf8)))
         #expect(arrayData.data == nil)
     }
+
+    @Test("freeform: components が JSON 文字列でもパースする（Gemini の自由記述）")
+    func parsesFreeformComponents() throws {
+        let data = Data(#"""
+        {"surfaceId":"s1","components":"[{\"id\":\"root\",\"component\":\"Text\",\"text\":\"hi\"}]","data":"{\"items\":[1]}"}
+        """#.utf8)
+        let args = try #require(RenderA2UIArguments(argumentsData: data))
+        #expect(args.surfaceId == "s1")
+        #expect(args.components.count == 1)
+        #expect(args.components[0]["component"].stringValue == "Text")
+        #expect(args.data?["items"].arrayValue?.count == 1)
+    }
+
+    @Test("freeform: コードフェンス・末尾カンマ・スマートクォートを修復する")
+    func healsFreeformComponents() throws {
+        let payload = "```json\n[{\u{201C}id\u{201D}:\"root\",\"component\":\"Text\",\"text\":\"hi\",},]\n```"
+        let encoded = try JSONEncoder().encode(["surfaceId": "s1", "components": payload])
+        let args = try #require(RenderA2UIArguments(argumentsData: encoded))
+        #expect(args.components.count == 1)
+        #expect(args.components[0]["id"].stringValue == "root")
+    }
+
+    @Test("freeform: 単一オブジェクトは配列にラップする")
+    func wrapsSingleObjectInFreeform() throws {
+        let data = Data(#"{"surfaceId":"s1","components":"{\"id\":\"root\",\"component\":\"Text\"}"}"#.utf8)
+        let args = try #require(RenderA2UIArguments(argumentsData: data))
+        #expect(args.components.count == 1)
+    }
+
+    @Test("freeform: 修復不能な components は nil（検証器に弾かせてリトライへ）")
+    func rejectsUnfixableFreeform() {
+        let data = Data(#"{"surfaceId":"s1","components":"not json at all {{{"}"#.utf8)
+        #expect(RenderA2UIArguments(argumentsData: data) == nil)
+    }
+
+    @Test("freeform: data が '{}' ならデータモデル無し")
+    func treatsEmptyObjectStringAsNoData() throws {
+        let data = Data(#"{"surfaceId":"s1","components":"[{\"id\":\"root\",\"component\":\"Text\"}]","data":"{}"}"#.utf8)
+        let args = try #require(RenderA2UIArguments(argumentsData: data))
+        #expect(args.data == nil)
+    }
+}
+
+@Suite("RenderA2UITool — 宣言形")
+struct RenderA2UIToolShapeTests {
+
+    @Test("typed は components を配列として宣言する")
+    func typedDeclaresArray() throws {
+        let schema = RenderA2UITool(payloadShape: .typed).inputSchema
+        let encoded = String(decoding: try JSONEncoder().encode(schema), as: UTF8.self)
+        #expect(encoded.contains(#""components":{"#))
+        #expect(encoded.contains(#""type":"array""#))
+    }
+
+    @Test("freeform は components/data を文字列として宣言する")
+    func freeformDeclaresStrings() throws {
+        let schema = RenderA2UITool(payloadShape: .freeform).inputSchema
+        let encoded = String(decoding: try JSONEncoder().encode(schema), as: UTF8.self)
+        #expect(!encoded.contains(#""type":"array""#))
+        // surfaceId / components / data すべて string
+        #expect(encoded.contains("JSON string"))
+    }
+
+    @Test("既定は typed（公式共有定義と同じ）")
+    func defaultsToTyped() {
+        #expect(RenderA2UITool().payloadShape == .typed)
+    }
 }
 
 @Suite("GenerateA2UITool")
