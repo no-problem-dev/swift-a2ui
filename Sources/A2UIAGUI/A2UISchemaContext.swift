@@ -30,6 +30,9 @@ public enum A2UISchemaContext {
     }
 
     /// サーバー側: context 一覧から A2UI 宣言を探して catalogId を取り出す。
+    ///
+    /// components の有無は見ない(公式 middleware の `extractFrontendCatalogId` と同じく、
+    /// カタログ ID のフォールバック解決はスキーマの有無と独立)。
     public static func declaredCatalogId(in context: [AGUIContext]) -> String? {
         guard let entry = declaration(in: context),
               let data = entry.value.data(using: .utf8),
@@ -43,6 +46,52 @@ public enum A2UISchemaContext {
     /// サーバー側: A2UI 宣言エントリそのもの(description 完全一致)。
     public static func declaration(in context: [AGUIContext]) -> AGUIContext? {
         context.first { $0.description == A2UIAGUIConstants.schemaContextDescription }
+    }
+
+    /// 解析済みのカタログ宣言(`{catalogId, components}`)。
+    public struct Declaration: Sendable, Equatable {
+        /// クライアントが描画できるカタログの ID。
+        public let catalogId: String
+        /// 宣言された components マップ(コンポーネント名 → JSON Schema)。
+        public let components: StructuredValue
+
+        /// 宣言されたコンポーネント名の集合。
+        public var componentNames: Set<String> {
+            guard let object = components.objectValue else {
+                return []
+            }
+            return Set(object.keys)
+        }
+
+        public init(catalogId: String, components: StructuredValue) {
+            self.catalogId = catalogId
+            self.components = components
+        }
+    }
+
+    /// サーバー側: context 内の**全**宣言を出現順で返す。
+    ///
+    /// クライアントは対応カタログごとに 1 エントリを積み、並び順が優先順位になる
+    /// (A2UI 本体の `supportedCatalogIds` ハンドシェイクの AG-UI 運搬形)。
+    /// サーバーは自分が知っている catalogId を持つ最初の宣言を選ぶ。
+    /// 公式 a2ui-middleware の単一エントリ契約はこの特殊ケース(1 件)。
+    ///
+    /// catalogId が空・components が空オブジェクトの宣言は「描画能力なし」として
+    /// 除外する(公式 middleware の empty-schema 判定と同じ)。
+    public static func declarations(in context: [AGUIContext]) -> [Declaration] {
+        context.compactMap { entry in
+            guard entry.description == A2UIAGUIConstants.schemaContextDescription,
+                  let data = entry.value.data(using: .utf8),
+                  let value = try? JSONDecoder().decode(StructuredValue.self, from: data),
+                  let object = value.objectValue,
+                  let catalogId = object["catalogId"]?.stringValue,
+                  !catalogId.isEmpty,
+                  let components = object["components"],
+                  !(components.objectValue?.isEmpty ?? true) else {
+                return nil
+            }
+            return Declaration(catalogId: catalogId, components: components)
+        }
     }
 }
 

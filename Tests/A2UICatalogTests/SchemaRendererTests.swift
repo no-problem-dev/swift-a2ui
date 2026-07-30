@@ -119,3 +119,26 @@ struct SchemaRendererCatalogTests {
         #expect((fn["returnType"]) == nil)  // returnType is under properties, not top-level
     }
 }
+
+@Suite("SchemaRenderer: renderComponents(宣言用 components マップ)")
+struct SchemaRendererComponentsMapTests {
+
+    @Test("コンポーネント名をキーに renderComponent と同じ定義を並べる")
+    func componentsMapMatchesIndividualRendering() {
+        let text = ComponentSchema(
+            name: "Text",
+            category: .display,
+            properties: [.required("text", .dynamicString, "The text content.")]
+        )
+        let card = ComponentSchema(
+            name: "Card",
+            category: .layout,
+            properties: [.optional("child", .componentId, "Child component id.")]
+        )
+        let map = SchemaRenderer.renderComponents([text, card])
+        let object = map.objectValue
+        #expect(object?.keys == ["Text", "Card"])
+        #expect(object?["Text"] == SchemaRenderer.renderComponent(text))
+        #expect(object?["Card"] == SchemaRenderer.renderComponent(card))
+    }
+}

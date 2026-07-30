@@ -89,6 +89,19 @@ public enum SchemaRenderer {
         ])
     }
 
+    /// `components` マップ(コンポーネント名 → JSON Schema)単体をレンダリングする。
+    ///
+    /// クライアントがカタログ対応を宣言する(A2UIAGUI の schema context の
+    /// `{catalogId, components}`)ときの `components` に使う。カタログドキュメント
+    /// 全体ではなく、`renderCatalog` の `components` ブロックと同じ形。
+    public static func renderComponents(_ components: [ComponentSchema]) -> StructuredValue {
+        var componentDefs: OrderedObject = [:]
+        for component in components {
+            componentDefs[component.name] = renderComponent(component)
+        }
+        return .object(componentDefs)
+    }
+
     // MARK: - Component rendering
 
     static func renderComponent(_ component: ComponentSchema) -> StructuredValue {
