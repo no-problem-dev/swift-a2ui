@@ -299,3 +299,38 @@ struct A2UISubagentRunnerTests {
         #expect(A2UISubagentRunner.augment("BASE", with: []) == "BASE")
     }
 }
+
+@Suite("A2UIOperationsExtractor")
+struct A2UIOperationsExtractorTests {
+    private let envelope = #"{"a2ui_operations":[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"c"}}]}"#
+
+    @Test("generate_a2ui の成功結果から operations を取り出す")
+    func extractsFromSuccess() throws {
+        let messages = try #require(A2UIOperationsExtractor.messages(
+            fromToolResult: A2UISubagentConstants.generateToolName, output: envelope, isError: false
+        ))
+        #expect(messages.count == 1)
+    }
+
+    @Test("エラー結果は破棄する")
+    func discardsErrors() {
+        #expect(A2UIOperationsExtractor.messages(
+            fromToolResult: A2UISubagentConstants.generateToolName, output: envelope, isError: true
+        ) == nil)
+    }
+
+    @Test("他ツールの結果は無視する")
+    func ignoresOtherTools() {
+        #expect(A2UIOperationsExtractor.messages(
+            fromToolResult: "search_recipes", output: envelope, isError: false
+        ) == nil)
+    }
+
+    @Test("カスタムツール名にも対応する")
+    func honorsCustomToolName() throws {
+        let messages = try #require(A2UIOperationsExtractor.messages(
+            fromToolResult: "render_ui", output: envelope, isError: false, toolName: "render_ui"
+        ))
+        #expect(messages.count == 1)
+    }
+}
