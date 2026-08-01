@@ -36,7 +36,7 @@ extension SurfaceOwnership {
     /// `parts` 内で生成されたすべてのサーフェスの所有者として `agent` を記録する。
     ///
     /// 公式サンプルは各アウトバウンドサブエージェントイベントで `beginRendering` を観測する。
-    /// v0.10 のサーフェス生成メッセージは `createSurface`。サブエージェントから受け取った
+    /// v1.0 のサーフェス生成メッセージは `createSurface`。サブエージェントから受け取った
     /// パートのバッチごとに、サブエージェントの名前（公式の `event.author`）を `agent` として呼び出す。
     public mutating func record(surfacesCreatedIn parts: [Part], by agent: String) {
         for part in parts {
@@ -72,7 +72,7 @@ extension SurfaceOwnership {
     /// 公式インターセプターの動作に一致する。
     public func outboundMetadata(
         _ metadata: A2AMetadata?,
-        capabilities: A2UIClientCapabilities?,
+        capabilities: A2UIRendererCapabilities?,
         for agent: String
     ) throws -> A2AMetadata? {
         var result = metadata ?? [:]

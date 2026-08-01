@@ -8,7 +8,7 @@ import Foundation
 /// ただし生成元は Swift 型であり、手書きのカタログ JSON は存在しない。
 public enum SchemaRenderer {
 
-    private static let commonTypesBase = "https://a2ui.org/specification/v0_10/common_types.json#/$defs/"
+    private static let commonTypesBase = "https://a2ui.org/specification/v1_0/common_types.json#/$defs/"
 
     /// 指定したカタログ id・コンポーネントスキーマ・関数スキーマからカタログドキュメントをレンダリングする。
     /// LLM システムプロンプトへの埋め込みに適した最小化 JSON 文字列を返す。

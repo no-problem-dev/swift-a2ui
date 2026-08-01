@@ -4,7 +4,7 @@ import Testing
 @testable import A2UICore
 
 private let createSurfaceJSON = """
-{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
+{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
 """
 
 @Suite("A2UIPayloadFixer (port of payload_fixer.py)")
@@ -33,7 +33,7 @@ struct A2UIPayloadFixerTests {
     @Test("trailing comma を除去して decode")
     func removesTrailingCommas() throws {
         let trailing = """
-        [{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic",},},]
+        [{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic",},},]
         """
         let messages = try A2UIPayloadFixer.parseAndFix(trailing)
         #expect(messages.count == 1)
@@ -64,7 +64,7 @@ struct A2UIPayloadFixerTests {
     @Test("LaTeX のエスケープ不足バックスラッシュを修復してパース")
     func repairsUnderEscapedLatex() throws {
         // \int / \infty の "\i" は不正な JSON エスケープ — 修復後にパースできること
-        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"problem":"$\int_{0}^{\infty} e^{-x^2} dx$"}}}]"#
+        let payload = #"[{"version":"v1.0","updateDataModel":{"surfaceId":"s1","path":"/","value":{"problem":"$\int_{0}^{\infty} e^{-x^2} dx$"}}}]"#
         let messages = try A2UIPayloadFixer.parseAndFix(payload)
         #expect(messages.count == 1)
         guard case .updateDataModel(let udm) = messages[0] else {
@@ -100,7 +100,7 @@ struct A2UIPayloadFixerTests {
 
     @Test("文字列値の中の URL はコメント除去で壊さない")
     func preservesURLInStringValue() throws {
-        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"url":"https://example.com/a"}}}]"#
+        let payload = #"[{"version":"v1.0","updateDataModel":{"surfaceId":"s1","path":"/","value":{"url":"https://example.com/a"}}}]"#
         let messages = try A2UIPayloadFixer.parseAndFix(payload)
         guard case .updateDataModel(let udm) = messages[0] else {
             Issue.record("expected updateDataModel")
@@ -112,7 +112,7 @@ struct A2UIPayloadFixerTests {
     @Test("正しいエスケープは修復で壊さない")
     func preservesValidEscapes() throws {
         // \\theta（正しくエスケープ済み）と \infty（不足）の混在 — 公式 flash 系の実出力パターン
-        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"a":"$\\theta$","b":"$\infty$"}}}]"#
+        let payload = #"[{"version":"v1.0","updateDataModel":{"surfaceId":"s1","path":"/","value":{"a":"$\\theta$","b":"$\infty$"}}}]"#
         let messages = try A2UIPayloadFixer.parseAndFix(payload)
         guard case .updateDataModel(let udm) = messages[0] else {
             Issue.record("expected updateDataModel")

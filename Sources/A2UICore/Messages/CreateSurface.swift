@@ -1,4 +1,4 @@
-/// サーフェスの初期作成を指示するサーバ → クライアントメッセージ（A2UI v0.10）。
+/// サーフェスの初期作成を指示するサーバ → クライアントメッセージ（A2UI v1.0）。
 ///
 /// `components` と `dataModel` は初回描画用のオプション項目で、直後の `updateComponents` /
 /// `updateDataModel` と等価に処理される。データモデルを先に適用することで、
@@ -8,9 +8,9 @@ public struct CreateSurface: Codable, Sendable, Equatable {
     public let catalogId: String
     public let theme: StructuredValue?
     public let sendDataModel: Bool?
-    /// v0.10: オプションの初期コンポーネントリスト（アトミックな初回描画）。`updateComponents.components` と同形式。
+    /// v1.0: オプションの初期コンポーネントリスト（アトミックな初回描画）。`updateComponents.components` と同形式。
     public let components: [StructuredValue]?
-    /// v0.10: オプションの初期ルートデータモデルオブジェクト。
+    /// v1.0: オプションの初期ルートデータモデルオブジェクト。
     public let dataModel: StructuredValue?
 
     public init(

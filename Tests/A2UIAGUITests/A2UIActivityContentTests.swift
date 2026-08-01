@@ -18,8 +18,8 @@ struct A2UIActivityContentTests {
         let json = """
         {"type":"ACTIVITY_SNAPSHOT","messageId":"a2ui-surface-c1","activityType":"a2ui-surface","replace":true,
          "content":{"a2ui_operations":[
-            {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"delish"}},
-            {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+            {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"delish"}},
+            {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
                 {"id":"root","componentType":"Text","properties":{"text":{"literalString":"hi"}}}
             ]}}
          ]}}
@@ -81,7 +81,7 @@ struct A2UIActivityContentTests {
     // MARK: - サーバー側ビルダー
 
     @Test func paintBuilderRoundTrips() throws {
-        let operations: [ServerMessage] = [
+        let operations: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s1", catalogId: "delish")),
             .updateComponents(UpdateComponents(surfaceId: "s1", components: [])),
         ]

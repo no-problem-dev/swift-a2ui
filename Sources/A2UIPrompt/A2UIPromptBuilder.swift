@@ -20,7 +20,7 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - Private storage (nil = use bundled resources at call time)
 
-    private let _serverToClientSchema: String?
+    private let _agentToRendererSchema: String?
     private let _commonTypesSchema: String?
     private let _catalogSchema: String?
 
@@ -29,17 +29,17 @@ public struct A2UIPromptBuilder: Sendable {
     /// 公開: `SendA2UIToClientTool` がプロンプトと同じ許可セットで検証する（prompt と enforcement の同期）。
     public let allowedComponents: Set<String>?
 
-    /// 残す server_to_client メッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）。
+    /// 残す agent_to_renderer メッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）。
     /// `nil` = プルーニング無効、bundled の oneOf を全て残す。
     /// 公開: `SendA2UIToClientTool` がプロンプトと同じ許可セットで検証する（prompt と enforcement の同期）。
     public let allowedMessages: Set<String>?
 
     // MARK: - Init
 
-    /// A2UIPrompt にバンドルされたスキーマ（server_to_client.json, common_types.json）と
+    /// A2UIPrompt にバンドルされたスキーマ（agent_to_renderer.json, common_types.json）と
     /// A2UICatalog にバンドルされた catalog.json を使用して初期化する。
     public init() {
-        _serverToClientSchema = nil
+        _agentToRendererSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = nil
         allowedComponents = nil
@@ -50,11 +50,11 @@ public struct A2UIPromptBuilder: Sendable {
     ///
     /// テストや異なる A2UI スペックバージョンを対象にする場合に有用。
     public init(
-        serverToClientSchema: String,
+        agentToRendererSchema: String,
         commonTypesSchema: String,
         catalogSchema: String
     ) {
-        _serverToClientSchema = serverToClientSchema
+        _agentToRendererSchema = agentToRendererSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
         allowedComponents = nil
@@ -68,7 +68,7 @@ public struct A2UIPromptBuilder: Sendable {
         allowedComponents: Set<String>? = nil,
         allowedMessages: Set<String>? = nil
     ) {
-        _serverToClientSchema = nil
+        _agentToRendererSchema = nil
         _commonTypesSchema = nil
         _catalogSchema = catalogSchema
         self.allowedComponents = allowedComponents
@@ -82,19 +82,19 @@ public struct A2UIPromptBuilder: Sendable {
     /// catalog / s2c からの到達可能性で絞られる。
     ///
     /// - Parameters:
-    ///   - serverToClientSchema: server_to_client schema を上書き。`nil` = bundled
+    ///   - agentToRendererSchema: agent_to_renderer schema を上書き。`nil` = bundled
     ///   - commonTypesSchema: common_types schema を上書き。`nil` = bundled
     ///   - catalogSchema: catalog schema を上書き。`nil` = bundled basic catalog
     ///   - allowedComponents: catalog `components` を絞る。Python `with_pruning(allowed_components:)` 相当
-    ///   - allowedMessages: server_to_client `oneOf` を絞る。Python `with_pruning(allowed_messages:)` 相当
+    ///   - allowedMessages: agent_to_renderer `oneOf` を絞る。Python `with_pruning(allowed_messages:)` 相当
     public init(
-        serverToClientSchema: String?,
+        agentToRendererSchema: String?,
         commonTypesSchema: String?,
         catalogSchema: String?,
         allowedComponents: Set<String>? = nil,
         allowedMessages: Set<String>? = nil
     ) {
-        _serverToClientSchema = serverToClientSchema
+        _agentToRendererSchema = agentToRendererSchema
         _commonTypesSchema = commonTypesSchema
         _catalogSchema = catalogSchema
         self.allowedComponents = allowedComponents
@@ -106,12 +106,12 @@ public struct A2UIPromptBuilder: Sendable {
     /// presenter（コンテンツ提示）サブセット構成の builder（公式 `with_pruning` 準拠）。
     ///
     /// カタログを `A2UIExample.presenterComponentNames` の 9 コンポーネント、
-    /// server_to_client を `A2UIExample.presenterMessageNames` の 3 メッセージに絞る。
+    /// agent_to_renderer を `A2UIExample.presenterMessageNames` の 3 メッセージに絞る。
     /// 手本（`A2UIExample.presenterSurface`）と同じサブセットで組まれる対 —
     /// pruning したスキーマと手本が矛盾しないことはテストで固定される。
     public static func presenter() -> A2UIPromptBuilder {
         A2UIPromptBuilder(
-            serverToClientSchema: nil,
+            agentToRendererSchema: nil,
             commonTypesSchema: nil,
             catalogSchema: nil,
             allowedComponents: A2UIExample.presenterComponentNames,
@@ -121,9 +121,9 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - Bundled resources (public)
 
-    /// Bundled `server_to_client.json` を文字列で返す（minify 後）。派生 builder 用のフック。
-    public static func bundledServerToClientJSON() -> String {
-        loadBundledResource("server_to_client")
+    /// Bundled `agent_to_renderer.json` を文字列で返す（minify 後）。派生 builder 用のフック。
+    public static func bundledAgentToRendererJSON() -> String {
+        loadBundledResource("agent_to_renderer")
     }
 
     /// Bundled `common_types.json` を文字列で返す（minify 後）。派生 builder 用のフック。
@@ -190,18 +190,18 @@ public struct A2UIPromptBuilder: Sendable {
            let common = Self.parseJSON(commonString) {
             let pruned = SchemaPruner.withPruning(
                 catalog: catalog,
-                serverToClient: s2c,
+                agentToRenderer: s2c,
                 commonTypes: common,
                 allowedComponents: allowedComponents,
                 allowedMessages: allowedMessages
             )
             catalogString = Self.serializeJSON(pruned.catalog) ?? catalogString
-            s2cString = Self.serializeJSON(pruned.serverToClient) ?? s2cString
+            s2cString = Self.serializeJSON(pruned.agentToRenderer) ?? s2cString
             commonString = Self.serializeJSON(pruned.commonTypes) ?? commonString
         }
 
         return SchemaBlockFormatter.format(
-            serverToClientSchema: s2cString,
+            agentToRendererSchema: s2cString,
             commonTypesSchema: commonString,
             catalogSchema: catalogString
         )
@@ -210,7 +210,7 @@ public struct A2UIPromptBuilder: Sendable {
     // MARK: - Schema resolution
 
     private var resolvedServerToClientSchema: String {
-        _serverToClientSchema ?? Self.loadBundledResource("server_to_client")
+        _agentToRendererSchema ?? Self.loadBundledResource("agent_to_renderer")
     }
 
     private var resolvedCommonTypesSchema: String {

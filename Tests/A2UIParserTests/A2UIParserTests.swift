@@ -6,15 +6,15 @@ import Testing
 // MARK: - Helpers
 
 private let createSurfaceJSON = """
-{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
+{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
 """
 
 private let deleteSurfaceJSON = """
-{"version":"v0.10","deleteSurface":{"surfaceId":"s1"}}
+{"version":"v1.0","deleteSurface":{"surfaceId":"s1"}}
 """
 
 private let updateDataModelJSON = """
-{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/name","value":"Alice"}}
+{"version":"v1.0","updateDataModel":{"surfaceId":"s1","path":"/name","value":"Alice"}}
 """
 
 private let createSurfaceArrayJSON = """
@@ -25,10 +25,10 @@ private let twoMessagesArrayJSON = """
 [\(createSurfaceJSON),\(deleteSurfaceJSON)]
 """
 
-private let expectedCreateSurface = ServerMessage.createSurface(
+private let expectedCreateSurface = AgentMessage.createSurface(
     CreateSurface(surfaceId: "s1", catalogId: "basic")
 )
-private let expectedDeleteSurface = ServerMessage.deleteSurface(
+private let expectedDeleteSurface = AgentMessage.deleteSurface(
     DeleteSurface(surfaceId: "s1")
 )
 
@@ -220,7 +220,7 @@ struct StreamingParserTests {
     @Test func handlesChunkedJSON() {
         // JSON split across multiple feed calls
         let parser = A2UIStreamingParser()
-        var parts = parser.feed("<a2ui-json>{\"version\":\"v0.10\",")
+        var parts = parser.feed("<a2ui-json>{\"version\":\"v1.0\",")
         #expect(parts.isEmpty)
         parts = parser.feed("\"createSurface\":{\"surfaceId\":\"s1\",")
         #expect(parts.isEmpty)
@@ -272,7 +272,7 @@ struct JSONSanitizerTests {
     }
 
     @Test func passesCleanJSONUnchanged() {
-        let input = #"{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}}"#
+        let input = #"{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}}"#
         let result = JSONSanitizer.sanitize(input)
         #expect(result == input)
     }
@@ -315,14 +315,14 @@ struct JSONSanitizerTests {
         let input = """
         <a2ui-json>
         [
-          { "version": "v0.10", "createSurface": { "surfaceId": "s1", "catalogId": "basic" } },
+          { "version": "v1.0", "createSurface": { "surfaceId": "s1", "catalogId": "basic" } },
           { "version": "v0.8",  "createSurface": { "surfaceId": "bad", "catalogId": "basic" } },
-          { "version": "v0.10", "updateDataModel": { "surfaceId": "s1", "value": { "k": "v" } } }
+          { "version": "v1.0", "updateDataModel": { "surfaceId": "s1", "value": { "k": "v" } } }
         ]
         </a2ui-json>
         """
         let parts = A2UIBlockParser.parse(input)
-        #expect(parts.first?.messages?.count == 2)  // the two v0.10 messages survive
+        #expect(parts.first?.messages?.count == 2)  // the two v1.0 messages survive
     }
 
     @Test func commentedBlockParsesIntoMessages() {
@@ -330,8 +330,8 @@ struct JSONSanitizerTests {
         <a2ui-json>
         [
           /* --- surface --- */
-          { "version": "v0.10", "createSurface": { "surfaceId": "s1", "catalogId": "basic" } }, // line comment
-          { "version": "v0.10", "updateDataModel": { "surfaceId": "s1", "value": { "url": "https://example.com/a//b" } } }
+          { "version": "v1.0", "createSurface": { "surfaceId": "s1", "catalogId": "basic" } }, // line comment
+          { "version": "v1.0", "updateDataModel": { "surfaceId": "s1", "value": { "url": "https://example.com/a//b" } } }
         ]
         </a2ui-json>
         """

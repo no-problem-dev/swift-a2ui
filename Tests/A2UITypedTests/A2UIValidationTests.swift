@@ -11,13 +11,13 @@ struct A2UIValidationTests {
         try! JSONDecoder().decode(StructuredValue.self, from: Data(json.utf8))
     }
 
-    private func issues(_ messages: [ServerMessage]) -> [String] {
+    private func issues(_ messages: [AgentMessage]) -> [String] {
         A2UIValidation.issues(in: messages, for: BasicCatalog.self)
     }
 
     @Test("valid surface produces no issues")
     func validSurface() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["t"]}"#),
@@ -34,7 +34,7 @@ struct A2UIValidationTests {
 
     @Test("missing root on first paint is flagged")
     func missingRoot() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"t","component":"Text","text":"hi"}"#),
@@ -47,7 +47,7 @@ struct A2UIValidationTests {
     func partialUpdateWithoutRoot() {
         // createSurface がこのバッチに無い surface への updateComponents は差分更新 —
         // root はクライアント側に既にあるため必須にしない。
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .updateComponents(UpdateComponents(surfaceId: "existing", components: [
                 comp(#"{"id":"extra","component":"Text","text":"appended"}"#),
             ])),
@@ -57,7 +57,7 @@ struct A2UIValidationTests {
 
     @Test("data-model-only batch is a valid incremental update")
     func dataModelOnlyBatch() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .updateDataModel(UpdateDataModel(surfaceId: "existing", path: "/", value: .object(["title": .string("更新")]))),
         ]
         #expect(issues(messages).isEmpty)
@@ -65,7 +65,7 @@ struct A2UIValidationTests {
 
     @Test("unknown component name is flagged")
     func unknownComponent() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["x"]}"#),
                 comp(#"{"id":"x","component":"Frobnicate","value":1}"#),
@@ -76,7 +76,7 @@ struct A2UIValidationTests {
 
     @Test("duplicate component id is flagged")
     func duplicateId() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["root"]}"#),
                 comp(#"{"id":"root","component":"Text","text":"dup"}"#),
@@ -87,7 +87,7 @@ struct A2UIValidationTests {
 
     @Test("malformed known component (Button without action) is flagged")
     func malformedKnown() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["b"]}"#),
                 comp(#"{"id":"b","component":"Button","child":"root"}"#),
@@ -98,7 +98,7 @@ struct A2UIValidationTests {
 
     @Test("duplicate createSurface without prior deleteSurface is flagged")
     func duplicateCreateSurface() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Text","text":"hi"}"#),
@@ -112,7 +112,7 @@ struct A2UIValidationTests {
 
     @Test("recreating a surface after deleteSurface is valid")
     func recreateAfterDelete() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Text","text":"hi"}"#),
@@ -133,7 +133,7 @@ struct A2UIValidationTests {
         #"{"id":"root","component":"Frobnicate","value":1}"#,
     ])
     func inlineComponentsValidated(componentJSON: String) {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(
                 surfaceId: "s", catalogId: "basic", components: [comp(componentJSON)])),
         ]
@@ -156,7 +156,7 @@ struct A2UIValidationAllowlistTests {
 
     @Test("a catalog-valid component outside the allowed set is flagged as not allowed")
     func disallowedComponent() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["sl"]}"#),
@@ -172,7 +172,7 @@ struct A2UIValidationAllowlistTests {
 
     @Test("components inside the allowed set pass")
     func allowedComponentsPass() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["t"]}"#),
@@ -187,7 +187,7 @@ struct A2UIValidationAllowlistTests {
 
     @Test("a message type outside the allowed set is flagged")
     func disallowedMessage() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .deleteSurface(DeleteSurface(surfaceId: "s")),
         ]
         let issues = A2UIValidation.issues(
@@ -197,7 +197,7 @@ struct A2UIValidationAllowlistTests {
 
     @Test("nil allowlists keep full-catalog behavior")
     func nilAllowlists() {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             .updateComponents(UpdateComponents(surfaceId: "s", components: [
                 comp(#"{"id":"root","component":"Column","children":["sl"]}"#),

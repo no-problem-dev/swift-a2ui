@@ -11,10 +11,10 @@ public protocol ComponentCatalog: Sendable {
 
 /// swift-a2ui に同梱される基本カタログ。
 ///
-/// A2UI v0.10 仕様に定義された標準の表示・レイアウト・入力コンポーネントを含む。
+/// A2UI v1.0 仕様に定義された標準の表示・レイアウト・入力コンポーネントを含む。
 public struct BasicComponentCatalog: ComponentCatalog, Sendable {
     /// カノニカルなカタログ識別子 URI。
-    public static let catalogId = "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"
+    public static let catalogId = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 
     public var catalogId: String { Self.catalogId }
 

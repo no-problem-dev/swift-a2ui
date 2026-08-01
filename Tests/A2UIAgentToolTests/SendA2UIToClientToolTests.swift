@@ -6,15 +6,15 @@ import A2UITyped
 import LLMTool
 
 private let validPayload = """
-[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
-{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[\
+[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
+{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[\
 {"id":"root","component":"Column","children":["t"]},\
 {"id":"t","component":"Text","text":"hi"}]}}]
 """
 
 private let missingRootPayload = """
-[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
-{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[\
+[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
+{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[\
 {"id":"orphan","component":"Text","text":"hi"}]}}]
 """
 
@@ -42,7 +42,7 @@ struct SendA2UIToClientToolTests {
         guard case .json(let data) = result else {
             Issue.record("expected .json, got \(result)"); return
         }
-        struct Payload: Decodable { let validated_a2ui_json: [ServerMessage] }
+        struct Payload: Decodable { let validated_a2ui_json: [AgentMessage] }
         let payload = try JSONDecoder().decode(Payload.self, from: data)
         #expect(payload.validated_a2ui_json.count == 2)
     }
@@ -57,7 +57,7 @@ struct SendA2UIToClientToolTests {
         guard case .json(let out) = result else {
             Issue.record("expected .json, got \(result)"); return
         }
-        struct Payload: Decodable { let validated_a2ui_json: [ServerMessage] }
+        struct Payload: Decodable { let validated_a2ui_json: [AgentMessage] }
         #expect(try JSONDecoder().decode(Payload.self, from: out).validated_a2ui_json.count == 2)
     }
 
@@ -93,7 +93,7 @@ struct SendA2UIToClientToolTests {
 @Suite("A2UIToolResultExtractor (port of part_converter)")
 struct A2UIToolResultExtractorTests {
 
-    @Test("成功結果から ServerMessage を抽出")
+    @Test("成功結果から AgentMessage を抽出")
     func extractsMessagesFromSuccess() async throws {
         let result = try await execute(a2uiJSON: validPayload)
         let messages = A2UIToolResultExtractor.messages(
@@ -131,8 +131,8 @@ struct A2UIToolResultExtractorTests {
 struct SendA2UIToClientToolAllowlistTests {
 
     private let sliderPayload = """
-    [{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
-    {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[\
+    [{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},\
+    {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[\
     {"id":"root","component":"Column","children":["sl"]},\
     {"id":"sl","component":"Slider","value":3,"max":10}]}}]
     """

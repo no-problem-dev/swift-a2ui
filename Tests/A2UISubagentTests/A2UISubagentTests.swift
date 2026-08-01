@@ -326,7 +326,7 @@ struct GenerateA2UIToolTests {
             return RenderA2UIArguments(surfaceId: "s1", components: validComponents, data: nil)
         })
         // 過去に s1 を描画したツール結果を含むトランスクリプト
-        let priorEnvelope = #"{"a2ui_operations":[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"旧テキスト"}]}}]}"#
+        let priorEnvelope = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"旧テキスト"}]}}]}"#
         let transcript: [LLMMessage] = [
             .user("表示して"),
             .toolUses([(id: "g1", name: A2UISubagentConstants.generateToolName, input: Data("{}".utf8))]),
@@ -410,8 +410,8 @@ struct GenerateA2UIToolHistoryTests {
 
     @Test("findPriorSurface は新しい順に探索し、最新の状態を返す")
     func findsMostRecentSurfaceState() throws {
-        let older = #"{"a2ui_operations":[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v1"}]}}]}"#
-        let newer = #"{"a2ui_operations":[{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v2"}]}}]}"#
+        let older = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v1"}]}}]}"#
+        let newer = #"{"a2ui_operations":[{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v2"}]}}]}"#
         let transcript: [LLMMessage] = [
             .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .success(older))]),
             .toolResults([(toolCallId: "b", name: "generate_a2ui", content: .success(newer))]),
@@ -423,8 +423,8 @@ struct GenerateA2UIToolHistoryTests {
 
     @Test("最新の言及が deleteSurface なら見つからない（消えたサーフェスを復活させない）")
     func deletedSurfaceIsNotFound() {
-        let created = #"{"a2ui_operations":[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v1"}]}}]}"#
-        let deleted = #"{"a2ui_operations":[{"version":"v0.10","deleteSurface":{"surfaceId":"s1"}}]}"#
+        let created = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v1"}]}}]}"#
+        let deleted = #"{"a2ui_operations":[{"version":"v1.0","deleteSurface":{"surfaceId":"s1"}}]}"#
         let transcript: [LLMMessage] = [
             .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .success(created))]),
             .toolResults([(toolCallId: "b", name: "generate_a2ui", content: .success(deleted))]),
@@ -434,7 +434,7 @@ struct GenerateA2UIToolHistoryTests {
 
     @Test("同一メッセージ内で delete の後の create は復活（document 順評価）")
     func deleteThenCreateInSameMessageRevives() throws {
-        let payload = #"{"a2ui_operations":[{"version":"v0.10","deleteSurface":{"surfaceId":"s1"}},{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"revived"}]}}]}"#
+        let payload = #"{"a2ui_operations":[{"version":"v1.0","deleteSurface":{"surfaceId":"s1"}},{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"revived"}]}}]}"#
         let transcript: [LLMMessage] = [
             .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .success(payload))]),
         ]
@@ -487,7 +487,7 @@ struct A2UISubagentRunnerTests {
 
 @Suite("A2UIOperationsExtractor")
 struct A2UIOperationsExtractorTests {
-    private let envelope = #"{"a2ui_operations":[{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"c"}}]}"#
+    private let envelope = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}}]}"#
 
     @Test("generate_a2ui の成功結果から operations を取り出す")
     func extractsFromSuccess() throws {

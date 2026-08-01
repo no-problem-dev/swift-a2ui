@@ -11,17 +11,17 @@ public enum SchemaBlockFormatter {
     /// 3 つのスキーマを公式スキーマブロック形式の文字列に組み立てる。
     ///
     /// - Parameters:
-    ///   - serverToClientSchema: サーバ → クライアントスキーマの JSON 文字列。
+    ///   - agentToRendererSchema: サーバ → クライアントスキーマの JSON 文字列。
     ///   - commonTypesSchema: 共通型スキーマの JSON 文字列。
     ///   - catalogSchema: コンポーネントカタログスキーマの JSON 文字列。
     /// - Returns: 公式 A2UI スキーマブロック形式の複数行文字列。
     public static func format(
-        serverToClientSchema: String,
+        agentToRendererSchema: String,
         commonTypesSchema: String,
         catalogSchema: String
     ) -> String {
         var sections: [String] = [beginMarker]
-        sections.append("### Server To Client Schema:\n\(serverToClientSchema)")
+        sections.append("### Server To Client Schema:\n\(agentToRendererSchema)")
         if !commonTypesSchema.isEmpty, commonTypesSchema != "{}" {
             sections.append("### Common Types Schema:\n\(commonTypesSchema)")
         }

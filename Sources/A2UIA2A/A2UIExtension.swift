@@ -10,7 +10,7 @@ public enum A2UIExtension {
     /// 文字列マッチングのみで使用する。公式拡張仕様にそのまま定義されている。
     public static let baseURI = "https://a2ui.org/a2a-extension/a2ui"
 
-    /// バージョン付き拡張 URI（例: `https://a2ui.org/a2a-extension/a2ui/v0.10`）。
+    /// バージョン付き拡張 URI（例: `https://a2ui.org/a2a-extension/a2ui/v1.0`）。
     /// 公式フォーマットは `{base}/v{version}`; `A2UIVersion` の定数は `v` プレフィックスを持つ。
     public static let uri = "\(baseURI)/\(A2UIVersion.current)"
 
@@ -40,7 +40,7 @@ public enum A2UIExtension {
 
     /// リモートエージェントのカードから解析した A2UI 宣言。
     public struct Declaration: Sendable, Equatable {
-        /// URI のバージョンセグメント（例: `"v0.10"`）。
+        /// URI のバージョンセグメント（例: `"v1.0"`）。
         public let version: String
         public let supportedCatalogIds: [String]
         public let acceptsInlineCatalogs: Bool

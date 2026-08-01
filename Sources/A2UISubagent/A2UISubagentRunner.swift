@@ -19,11 +19,11 @@ public struct A2UIAttemptRecord: Sendable, Equatable {
 /// リトライ込みの副エージェント実行結果。
 public struct A2UISubagentResult: Sendable, Equatable {
     /// 検証を通った A2UI メッセージ列。失敗時は空。
-    public let messages: [ServerMessage]
+    public let messages: [AgentMessage]
     public let attempts: [A2UIAttemptRecord]
     public var ok: Bool { !messages.isEmpty }
 
-    public init(messages: [ServerMessage], attempts: [A2UIAttemptRecord]) {
+    public init(messages: [AgentMessage], attempts: [A2UIAttemptRecord]) {
         self.messages = messages
         self.attempts = attempts
     }
@@ -58,8 +58,8 @@ public struct A2UISubagentRunner: Sendable {
     public func run(
         basePrompt: String,
         invoke: (_ prompt: String, _ attempt: Int) async throws -> RenderA2UIArguments?,
-        buildMessages: (RenderA2UIArguments) -> [ServerMessage],
-        validate: ([ServerMessage]) -> [String]
+        buildMessages: (RenderA2UIArguments) -> [AgentMessage],
+        validate: ([AgentMessage]) -> [String]
     ) async throws -> A2UISubagentResult {
         var attempts: [A2UIAttemptRecord] = []
         var lastIssues: [String] = []

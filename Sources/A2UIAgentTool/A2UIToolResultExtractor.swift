@@ -10,9 +10,9 @@ import A2UICore
 public enum A2UIToolResultExtractor {
 
     /// 指定のツール結果から A2UI サーバメッセージを抽出して返す。対象外の場合は nil。
-    public static func messages(fromToolResult name: String, output: String, isError: Bool) -> [ServerMessage]? {
+    public static func messages(fromToolResult name: String, output: String, isError: Bool) -> [AgentMessage]? {
         guard name == A2UIToolConstants.toolName, !isError else { return nil }
-        struct Payload: Decodable { let validated_a2ui_json: [ServerMessage] }
+        struct Payload: Decodable { let validated_a2ui_json: [AgentMessage] }
         guard let payload = try? JSONDecoder().decode(Payload.self, from: Data(output.utf8)) else { return nil }
         return payload.validated_a2ui_json
     }

@@ -9,10 +9,10 @@ import Testing
 struct ExampleFile: Codable {
     let name: String
     let description: String
-    let messages: [ServerMessage]
+    let messages: [AgentMessage]
 }
 
-private func decodeComponents(from messages: [ServerMessage]) throws -> [BasicComponent] {
+private func decodeComponents(from messages: [AgentMessage]) throws -> [BasicComponent] {
     var components: [BasicComponent] = []
     for message in messages {
         if case .updateComponents(let uc) = message {

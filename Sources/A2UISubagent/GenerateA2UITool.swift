@@ -31,7 +31,7 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
     ) async throws -> RenderA2UIArguments?
 
     /// 生成されたメッセージ列を検証する（ホストのカタログ・allowlist を適用する）。
-    public typealias Validate = @Sendable ([ServerMessage]) -> [String]
+    public typealias Validate = @Sendable ([AgentMessage]) -> [String]
 
     public let toolName: String
     private let catalogId: String
@@ -224,10 +224,10 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
         from args: RenderA2UIArguments,
         catalogId: String,
         surfaceIdOverride: String? = nil
-    ) -> [ServerMessage] {
+    ) -> [AgentMessage] {
         let resolved = surfaceIdOverride ?? args.surfaceId
         let surfaceId = resolved.isEmpty ? A2UISubagentConstants.defaultSurfaceId : resolved
-        var messages: [ServerMessage] = [
+        var messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: surfaceId, catalogId: catalogId)),
         ]
         // createSurface 単独は送らない（空サーフェスはレンダラが root を解決できない）。
@@ -262,5 +262,5 @@ struct GenerateArgs {
 /// 公式 `wrapAsOperationsEnvelope` と同じエンベロープ形。
 /// Decodable も備える — `findPriorSurface` が過去のツール結果からこの形を読み戻す。
 struct OperationsEnvelope: Codable {
-    let a2ui_operations: [ServerMessage]
+    let a2ui_operations: [AgentMessage]
 }

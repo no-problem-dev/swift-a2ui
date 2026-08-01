@@ -21,10 +21,10 @@ struct OfficialPruningConformanceTests {
         common: String = "{}",
         allowedComponents: Set<String>? = nil,
         allowedMessages: Set<String>? = nil
-    ) -> (catalog: StructuredValue, serverToClient: StructuredValue, commonTypes: StructuredValue) {
+    ) -> (catalog: StructuredValue, agentToRenderer: StructuredValue, commonTypes: StructuredValue) {
         SchemaPruner.withPruning(
             catalog: parse(catalog),
-            serverToClient: parse(s2c),
+            agentToRenderer: parse(s2c),
             commonTypes: parse(common),
             allowedComponents: allowedComponents,
             allowedMessages: allowedMessages
@@ -75,7 +75,7 @@ struct OfficialPruningConformanceTests {
             """,
             allowedMessages: ["MessageA", "MessageC"]
         )
-        #expect(result.serverToClient == parse("""
+        #expect(result.agentToRenderer == parse("""
             {"oneOf":[
                 {"$ref":"#/$defs/MessageA"},
                 {"$ref":"#/$defs/MessageC"}],
@@ -97,7 +97,7 @@ struct OfficialPruningConformanceTests {
             """,
             allowedMessages: ["MessageA"]
         )
-        #expect(result.serverToClient == parse("""
+        #expect(result.agentToRenderer == parse("""
             {"oneOf":[{"$ref":"#/$defs/MessageA"}],
              "$defs":{
                 "MessageA":{"type":"object","properties":{"shared":{"$ref":"#/$defs/SharedType"}}},
@@ -146,7 +146,7 @@ struct OfficialPruningConformanceTests {
             """,
             allowedMessages: ["beginRendering", "deleteSurface"]
         )
-        #expect(result.serverToClient == parse("""
+        #expect(result.agentToRenderer == parse("""
             {"properties":{
                 "beginRendering":{"type":"object"},
                 "deleteSurface":{"type":"object"}},
@@ -160,7 +160,7 @@ struct OfficialPruningConformanceTests {
         let s2c = ##"{"oneOf":[{"$ref":"#/$defs/MessageA"}],"$defs":{"MessageA":{}}}"##
         let result = prune(catalog: catalog, s2c: s2c, allowedComponents: [], allowedMessages: [])
         #expect(result.catalog == parse(catalog))
-        #expect(result.serverToClient == parse(s2c))
+        #expect(result.agentToRenderer == parse(s2c))
     }
 
     @Test("存在しない名前の指定は黙って無視される")
@@ -177,7 +177,7 @@ struct OfficialPruningConformanceTests {
     @Test("test_render_as_llm_instructions")
     func renderAsLLMInstructions() {
         let output = SchemaBlockFormatter.format(
-            serverToClientSchema: ##"{"s2c":"schema"}"##,
+            agentToRendererSchema: ##"{"s2c":"schema"}"##,
             commonTypesSchema: ##"{"$defs":{"common":"types"}}"##,
             catalogSchema: ##"{"$schema":"https://json-schema.org/draft/2020-12/schema","catalog":"schema","catalogId":"id_basic"}"##
         )
@@ -201,7 +201,7 @@ struct OfficialPruningConformanceTests {
     @Test("test_render_as_llm_instructions_drops_empty_common_types")
     func renderDropsEmptyCommonTypes() {
         let output = SchemaBlockFormatter.format(
-            serverToClientSchema: ##"{"s2c":"schema"}"##,
+            agentToRendererSchema: ##"{"s2c":"schema"}"##,
             commonTypesSchema: "{}",
             catalogSchema: ##"{"$schema":"https://json-schema.org/draft/2020-12/schema","catalog":"schema","catalogId":"id_basic"}"##
         )

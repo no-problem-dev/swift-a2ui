@@ -4,7 +4,7 @@ import Testing
 @testable import A2UIParser
 
 private let createSurfaceJSON = """
-{"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
+{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}}
 """
 
 @Suite("A2UITextSalvage — テキストに混入した A2UI JSON の救済")
@@ -58,7 +58,7 @@ struct A2UITextSalvageTests {
     @Test("複数ブロックを出現順に抽出")
     func salvagesMultipleBlocks() {
         let second = """
-        {"version":"v0.10","createSurface":{"surfaceId":"s2","catalogId":"basic"}}
+        {"version":"v1.0","createSurface":{"surfaceId":"s2","catalogId":"basic"}}
         """
         let text = """
         ひとつ目。
@@ -105,7 +105,7 @@ struct A2UITextSalvageTests {
 
     @Test("文字列リテラル内の括弧で誤検出しない")
     func handlesBracketsInsideStrings() {
-        let payload = #"[{"version":"v0.10","updateDataModel":{"surfaceId":"s1","path":"/","value":{"note":"配列は [1, 2] のように書く"}}}]"#
+        let payload = #"[{"version":"v1.0","updateDataModel":{"surfaceId":"s1","path":"/","value":{"note":"配列は [1, 2] のように書く"}}}]"#
         let result = A2UITextSalvage.salvage("説明します。\n\(payload)")
         #expect(result.messages.count == 1)
         #expect(result.text == "説明します。")

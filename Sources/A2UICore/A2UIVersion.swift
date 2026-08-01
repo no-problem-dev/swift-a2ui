@@ -1,5 +1,5 @@
 /// A2UI プロトコルバージョン定数。
 public enum A2UIVersion {
-    public static let v0_10 = "v0.10"
-    public static let current = v0_10
+    public static let v1_0 = "v1.0"
+    public static let current = v1_0
 }

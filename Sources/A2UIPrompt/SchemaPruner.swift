@@ -17,24 +17,24 @@ public enum SchemaPruner {
     /// 公式 `A2uiCatalog.with_pruning` 相当: カタログ三点セットへ 3 段の pruning を適用する。
     ///
     /// 1. `allowedComponents` 指定時: catalog の `components` と `$defs.anyComponent.oneOf` を絞る
-    /// 2. `allowedMessages` 指定時: server_to_client の oneOf / properties と `$defs` を絞る
+    /// 2. `allowedMessages` 指定時: agent_to_renderer の oneOf / properties と `$defs` を絞る
     /// 3. **常時**: pruning 後の catalog + s2c から到達可能な common_types の `$defs` のみ残す
     ///
     /// 順序が規範: common_types の到達可能性は **絞った後の** catalog / s2c から計算される。
     public static func withPruning(
         catalog: StructuredValue,
-        serverToClient: StructuredValue,
+        agentToRenderer: StructuredValue,
         commonTypes: StructuredValue,
         allowedComponents: Set<String>? = nil,
         allowedMessages: Set<String>? = nil
-    ) -> (catalog: StructuredValue, serverToClient: StructuredValue, commonTypes: StructuredValue) {
+    ) -> (catalog: StructuredValue, agentToRenderer: StructuredValue, commonTypes: StructuredValue) {
         var catalog = catalog
-        var s2c = serverToClient
+        var s2c = agentToRenderer
         if let allowedComponents {
             catalog = pruneComponents(catalog: catalog, allowedComponents: allowedComponents)
         }
         if let allowedMessages {
-            s2c = pruneMessages(serverToClient: s2c, allowedMessages: allowedMessages)
+            s2c = pruneMessages(agentToRenderer: s2c, allowedMessages: allowedMessages)
         }
         let common = pruneCommonTypes(commonTypes: commonTypes, reachableFrom: [catalog, s2c])
         return (catalog, s2c, common)
@@ -78,7 +78,7 @@ public enum SchemaPruner {
         return .object(root)
     }
 
-    /// 公式 `_with_pruned_messages` 相当: server_to_client をメッセージ allowlist で絞り込む。
+    /// 公式 `_with_pruned_messages` 相当: agent_to_renderer をメッセージ allowlist で絞り込む。
     ///
     /// - v0.9+ 形式（`oneOf` + `$defs`）: oneOf を `#/$defs/X` の allowed のみ残し、
     ///   `$defs` を到達可能性 BFS で絞る
@@ -87,11 +87,11 @@ public enum SchemaPruner {
     /// 公式と同じく空の allowlist は no-op。oneOf 内の `$ref` 以外や `#/$defs/` で
     /// 始まらない参照は除去される。
     public static func pruneMessages(
-        serverToClient: StructuredValue,
+        agentToRenderer: StructuredValue,
         allowedMessages: Set<String>
     ) -> StructuredValue {
         guard !allowedMessages.isEmpty,
-              case .object(var root) = serverToClient else { return serverToClient }
+              case .object(var root) = agentToRenderer else { return agentToRenderer }
 
         if case .array(let oneOf)? = root["oneOf"] {
             // v0.9+: oneOf を allowed の "#/$defs/X" のみ残す（公式: 非該当はすべて除去）
@@ -133,7 +133,7 @@ public enum SchemaPruner {
     ///
     /// - Parameters:
     ///   - commonTypes: 元の common_types schema（パース済み）
-    ///   - reachableFrom: 参照元になる schema 配列（catalog と server_to_client を渡すのが典型）
+    ///   - reachableFrom: 参照元になる schema 配列（catalog と agent_to_renderer を渡すのが典型）
     /// - Returns: 到達可能な `$defs` だけが残った schema
     public static func pruneCommonTypes(
         commonTypes: StructuredValue,

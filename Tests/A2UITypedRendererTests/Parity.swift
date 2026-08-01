@@ -22,8 +22,8 @@ import A2UISurface
 struct ParityTests {
     static let canvas = CGSize(width: 375, height: 700)
 
-    private func messages(_ json: String) throws -> [ServerMessage] {
-        try JSONDecoder().decode([ServerMessage].self, from: Data(json.utf8))
+    private func messages(_ json: String) throws -> [AgentMessage] {
+        try JSONDecoder().decode([AgentMessage].self, from: Data(json.utf8))
     }
 
     private func surface(_ json: String) throws -> TypedSurface<BasicCatalog> {
@@ -99,8 +99,8 @@ struct ParityTests {
 
     static let cardCorpus = """
     [
-      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Card","child":"col"},
         {"id":"col","component":"Column","children":["t1","d1","t2"]},
         {"id":"t1","component":"Text","text":"見出し","variant":"h3"},
@@ -112,8 +112,8 @@ struct ParityTests {
 
     static let richCorpus = """
     [
-      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Card","child":"col"},
         {"id":"col","component":"Column","children":["header","summary","div1","list1","div2","actions"]},
         {"id":"header","component":"Row","align":"center","children":["hicon","htitle"]},
@@ -155,8 +155,8 @@ struct ParityTests {
     /// Tabs pane and at the top level. Data arrives via updateDataModel (separate message).
     static let templateCorpus = """
     [
-      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Column","children":["tabs","trendTitle","trends"]},
         {"id":"tabs","component":"Tabs","tabs":[
           {"title":"特徴","child":"featList"},
@@ -170,7 +170,7 @@ struct ParityTests {
         {"id":"trends","component":"List","children":{"componentId":"trendItem","path":"/trends"}},
         {"id":"trendItem","component":"Text","text":{"path":"point"}}
       ]}},
-      {"version":"v0.10","updateDataModel":{"surfaceId":"s1","value":{
+      {"version":"v1.0","updateDataModel":{"surfaceId":"s1","value":{
         "features":[{"label":"自律性: 目標から計画を立てる"},{"label":"ツール利用: 外部APIを実行する"}],
         "techs":[{"name":"LangGraph"},{"name":"CrewAI"}],
         "trends":[{"point":"マルチエージェント協調"},{"point":"MCP の普及"}]
@@ -181,8 +181,8 @@ struct ParityTests {
     /// Same components, but the bound collections never arrive — template containers render empty.
     static let templateCorpusNoData = """
     [
-      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Column","children":["tabs","trendTitle","trends"]},
         {"id":"tabs","component":"Tabs","tabs":[
           {"title":"特徴","child":"featList"},

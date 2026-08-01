@@ -61,32 +61,32 @@ public enum A2UIBlockParser {
 
     // MARK: - Private
 
-    /// JSON 文字列を `ServerMessage` の配列に**寛容な**デコードで変換する。
+    /// JSON 文字列を `AgentMessage` の配列に**寛容な**デコードで変換する。
     /// 単一の不正形式メッセージがサーフェス全体を破棄しないよう耐障害性を持つ
     /// （LLM 出力は部分的に不正である場合が多い）。
     ///
-    /// 1. 高速パス — `[ServerMessage]` 配列全体をデコード。
+    /// 1. 高速パス — `[AgentMessage]` 配列全体をデコード。
     /// 2. 単一メッセージへのフォールバック。
     /// 3. 寛容パス — トップレベルの配列を解析し各要素を独立してデコード、
     ///    有効なメッセージを残して不正なもの（例: `version` が誤り）をスキップ。
-    static func decodeMessages(from json: String) -> [ServerMessage]? {
+    static func decodeMessages(from json: String) -> [AgentMessage]? {
         guard let data = json.data(using: .utf8) else { return nil }
 
         // 1) Whole-array fast path.
-        if let messages = try? JSONParser().parse(data).decode([ServerMessage].self) {
+        if let messages = try? JSONParser().parse(data).decode([AgentMessage].self) {
             return messages
         }
 
         guard let root = try? JSONParser().parse(data) else { return nil }
 
         // 2) Single message.
-        if let message = try? root.decode(ServerMessage.self) {
+        if let message = try? root.decode(AgentMessage.self) {
             return [message]
         }
 
         // 3) Resilient per-element decode — keep whatever is valid.
         if case .array(let elements) = root {
-            let decoded = elements.compactMap { try? $0.decode(ServerMessage.self) }
+            let decoded = elements.compactMap { try? $0.decode(AgentMessage.self) }
             if !decoded.isEmpty { return decoded }
         }
 

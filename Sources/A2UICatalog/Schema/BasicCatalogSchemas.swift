@@ -7,12 +7,12 @@ import A2UICore
 // `catalog.json`** so the generated schema is byte-identical to Google's. The
 // `GeneratedCatalogFidelityTests` pins this exactness; do not paraphrase.
 
-/// The common-types `$ref` URL string (v0.10) for a `$defs` name.
+/// The common-types `$ref` URL string (v1.0) for a `$defs` name.
 private func ctURL(_ name: String) -> StructuredValue {
-    .string("https://a2ui.org/specification/v0_10/common_types.json#/$defs/\(name)")
+    .string("https://a2ui.org/specification/v1_0/common_types.json#/$defs/\(name)")
 }
 
-/// A common-types `$ref` object fragment (v0.10), used inside `.raw` schema fragments.
+/// A common-types `$ref` object fragment (v1.0), used inside `.raw` schema fragments.
 private func ct(_ name: String) -> StructuredValue {
     .object(["$ref": ctURL(name)])
 }

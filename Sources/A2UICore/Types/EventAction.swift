@@ -5,9 +5,9 @@
 public struct EventAction: Codable, Sendable, Equatable {
     public let name: String
     public let context: [String: DynamicValue]?
-    /// v0.10: true の場合、クライアントはサーバから `actionResponse` を期待する。
+    /// v1.0: true の場合、クライアントはサーバから `actionResponse` を期待する。
     public let wantResponse: Bool?
-    /// v0.10: クライアントがデータモデルへ応答値を書き込む JSON Pointer パス（オプション）。
+    /// v1.0: クライアントがデータモデルへ応答値を書き込む JSON Pointer パス（オプション）。
     public let responsePath: String?
 
     public init(

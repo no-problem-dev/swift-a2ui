@@ -38,7 +38,7 @@ public enum A2UIWorkflowRules {
     - If the tool returns an error, read the message, fix the payload, and call the tool again in the SAME turn. Do not apologize instead of retrying.
     """
 
-    /// データバインディングのスコープルール（仕様 §"Path resolution & scope"、v0.10）。
+    /// データバインディングのスコープルール（仕様 §"Path resolution & scope"、v1.0）。
     ///
     /// JSON スキーマはテンプレート `ChildList` の形状は表現できるがスコープのセマンティクスは
     /// 表現できないため、モデルがテンプレート内で絶対パスを使用し未解決になることがある。

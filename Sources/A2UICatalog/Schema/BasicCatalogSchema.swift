@@ -3,7 +3,7 @@ import A2UICore
 // MARK: - Function-arg helpers (verbatim official catalog.json fragments)
 
 private func fnURL(_ name: String) -> StructuredValue {
-    .string("https://a2ui.org/specification/v0_10/common_types.json#/$defs/\(name)")
+    .string("https://a2ui.org/specification/v1_0/common_types.json#/$defs/\(name)")
 }
 private func fnRef(_ name: String) -> StructuredValue { .object(["$ref": fnURL(name)]) }
 private func fnRefD(_ name: String, _ description: String) -> StructuredValue {

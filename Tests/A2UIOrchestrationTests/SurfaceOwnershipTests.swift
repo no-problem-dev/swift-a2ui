@@ -121,12 +121,12 @@ struct SurfaceOwnershipOutboundTests {
 
     @Test func embedsCapabilitiesAndStripsDataModel() throws {
         var base: A2AMetadata = [:]
-        try A2UIMessageMetadata.embed(A2UIClientDataModel(surfaces: [
+        try A2UIMessageMetadata.embed(A2UIRendererDataModel(surfaces: [
             "owned": .object(["a": .int(1)]),
             "foreign": .object(["b": .int(2)]),
         ]), into: &base)
 
-        let capabilities = A2UIClientCapabilities(supportedCatalogIds: ["cat"])
+        let capabilities = A2UIRendererCapabilities(supportedCatalogIds: ["cat"])
         let prepared = try makeOwnership().outboundMetadata(base, capabilities: capabilities, for: "researcher")
 
         #expect(A2UIMessageMetadata.clientCapabilities(in: prepared) == capabilities)
@@ -137,7 +137,7 @@ struct SurfaceOwnershipOutboundTests {
     @Test func stripsToEmptyForAgentWithNoSurfaces() throws {
         // Official interceptor strips even when nothing is kept — never forward foreign data.
         var base: A2AMetadata = [:]
-        try A2UIMessageMetadata.embed(A2UIClientDataModel(surfaces: [
+        try A2UIMessageMetadata.embed(A2UIRendererDataModel(surfaces: [
             "owned": .object(["a": .int(1)]),
         ]), into: &base)
 

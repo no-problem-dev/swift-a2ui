@@ -8,7 +8,7 @@ import A2UICatalog
 struct A2UIExampleTests {
 
     @Test func buildsValidBlockFromTypedComponents() throws {
-        let messages: [ServerMessage] = [
+        let messages: [AgentMessage] = [
             .createSurface(CreateSurface(surfaceId: "s", catalogId: "basic")),
             A2UIExample.updateComponents(surfaceId: "s", [
                 CardComponent(id: "root", child: "col"),
@@ -25,7 +25,7 @@ struct A2UIExampleTests {
         #expect(blockText.hasSuffix("]"))
 
         // Decode back — proves the generated example is valid A2UI.
-        let decoded = try JSONDecoder().decode([ServerMessage].self, from: Data(blockText.utf8))
+        let decoded = try JSONDecoder().decode([AgentMessage].self, from: Data(blockText.utf8))
         #expect(decoded.count == 2)
 
         // The Modal serializes with trigger/content (NOT the hand-written-string `children` bug).
@@ -52,7 +52,7 @@ struct A2UIExampleTests {
 
         // The rendered JSON round-trips back to messages.
         let block = A2UIExample.referenceSurface()
-        let reMessages = try JSONDecoder().decode([ServerMessage].self, from: Data(block.utf8))
+        let reMessages = try JSONDecoder().decode([AgentMessage].self, from: Data(block.utf8))
         #expect(reMessages.count == 3)
         // No JSON comments, correct version.
         #expect(!block.contains("/*"))
@@ -102,7 +102,7 @@ struct A2UIExampleTests {
         // presenter の許可セットで bundled スキーマを pruning した結果が
         // 「許可したものを全て含み、許可外を含まない」ことを実物で確認する。
         let builder = A2UIPromptBuilder(
-            serverToClientSchema: nil,
+            agentToRendererSchema: nil,
             commonTypesSchema: nil,
             catalogSchema: nil,
             allowedComponents: A2UIExample.presenterComponentNames,

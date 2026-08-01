@@ -14,14 +14,14 @@ import A2UISurface
 public enum A2UIValidation {
 
     /// ターン内のメッセージに対する検証問題を収集する。空リストは出力が有効であることを意味する。
-    /// コンポーネントは `surfaceId` ごとに `createSurface`（v0.10 インラインコンポーネント）と
+    /// コンポーネントは `surfaceId` ごとに `createSurface`（v1.0 インラインコンポーネント）と
     /// `updateComponents` を跨いで集計してから検証する。
     ///
     /// `allowedComponents` / `allowedMessages` は `A2UIPromptBuilder` の pruning セットに対応する:
     /// ホストがプロンプト側スキーマをサブセットに絞り込んだ場合、同じセットをここで渡すことで
     /// モデルが実際に提示されていないコンポーネント/メッセージを拒否できる（`nil` = カタログ以外の制限なし）。
     public static func issues<Catalog: A2UICatalog>(
-        in messages: [ServerMessage],
+        in messages: [AgentMessage],
         for catalog: Catalog.Type,
         allowedComponents: Set<String>? = nil,
         allowedMessages: Set<String>? = nil

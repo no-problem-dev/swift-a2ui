@@ -82,7 +82,7 @@ public struct A2UIGenerationIssue: Codable, Sendable, Equatable {
 /// paint = `a2ui_operations` が配列 / lifecycle = `status` が文字列。
 public enum A2UIActivityContent: Sendable, Equatable {
     /// surface 本体。累積自己完結な A2UI 操作列(1 スナップショットで復元可能)。
-    case paint([ServerMessage])
+    case paint([AgentMessage])
     /// ペイント前のライフサイクル通知。
     case lifecycle(A2UISurfaceLifecycle)
 
@@ -100,7 +100,7 @@ public enum A2UIActivityContent: Sendable, Equatable {
             guard let array = operations.arrayValue else {
                 throw AGUIError("\(A2UIAGUIConstants.operationsKey) must be an array")
             }
-            self = .paint(try StructuredValue.array(array).decode([ServerMessage].self))
+            self = .paint(try StructuredValue.array(array).decode([AgentMessage].self))
         } else if content.objectValue?["status"]?.stringValue != nil {
             self = .lifecycle(try content.decode(A2UISurfaceLifecycle.self))
         } else {
@@ -118,7 +118,7 @@ extension ActivitySnapshotEvent {
     /// 未到着の root を解決しようとして落ちるため、必ず components を同梱する。
     public static func a2uiPaint(
         messageId: String,
-        operations: [ServerMessage]
+        operations: [AgentMessage]
     ) throws -> ActivitySnapshotEvent {
         guard !operations.isEmpty else {
             throw AGUIError("A2UI paint snapshot requires at least one operation")

@@ -11,7 +11,7 @@ import A2UICore
 struct A2UIExtensionTests {
     @Test func uriMatchesOfficialFormat() {
         // {base}/v{version} — official extension.py format, with our hard-cut version.
-        #expect(A2UIExtension.uri == "https://a2ui.org/a2a-extension/a2ui/v0.10")
+        #expect(A2UIExtension.uri == "https://a2ui.org/a2a-extension/a2ui/v1.0")
     }
 
     @Test func paramKeysMatchOfficialConstants() {
@@ -54,7 +54,7 @@ struct A2UIExtensionTests {
 
         let declarations = A2UIExtension.declarations(in: decoded)
         #expect(declarations.count == 1)
-        #expect(declarations.first?.version == "v0.10")
+        #expect(declarations.first?.version == "v1.0")
         #expect(declarations.first?.supportedCatalogIds == ["cat-a", "cat-b"])
         #expect(declarations.first?.acceptsInlineCatalogs == false)
 
@@ -81,7 +81,7 @@ struct A2UIExtensionTests {
 
 @Suite("A2UIPart")
 struct A2UIPartTests {
-    private func makeServerMessage() -> ServerMessage {
+    private func makeServerMessage() -> AgentMessage {
         .createSurface(CreateSurface(
             surfaceId: "surface_1",
             catalogId: "https://example.com/catalog.json",
@@ -115,19 +115,19 @@ struct A2UIPartTests {
         let part = try Part.a2ui(makeServerMessage())
         let data = try JSONEncoder().encode(part)
         let json = try JSONDecoder().decode(StructuredValue.self, from: data)
-        // v0.10 wire format: every A2UI message is version-enveloped inside the data part.
-        #expect(json["data"]["version"].stringValue == "v0.10")
+        // v1.0 wire format: every A2UI message is version-enveloped inside the data part.
+        #expect(json["data"]["version"].stringValue == "v1.0")
         #expect(json["data"]["createSurface"]["surfaceId"].stringValue == "surface_1")
         #expect(json["mediaType"].stringValue == "application/a2ui+json")
     }
 
     @Test func clientMessageRoundTripsAndExposesUserAction() throws {
         let action = makeUserAction()
-        let part = try Part.a2ui(ClientMessage.action(action))
+        let part = try Part.a2ui(RendererMessage.action(action))
 
         let data = try JSONEncoder().encode(part)
         let decoded = try JSONDecoder().decode(Part.self, from: data)
-        #expect(try decoded.a2uiClientMessage() == .action(action))
+        #expect(try decoded.a2uiRendererMessage() == .action(action))
         #expect(decoded.a2uiUserAction?.surfaceId == "surface_1")
         #expect(decoded.a2uiUserAction?.name == "book_restaurant")
     }
@@ -136,7 +136,7 @@ struct A2UIPartTests {
         let part = Part.data(.object(["foo": .string("bar")]))
         #expect(!part.isA2UI)
         #expect(try part.a2uiServerMessage() == nil)
-        #expect(try part.a2uiClientMessage() == nil)
+        #expect(try part.a2uiRendererMessage() == nil)
         #expect(part.a2uiUserAction == nil)
     }
 
@@ -167,22 +167,22 @@ struct A2UIPartTests {
 @Suite("A2UIMessageMetadata")
 struct A2UIMessageMetadataTests {
     @Test func keysMatchOfficialConstants() {
-        #expect(A2UIMessageMetadata.clientCapabilitiesKey == "a2uiClientCapabilities")
-        #expect(A2UIMessageMetadata.clientDataModelKey == "a2uiClientDataModel")
+        #expect(A2UIMessageMetadata.rendererCapabilitiesKey == "a2uiRendererCapabilities")
+        #expect(A2UIMessageMetadata.rendererDataModelKey == "a2uiRendererDataModel")
     }
 
     @Test func capabilitiesRoundTripThroughMetadata() throws {
         var metadata: A2AMetadata = [:]
-        let capabilities = A2UIClientCapabilities(supportedCatalogIds: ["cat-a"])
+        let capabilities = A2UIRendererCapabilities(supportedCatalogIds: ["cat-a"])
         try A2UIMessageMetadata.embed(capabilities, into: &metadata)
 
         #expect(A2UIMessageMetadata.clientCapabilities(in: metadata) == capabilities)
-        #expect(metadata["a2uiClientCapabilities"]?["supportedCatalogIds"][0].stringValue == "cat-a")
+        #expect(metadata["a2uiRendererCapabilities"]?["supportedCatalogIds"][0].stringValue == "cat-a")
     }
 
     @Test func dataModelRoundTripThroughMetadata() throws {
         var metadata: A2AMetadata = [:]
-        let dataModel = A2UIClientDataModel(surfaces: [
+        let dataModel = A2UIRendererDataModel(surfaces: [
             "surface_1": .object(["title": .string("hello")]),
             "surface_2": .object(["count": .int(3)]),
         ])
@@ -192,7 +192,7 @@ struct A2UIMessageMetadataTests {
     }
 
     @Test func keepingStripsUnownedSurfaces() {
-        let dataModel = A2UIClientDataModel(surfaces: [
+        let dataModel = A2UIRendererDataModel(surfaces: [
             "owned": .object(["a": .int(1)]),
             "foreign": .object(["b": .int(2)]),
         ])

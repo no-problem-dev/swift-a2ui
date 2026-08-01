@@ -6,7 +6,7 @@ import JSONParsing
 /// 手書き JSON 文字列の代わりに Swift の型システムからプロンプト手本を生成するユーティリティ。
 ///
 /// 手書きの JSON 文字列は `version` の誤り・`children` を持つ `Modal`・余分な `//` コメント・
-/// 存在しないプロパティなど暗黙の不正が紛れ込む。型付きコンポーネントと `ServerMessage` から
+/// 存在しないプロパティなど暗黙の不正が紛れ込む。型付きコンポーネントと `AgentMessage` から
 /// 生成してシリアライズすることで、カタログ型との整合性がコンパイル時に保証され、テストでピン留めできる。
 public enum A2UIExample {
 
@@ -21,14 +21,14 @@ public enum A2UIExample {
     }
 
     /// 型付きコンポーネント配列から `updateComponents` メッセージを生成するヘルパー。
-    public static func updateComponents(surfaceId: String, _ components: [any (Encodable & Sendable)]) -> ServerMessage {
+    public static func updateComponents(surfaceId: String, _ components: [any (Encodable & Sendable)]) -> AgentMessage {
         .updateComponents(UpdateComponents(surfaceId: surfaceId, components: components.map { component($0) }))
     }
 
     /// メッセージ配列を生の JSON 配列文字列に変換する。キーはソート済みでスラッシュは非エスケープ —
     /// プロンプトキャッシュが安定し URL クリーンな決定論的出力になる。
     /// `<a2ui-json>` タグ等のラッピング規約は呼び出し側が担う。
-    public static func json(_ messages: [ServerMessage]) -> String {
+    public static func json(_ messages: [AgentMessage]) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return (try? encoder.encode(messages)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
@@ -48,7 +48,7 @@ public enum A2UIExample {
     }
 
     /// 型付きメッセージ配列としての参照サーフェス（テストで構造を検証するために公開）。
-    public static func referenceMessages(surfaceId id: String) -> [ServerMessage] {
+    public static func referenceMessages(surfaceId id: String) -> [AgentMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {
             .functionCall(FunctionCall(call: "openUrl", args: ["url": .object(["path": .string(p)])], returnType: .void))
@@ -176,7 +176,7 @@ public enum A2UIExample {
         "Column", "Row", "Text", "Image", "Icon", "Divider", "List", "Card", "Button",
     ]
 
-    /// presenter サブセットが使う server_to_client メッセージ名。
+    /// presenter サブセットが使う agent_to_renderer メッセージ名。
     /// `A2UIPromptBuilder(allowedMessages:)` にそのまま渡せる。
     public static let presenterMessageNames: Set<String> = [
         "CreateSurfaceMessage", "UpdateComponentsMessage", "UpdateDataModelMessage",
@@ -190,7 +190,7 @@ public enum A2UIExample {
     }
 
     /// 型付きメッセージ配列としての presenter サーフェス（テストで構造を検証するために公開）。
-    public static func presenterMessages(surfaceId id: String) -> [ServerMessage] {
+    public static func presenterMessages(surfaceId id: String) -> [AgentMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {
             .functionCall(FunctionCall(call: "openUrl", args: ["url": .object(["path": .string(p)])], returnType: .void))

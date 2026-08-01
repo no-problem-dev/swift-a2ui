@@ -1,4 +1,4 @@
-/// サーバ → クライアントの関数呼び出しリクエスト（A2UI v0.10）。
+/// サーバ → クライアントの関数呼び出しリクエスト（A2UI v1.0）。
 ///
 /// `functionCallId` は対応する `FunctionResponse`（または `error`）にそのまま複写する必要がある。
 /// `callFunction.callableFrom` は `remoteOnly` または `clientOrRemote` でなければならない
@@ -16,7 +16,7 @@ public struct CallFunctionMessage: Codable, Sendable, Equatable {
     }
 }
 
-/// `wantResponse: true` を設定したクライアントアクションへのサーバ応答メッセージ（A2UI v0.10）。
+/// `wantResponse: true` を設定したクライアントアクションへのサーバ応答メッセージ（A2UI v1.0）。
 ///
 /// `actionId` は発信元の `action` と対応付ける。クライアントはアクションの `responsePath`
 /// （存在する場合）に値をローカルデータモデルへ書き込む。ワイヤー上では `version` と同じ最上位に並ぶ。

@@ -1,4 +1,4 @@
-/// 関数の呼び出し元制約（A2UI v0.10 `callableFrom`）。
+/// 関数の呼び出し元制約（A2UI v1.0 `callableFrom`）。
 public enum CallableFrom: String, Codable, Sendable, Equatable {
     case clientOnly
     case remoteOnly
@@ -13,7 +13,7 @@ public struct FunctionCall: Codable, Sendable, Equatable {
     public let call: String
     public let args: [String: StructuredValue]?
     public let returnType: FunctionReturnType?
-    /// v0.10: この関数を実行できる場所。省略時は `clientOnly`。
+    /// v1.0: この関数を実行できる場所。省略時は `clientOnly`。
     public let callableFrom: CallableFrom?
 
     public init(

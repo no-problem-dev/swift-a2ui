@@ -63,7 +63,7 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
             return failure("Failed to call tool \(A2UIToolConstants.toolName) because missing required arg \(A2UIToolConstants.jsonArgName)")
         }
 
-        let messages: [ServerMessage]
+        let messages: [AgentMessage]
         do {
             messages = try A2UIPayloadFixer.parseAndFix(a2uiJSON)
         } catch {
@@ -113,4 +113,4 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
 }
 
 private struct ToolArgs: Decodable { let a2ui_json: String? }
-private struct ValidatedPayload: Encodable { let validated_a2ui_json: [ServerMessage] }
+private struct ValidatedPayload: Encodable { let validated_a2ui_json: [AgentMessage] }

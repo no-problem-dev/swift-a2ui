@@ -16,7 +16,7 @@ public enum A2UIPayloadFixer {
     }
 
     /// LLM から渡された生 JSON 文字列を検証・自動修正し、デコードされたメッセージを返す。
-    public static func parseAndFix(_ payload: String) throws -> [ServerMessage] {
+    public static func parseAndFix(_ payload: String) throws -> [AgentMessage] {
         let normalized = JSONSanitizer.sanitize(payload)
         if let messages = decodeStrict(normalized) {
             return messages
@@ -39,14 +39,14 @@ public enum A2UIPayloadFixer {
 
     // MARK: - Private
 
-    /// `[ServerMessage]` としてデコードし、単一オブジェクトを配列でラップする（Python `_parse` 相当）。
-    private static func decodeStrict(_ json: String) -> [ServerMessage]? {
+    /// `[AgentMessage]` としてデコードし、単一オブジェクトを配列でラップする（Python `_parse` 相当）。
+    private static func decodeStrict(_ json: String) -> [AgentMessage]? {
         let data = Data(json.utf8)
         guard let root = try? JSONParser().parse(data) else { return nil }
-        if let messages = try? root.decode([ServerMessage].self) {
+        if let messages = try? root.decode([AgentMessage].self) {
             return messages
         }
-        if let message = try? root.decode(ServerMessage.self) {
+        if let message = try? root.decode(AgentMessage.self) {
             return [message]
         }
         return nil

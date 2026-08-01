@@ -1,8 +1,8 @@
 import A2UICore
 
-/// Icon の `name` 値（A2UI v0.10）: プリセットアイコン名またはデータバインディング `{ "path": "…" }`。
+/// Icon の `name` 値（A2UI v1.0）: プリセットアイコン名またはデータバインディング `{ "path": "…" }`。
 ///
-/// v0.10 では v0.9 のカスタム SVG ブランチ（`{ "svgPath": "…" }`）が Icon の `name` oneOf から削除された。
+/// v1.0 では v0.9 のカスタム SVG ブランチ（`{ "svgPath": "…" }`）が Icon の `name` oneOf から削除された。
 /// 残る `{ "path": "…" }` は標準のデータバインディング。公式サンプル（例: 06_music-player の
 /// `{"path": "/playIcon"}` → `"pause"`）もこれを通じてプリセット名をバインドする。
 /// プリセット以外の文字列は `raw` として保持される: 公式 lit レンダラーが Material Symbols フォントへ

@@ -377,18 +377,18 @@ struct CheckRuleTests {
     }
 }
 
-// MARK: - ServerMessage
+// MARK: - AgentMessage
 
-@Suite("ServerMessage")
+@Suite("AgentMessage")
 struct ServerMessageTests {
     @Test func createSurfaceRoundTrip() throws {
-        let msg: ServerMessage = .createSurface(CreateSurface(
+        let msg: AgentMessage = .createSurface(CreateSurface(
             surfaceId: "s1",
             catalogId: "https://a2ui.org/basic",
             sendDataModel: true
         ))
         let data = try JSONEncoder().encode(msg)
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: data)
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: data)
         if case .createSurface(let cs) = decoded {
             #expect(cs.surfaceId == "s1")
             #expect(cs.catalogId == "https://a2ui.org/basic")
@@ -399,14 +399,14 @@ struct ServerMessageTests {
     }
 
     @Test func updateComponentsRoundTrip() throws {
-        let msg: ServerMessage = .updateComponents(UpdateComponents(
+        let msg: AgentMessage = .updateComponents(UpdateComponents(
             surfaceId: "s1",
             components: [
                 .object(["id": .string("root"), "component": .string("Card"), "child": .string("col")])
             ]
         ))
         let data = try JSONEncoder().encode(msg)
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: data)
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: data)
         if case .updateComponents(let uc) = decoded {
             #expect(uc.surfaceId == "s1")
             #expect(uc.components.count == 1)
@@ -416,13 +416,13 @@ struct ServerMessageTests {
     }
 
     @Test func updateDataModelRoundTrip() throws {
-        let msg: ServerMessage = .updateDataModel(UpdateDataModel(
+        let msg: AgentMessage = .updateDataModel(UpdateDataModel(
             surfaceId: "s1",
             path: "/user/name",
             value: .string("Alice")
         ))
         let data = try JSONEncoder().encode(msg)
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: data)
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: data)
         if case .updateDataModel(let udm) = decoded {
             #expect(udm.surfaceId == "s1")
             #expect(udm.path == "/user/name")
@@ -433,9 +433,9 @@ struct ServerMessageTests {
     }
 
     @Test func deleteSurfaceRoundTrip() throws {
-        let msg: ServerMessage = .deleteSurface(DeleteSurface(surfaceId: "s1"))
+        let msg: AgentMessage = .deleteSurface(DeleteSurface(surfaceId: "s1"))
         let data = try JSONEncoder().encode(msg)
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: data)
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: data)
         if case .deleteSurface(let ds) = decoded {
             #expect(ds.surfaceId == "s1")
         } else {
@@ -445,9 +445,9 @@ struct ServerMessageTests {
 
     @Test func decodesCreateSurfaceFromJSON() throws {
         let json = """
-        {"version": "v0.10", "createSurface": {"surfaceId": "booking", "catalogId": "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"}}
+        {"version": "v1.0", "createSurface": {"surfaceId": "booking", "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"}}
         """
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: Data(json.utf8))
         if case .createSurface(let cs) = decoded {
             #expect(cs.surfaceId == "booking")
         } else {
@@ -457,9 +457,9 @@ struct ServerMessageTests {
 
     @Test func decodesUpdateDataModelWithFullValue() throws {
         let json = """
-        {"version": "v0.10", "updateDataModel": {"surfaceId": "s1", "value": {"name": "Alice", "age": 30}}}
+        {"version": "v1.0", "updateDataModel": {"surfaceId": "s1", "value": {"name": "Alice", "age": 30}}}
         """
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: Data(json.utf8))
         if case .updateDataModel(let udm) = decoded {
             #expect(udm.surfaceId == "s1")
             #expect(udm.path == nil)
@@ -473,7 +473,7 @@ struct ServerMessageTests {
         {"version": "v0.8", "createSurface": {"surfaceId": "s1", "catalogId": "x"}}
         """
         #expect(throws: DecodingError.self) {
-            try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+            try JSONDecoder().decode(AgentMessage.self, from: Data(json.utf8))
         }
     }
 
@@ -481,7 +481,7 @@ struct ServerMessageTests {
         let json = """
         {"createSurface": {"surfaceId": "s1", "catalogId": "x"}}
         """
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: Data(json.utf8))
         if case .createSurface(let cs) = decoded {
             #expect(cs.surfaceId == "s1")
         } else {
@@ -492,9 +492,9 @@ struct ServerMessageTests {
     @Test func toleratesVersionMisplacedInsidePayload() throws {
         // LLM が envelope ではなく payload 内に version を置く誤りに耐える（payload 内の余分キーは無視）。
         let json = """
-        {"createSurface": {"surfaceId": "s1", "catalogId": "x", "dataModel": {"a": 1}, "version": "v0.10"}}
+        {"createSurface": {"surfaceId": "s1", "catalogId": "x", "dataModel": {"a": 1}, "version": "v1.0"}}
         """
-        let decoded = try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+        let decoded = try JSONDecoder().decode(AgentMessage.self, from: Data(json.utf8))
         if case .createSurface(let cs) = decoded {
             #expect(cs.surfaceId == "s1")
             #expect(cs.dataModel != nil)
@@ -504,12 +504,12 @@ struct ServerMessageTests {
     }
 }
 
-// MARK: - ClientMessage
+// MARK: - RendererMessage
 
-@Suite("ClientMessage")
+@Suite("RendererMessage")
 struct ClientMessageTests {
     @Test func actionRoundTrip() throws {
-        let msg: ClientMessage = .action(UserAction(
+        let msg: RendererMessage = .action(UserAction(
             name: "submit",
             surfaceId: "s1",
             sourceComponentId: "btn-1",
@@ -517,7 +517,7 @@ struct ClientMessageTests {
             context: ["email": .string("user@example.com")]
         ))
         let data = try JSONEncoder().encode(msg)
-        let decoded = try JSONDecoder().decode(ClientMessage.self, from: data)
+        let decoded = try JSONDecoder().decode(RendererMessage.self, from: data)
         if case .action(let action) = decoded {
             #expect(action.name == "submit")
             #expect(action.surfaceId == "s1")
@@ -528,14 +528,14 @@ struct ClientMessageTests {
     }
 
     @Test func errorRoundTrip() throws {
-        let msg: ClientMessage = .error(ClientError(
+        let msg: RendererMessage = .error(RendererError(
             code: "VALIDATION_FAILED",
             surfaceId: "s1",
             message: "Expected string, got integer",
             path: "/components/0/text"
         ))
         let data = try JSONEncoder().encode(msg)
-        let decoded = try JSONDecoder().decode(ClientMessage.self, from: data)
+        let decoded = try JSONDecoder().decode(RendererMessage.self, from: data)
         if case .error(let err) = decoded {
             #expect(err.code == "VALIDATION_FAILED")
             #expect(err.path == "/components/0/text")
@@ -553,7 +553,7 @@ struct OfficialExampleTests {
     struct ExampleFile: Codable {
         let name: String
         let description: String
-        let messages: [ServerMessage]
+        let messages: [AgentMessage]
     }
 
     @Test func decodesFlightStatusExample() throws {

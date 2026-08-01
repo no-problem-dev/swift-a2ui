@@ -8,7 +8,7 @@ import A2UICore
 /// A2A のストリーム/パートから A2UI メッセージを取り出す（A2UI でない/壊れたパートは無視）。
 @Suite("A2UI stream extraction")
 struct A2UIStreamTests {
-    private func message(_ id: String = "surface_1") -> ServerMessage {
+    private func message(_ id: String = "surface_1") -> AgentMessage {
         .createSurface(CreateSurface(surfaceId: id, catalogId: "https://example.com/catalog.json",
                                      dataModel: .object(["title": .string("hello")])))
     }
@@ -28,7 +28,7 @@ struct A2UIStreamTests {
 
     @Test("壊れた A2UI パートは握りつぶす（抽出を止めない）")
     func skipsMalformed() throws {
-        // A2UI を名乗るが ServerMessage として壊れている data。
+        // A2UI を名乗るが AgentMessage として壊れている data。
         let malformed = Part.data(.object(["nonsense": .bool(true)]),
                                   metadata: [A2UIMediaType.metadataKey: .string(A2UIMediaType.a2uiJSON)])
         let parts: [Part] = [malformed, try .a2ui(message("s1"))]

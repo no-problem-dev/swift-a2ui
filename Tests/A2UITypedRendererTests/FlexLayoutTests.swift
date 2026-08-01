@@ -75,8 +75,8 @@ struct WeightedRowRegressionTests {
 
     static let captureCorpus = """
     [
-      {"version":"v0.10","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
-      {"version":"v0.10","updateComponents":{"surfaceId":"s1","components":[
+      {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Column","align":"stretch","children":["comparisonHeader","comparisonContent"]},
         {"id":"comparisonHeader","component":"Text","text":"「ワークフロー」と「エージェント」の違い","variant":"h2"},
         {"id":"comparisonContent","component":"Card","child":"comparisonGrid"},
@@ -95,7 +95,7 @@ struct WeightedRowRegressionTests {
     private func surface(_ json: String) throws -> TypedSurface<BasicCatalog> {
         var components: [StructuredValue] = []
         let dataModel = DataModel()
-        for message in try JSONDecoder().decode([ServerMessage].self, from: Data(json.utf8)) {
+        for message in try JSONDecoder().decode([AgentMessage].self, from: Data(json.utf8)) {
             switch message {
             case .updateComponents(let uc): components += uc.components
             case .updateDataModel(let udm): dataModel.set(udm.path ?? "", udm.value)

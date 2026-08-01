@@ -55,7 +55,7 @@ struct PruneMessagesTests {
         """
         let value = try decode(json)
         let pruned = SchemaPruner.pruneMessages(
-            serverToClient: value,
+            agentToRenderer: value,
             allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"]
         )
         guard case .object(let root) = pruned,

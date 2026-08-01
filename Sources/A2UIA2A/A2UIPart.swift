@@ -16,12 +16,12 @@ public enum A2UIMediaType {
 
 extension Part {
     /// サーバ → クライアントの A2UI メッセージをラップする（`create_a2ui_part` のミラー）。
-    public static func a2ui(_ message: ServerMessage) throws -> Part {
+    public static func a2ui(_ message: AgentMessage) throws -> Part {
         .data(try .encoded(message), mediaType: A2UIMediaType.a2uiJSON)
     }
 
     /// クライアント → サーバの A2UI メッセージ（userAction / functionResponse / error）をラップする。
-    public static func a2ui(_ message: ClientMessage) throws -> Part {
+    public static func a2ui(_ message: RendererMessage) throws -> Part {
         .data(try .encoded(message), mediaType: A2UIMediaType.a2uiJSON)
     }
 
@@ -34,21 +34,21 @@ extension Part {
 
     /// A2UI サーバメッセージをデコードする。A2UI パーツでない場合は `nil`。
     /// パーツが A2UI を主張しているがペイロードが不正な場合にのみスローする。
-    public func a2uiServerMessage() throws -> ServerMessage? {
+    public func a2uiServerMessage() throws -> AgentMessage? {
         guard isA2UI, let value = data else { return nil }
-        return try value.decode(ServerMessage.self)
+        return try value.decode(AgentMessage.self)
     }
 
     /// A2UI クライアントメッセージをデコードする。A2UI パーツでない場合は `nil`。
-    public func a2uiClientMessage() throws -> ClientMessage? {
+    public func a2uiRendererMessage() throws -> RendererMessage? {
         guard isA2UI, let value = data else { return nil }
-        return try value.decode(ClientMessage.self)
+        return try value.decode(RendererMessage.self)
     }
 
     /// このパートの userAction（あれば）。ペイロードが読み取れない場合は `nil` —
     /// ルーティングでは、読み取れないアクションはターンを失敗させず LLM ルーティングにフォールバックする。
     public var a2uiUserAction: UserAction? {
-        guard case .action(let action)? = try? a2uiClientMessage() else { return nil }
+        guard case .action(let action)? = try? a2uiRendererMessage() else { return nil }
         return action
     }
 }

@@ -3,11 +3,11 @@ import A2UICore
 import A2UISurface
 import A2UITyped
 
-/// A2UI `ServerMessage` を型付きサーフェス群に適用するプロセッサ —
+/// A2UI `AgentMessage` を型付きサーフェス群に適用するプロセッサ —
 /// `A2UISurface.MessageProcessor` の型付き版で `SurfaceModel` の代わりに
 /// `TypedSurface<Catalog>` を生成する。
 ///
-/// ホスト（Studio アプリ等）はエージェントの `<a2ui-json>` を `[ServerMessage]` へパースして
+/// ホスト（Studio アプリ等）はエージェントの `<a2ui-json>` を `[AgentMessage]` へパースして
 /// ここへ渡す。`surfaces` は `A2UISurfaceView` でレンダリングする。ユーザーアクションは
 /// `onAction` として `UserAction` に変換されて返り、旧プロセッサとの互換性を保つ。
 @MainActor
@@ -32,14 +32,14 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
         creationOrder.compactMap { surfaces[$0] }
     }
 
-    public func process(_ messages: [ServerMessage]) {
+    public func process(_ messages: [AgentMessage]) {
         for message in messages { process(message) }
     }
 
-    public func process(_ message: ServerMessage) {
+    public func process(_ message: AgentMessage) {
         switch message {
         case .createSurface(let cs):
-            // v0.10: createSurface may carry the initial tree and data model inline.
+            // v1.0: createSurface may carry the initial tree and data model inline.
             // The official eval validator treats these as exactly equivalent to a
             // following updateComponents / root updateDataModel, so they flow through
             // the same apply functions. Data model first: bindings resolve by the
@@ -70,7 +70,7 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
             surfaces.removeValue(forKey: ds.surfaceId)
             creationOrder.removeAll { $0 == ds.surfaceId }
         case .callFunction, .actionResponse:
-            // v0.10 server-initiated RPC / action responses are handled by the host, not the
+            // v1.0 server-initiated RPC / action responses are handled by the host, not the
             // surface store (they don't mutate the component tree directly).
             break
         }

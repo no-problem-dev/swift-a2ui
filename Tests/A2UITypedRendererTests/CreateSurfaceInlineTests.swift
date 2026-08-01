@@ -6,19 +6,19 @@ import A2UISurface
 @testable import A2UITyped
 @testable import A2UITypedRenderer
 
-/// v0.10: `createSurface` may carry `components` and `dataModel` inline. The official eval
+/// v1.0: `createSurface` may carry `components` and `dataModel` inline. The official eval
 /// validator treats the inline form as exactly equivalent to a following `updateComponents` /
 /// root `updateDataModel`, so the processor must apply both on creation.
 ///
-/// Shapes mirror `Spec/v0_10/test/cases/initial_state_validation.json` plus the real Gemini
+/// Shapes mirror `Spec/v1_0/test/cases/initial_state_validation.json` plus the real Gemini
 /// payload that exposed the regression (inline dataModel + separate updateComponents → all
 /// bindings rendered empty).
 @MainActor
-@Suite("createSurface inline payload (v0.10)")
+@Suite("createSurface inline payload (v1.0)")
 struct CreateSurfaceInlineTests {
 
-    private func decode(_ json: String) throws -> ServerMessage {
-        try JSONDecoder().decode(ServerMessage.self, from: Data(json.utf8))
+    private func decode(_ json: String) throws -> AgentMessage {
+        try JSONDecoder().decode(AgentMessage.self, from: Data(json.utf8))
     }
 
     private func resolvedText(
@@ -33,9 +33,9 @@ struct CreateSurfaceInlineTests {
     func inlineComponentsAndDataModel() throws {
         let processor = TypedMessageProcessor<BasicCatalog>()
         processor.process(try decode("""
-        {"version":"v0.10","createSurface":{
+        {"version":"v1.0","createSurface":{
           "surfaceId":"test_surface",
-          "catalogId":"https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json",
+          "catalogId":"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
           "components":[
             {"id":"root","component":"Column","children":["welcome_text"]},
             {"id":"welcome_text","component":"Text","text":{"path":"/user/name"}}
@@ -50,13 +50,13 @@ struct CreateSurfaceInlineTests {
         let processor = TypedMessageProcessor<BasicCatalog>()
         processor.process([
             try decode("""
-            {"version":"v0.10","createSurface":{
+            {"version":"v1.0","createSurface":{
               "surfaceId":"calculus_problem_today",
-              "catalogId":"https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json",
+              "catalogId":"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
               "dataModel":{"problem":"定積分 $I$ を求めよ。","finalAnswer":"$\\\\frac{\\\\pi}{4}$"}}}
             """),
             try decode("""
-            {"version":"v0.10","updateComponents":{
+            {"version":"v1.0","updateComponents":{
               "surfaceId":"calculus_problem_today",
               "components":[
                 {"id":"root","component":"Column","children":["problemText","answerText"]},
@@ -75,9 +75,9 @@ struct CreateSurfaceInlineTests {
     func inlineDataModelOnly() throws {
         let processor = TypedMessageProcessor<BasicCatalog>()
         processor.process(try decode("""
-        {"version":"v0.10","createSurface":{
+        {"version":"v1.0","createSurface":{
           "surfaceId":"test_surface",
-          "catalogId":"https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json",
+          "catalogId":"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
           "dataModel":{"themePreference":"dark"}}}
         """))
         let surface = try #require(processor.surfaces["test_surface"])
@@ -88,9 +88,9 @@ struct CreateSurfaceInlineTests {
     func inlineComponentsOnly() throws {
         let processor = TypedMessageProcessor<BasicCatalog>()
         processor.process(try decode("""
-        {"version":"v0.10","createSurface":{
+        {"version":"v1.0","createSurface":{
           "surfaceId":"test_surface",
-          "catalogId":"https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json",
+          "catalogId":"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
           "components":[{"id":"root","component":"Text","text":"Minimal components configuration"}]}}
         """))
         #expect(try resolvedText(processor, surface: "test_surface", node: "root")

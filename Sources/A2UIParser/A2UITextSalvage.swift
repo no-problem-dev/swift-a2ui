@@ -24,9 +24,9 @@ public enum A2UITextSalvage {
         /// A2UI として解釈できた部分を取り除いた残りのテキスト。
         public let text: String
         /// 抽出できた A2UI メッセージ（出現順）。
-        public let messages: [ServerMessage]
+        public let messages: [AgentMessage]
 
-        public init(text: String, messages: [ServerMessage]) {
+        public init(text: String, messages: [AgentMessage]) {
             self.text = text
             self.messages = messages
         }
@@ -40,7 +40,7 @@ public enum A2UITextSalvage {
     /// 何も見つからなければ `messages` が空で `text` は入力のまま（trim のみ）。
     public static func salvage(_ text: String) -> Result {
         var remaining = text
-        var collected: [ServerMessage] = []
+        var collected: [AgentMessage] = []
 
         // 1) タグ付きブロック（タグ方式との併用や、タグを真似た出力）
         extract(from: &remaining, into: &collected, open: A2UIBlockParser.openTag, close: A2UIBlockParser.closeTag)
@@ -62,7 +62,7 @@ public enum A2UITextSalvage {
     /// 開始／終了マーカーで挟まれた区間を走査し、A2UI としてデコードできたものだけ取り除く。
     private static func extract(
         from text: inout String,
-        into collected: inout [ServerMessage],
+        into collected: inout [AgentMessage],
         open: String,
         close: String
     ) {
@@ -82,7 +82,7 @@ public enum A2UITextSalvage {
     }
 
     /// コードフェンス（``` で始まり ``` で閉じる区間）を走査する。
-    private static func extractFences(from text: inout String, into collected: inout [ServerMessage]) {
+    private static func extractFences(from text: inout String, into collected: inout [AgentMessage]) {
         let fence = "```"
         var searchStart = text.startIndex
         while let openRange = text.range(of: fence, range: searchStart ..< text.endIndex) {
@@ -108,7 +108,7 @@ public enum A2UITextSalvage {
     }
 
     /// 裸のトップレベル JSON 配列を走査する。`[` から対応する `]` までを候補にする。
-    private static func extractBareArrays(from text: inout String, into collected: inout [ServerMessage]) {
+    private static func extractBareArrays(from text: inout String, into collected: inout [AgentMessage]) {
         var searchStart = text.startIndex
         while let openIndex = text[searchStart...].firstIndex(of: "[") {
             guard let closeIndex = matchingBracket(in: text, from: openIndex) else {
@@ -159,7 +159,7 @@ public enum A2UITextSalvage {
     }
 
     /// A2UI メッセージとしてデコードできる場合のみ返す（サニタイズ込み）。
-    private static func decode(_ body: String) -> [ServerMessage]? {
+    private static func decode(_ body: String) -> [AgentMessage]? {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         guard let messages = A2UIBlockParser.decodeMessages(from: JSONSanitizer.sanitize(trimmed)),

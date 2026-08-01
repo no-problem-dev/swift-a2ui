@@ -112,7 +112,7 @@ public enum A2UIPresenterAgent {
     public static func tools(components: Set<String> = defaultComponents) -> [any Tool] {
         let allowed = sanitizedComponents(components)
         let promptBuilder = A2UIPromptBuilder(
-            serverToClientSchema: nil,
+            agentToRendererSchema: nil,
             commonTypesSchema: nil,
             catalogSchema: nil,
             allowedComponents: allowed,

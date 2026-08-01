@@ -19,9 +19,9 @@ public enum A2UIOperationsExtractor {
         output: String,
         isError: Bool,
         toolName: String = A2UISubagentConstants.generateToolName
-    ) -> [ServerMessage]? {
+    ) -> [AgentMessage]? {
         guard name == toolName, !isError else { return nil }
-        struct Envelope: Decodable { let a2ui_operations: [ServerMessage] }
+        struct Envelope: Decodable { let a2ui_operations: [AgentMessage] }
         guard let envelope = try? JSONDecoder().decode(Envelope.self, from: Data(output.utf8)) else {
             return nil
         }

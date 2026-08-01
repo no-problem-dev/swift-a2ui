@@ -31,7 +31,7 @@ struct SchemaBlockFormatterTests {
     @Test("formatted block starts with BEGIN marker")
     func startsWithBeginMarker() {
         let block = SchemaBlockFormatter.format(
-            serverToClientSchema: "{}",
+            agentToRendererSchema: "{}",
             commonTypesSchema: "{}",
             catalogSchema: "{}"
         )
@@ -41,7 +41,7 @@ struct SchemaBlockFormatterTests {
     @Test("formatted block ends with END marker")
     func endsWithEndMarker() {
         let block = SchemaBlockFormatter.format(
-            serverToClientSchema: "{}",
+            agentToRendererSchema: "{}",
             commonTypesSchema: "{}",
             catalogSchema: "{}"
         )
@@ -51,7 +51,7 @@ struct SchemaBlockFormatterTests {
     @Test("formatted block contains all three schema labels followed by their JSON on the next line")
     func containsAllSchemaLabels() {
         let block = SchemaBlockFormatter.format(
-            serverToClientSchema: "S2C",
+            agentToRendererSchema: "S2C",
             commonTypesSchema: "COMMON",
             catalogSchema: "CATALOG"
         )
@@ -64,7 +64,7 @@ struct SchemaBlockFormatterTests {
     func omitsEmptyCommonTypes() {
         for empty in ["", "{}"] {
             let block = SchemaBlockFormatter.format(
-                serverToClientSchema: "S2C",
+                agentToRendererSchema: "S2C",
                 commonTypesSchema: empty,
                 catalogSchema: "CATALOG"
             )
@@ -77,7 +77,7 @@ struct SchemaBlockFormatterTests {
     @Test("sections are separated by blank lines (\\n\\n)")
     func sectionsSeparatedByBlankLines() {
         let block = SchemaBlockFormatter.format(
-            serverToClientSchema: "S2C",
+            agentToRendererSchema: "S2C",
             commonTypesSchema: "COMMON",
             catalogSchema: "CATALOG"
         )
@@ -90,7 +90,7 @@ struct SchemaBlockFormatterTests {
     @Test("BEGIN marker appears before END marker")
     func beginBeforeEnd() {
         let block = SchemaBlockFormatter.format(
-            serverToClientSchema: "{}",
+            agentToRendererSchema: "{}",
             commonTypesSchema: "{}",
             catalogSchema: "{}"
         )
@@ -106,7 +106,7 @@ struct SchemaBlockFormatterTests {
 struct A2UIPromptBuilderCustomTests {
 
     let builder = A2UIPromptBuilder(
-        serverToClientSchema: #"{"s2c":true}"#,
+        agentToRendererSchema: #"{"s2c":true}"#,
         commonTypesSchema: #"{"common":true}"#,
         catalogSchema: #"{"catalog":true}"#
     )
@@ -224,7 +224,7 @@ struct A2UIPromptBuilderBundledTests {
     func bundledS2CSchemaIsValidJSON() {
         let builder = A2UIPromptBuilder()
         let block = builder.schemaBlock()
-        // The bundled server_to_client.json is a JSON Schema document
+        // The bundled agent_to_renderer.json is a JSON Schema document
         #expect(block.contains("$schema"))
     }
 
@@ -247,7 +247,7 @@ struct A2UIPromptBuilderBundledTests {
         #expect(!block.contains("\"$schema\": \""))
     }
 
-    @Test("allowedMessages prunes server_to_client oneOf and shrinks the schema block")
+    @Test("allowedMessages prunes agent_to_renderer oneOf and shrinks the schema block")
     func allowedMessagesShrinksS2C() {
         let baseline = A2UIPromptBuilder().schemaBlock()
         let pruned = A2UIPromptBuilder(
@@ -267,8 +267,8 @@ struct A2UIPromptBuilderBundledTests {
         let minimalCatalog = """
         {
             "components": {
-                "Text": {"$ref": "https://a2ui.org/specification/v0_10/common_types.json#/$defs/DynamicString"},
-                "Column": {"$ref": "https://a2ui.org/specification/v0_10/common_types.json#/$defs/ChildList"}
+                "Text": {"$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/DynamicString"},
+                "Column": {"$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/ChildList"}
             }
         }
         """
