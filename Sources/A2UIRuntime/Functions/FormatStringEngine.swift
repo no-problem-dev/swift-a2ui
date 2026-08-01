@@ -58,7 +58,7 @@ enum FormatStringEngine {
             let name = String(expr[expr.startIndex..<parenIndex]).trimmingCharacters(in: .whitespaces)
             let argsString = String(expr[expr.index(after: parenIndex)..<expr.index(before: expr.endIndex)])
             let args = parseArgs(argsString, in: context, functions: functions)
-            let call = FunctionCall(call: name, args: args.isEmpty ? nil : args, returnType: nil)
+            let call = FunctionCall(call: name, args: args.isEmpty ? nil : args)
             return functions.evaluate(call, in: context)
         }
         // Nested interpolation already-stripped literal (quoted)

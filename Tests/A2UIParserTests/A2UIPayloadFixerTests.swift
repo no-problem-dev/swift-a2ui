@@ -71,7 +71,7 @@ struct A2UIPayloadFixerTests {
             Issue.record("expected updateDataModel")
             return
         }
-        #expect(udm.value?["problem"].stringValue == #"$\int_{0}^{\infty} e^{-x^2} dx$"#)
+        #expect(udm.value["problem"].stringValue == #"$\int_{0}^{\infty} e^{-x^2} dx$"#)
     }
 
     @Test("ツール引数に混入したコードフェンスを除去して decode")
@@ -106,7 +106,7 @@ struct A2UIPayloadFixerTests {
             Issue.record("expected updateDataModel")
             return
         }
-        #expect(udm.value?["url"].stringValue == "https://example.com/a")
+        #expect(udm.value["url"].stringValue == "https://example.com/a")
     }
 
     @Test("正しいエスケープは修復で壊さない")
@@ -118,7 +118,7 @@ struct A2UIPayloadFixerTests {
             Issue.record("expected updateDataModel")
             return
         }
-        #expect(udm.value?["a"].stringValue == #"$\theta$"#)
-        #expect(udm.value?["b"].stringValue == #"$\infty$"#)
+        #expect(udm.value["a"].stringValue == #"$\theta$"#)
+        #expect(udm.value["b"].stringValue == #"$\infty$"#)
     }
 }

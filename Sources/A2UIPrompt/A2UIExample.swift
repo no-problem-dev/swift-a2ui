@@ -51,7 +51,7 @@ public enum A2UIExample {
     public static func referenceMessages(surfaceId id: String) -> [AgentMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {
-            .functionCall(FunctionCall(call: "openUrl", args: ["url": .object(["path": .string(p)])], returnType: .void))
+            .functionCall(FunctionCall(call: "openUrl", args: ["url": .object(["path": .string(p)])]))
         }
         func followup(_ p: String) -> Action {
             .event(EventAction(name: "followup", context: ["ask": .binding(DataBinding(path: p))]))
@@ -193,7 +193,7 @@ public enum A2UIExample {
     public static func presenterMessages(surfaceId id: String) -> [AgentMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {
-            .functionCall(FunctionCall(call: "openUrl", args: ["url": .object(["path": .string(p)])], returnType: .void))
+            .functionCall(FunctionCall(call: "openUrl", args: ["url": .object(["path": .string(p)])]))
         }
         func followup(_ p: String) -> Action {
             .event(EventAction(name: "followup", context: ["ask": .binding(DataBinding(path: p))]))

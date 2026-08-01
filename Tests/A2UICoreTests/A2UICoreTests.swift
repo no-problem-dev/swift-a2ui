@@ -93,20 +93,38 @@ struct FunctionCallTests {
             args: [
                 "value": .object(["path": .string("/date")]),
                 "format": .string("MMM dd, yyyy"),
-            ],
-            returnType: .string
+            ]
         )
         let data = try JSONEncoder().encode(fc)
         let decoded = try JSONDecoder().decode(FunctionCall.self, from: data)
-        #expect(decoded.call == "formatDate")
-        #expect(decoded.returnType == .string)
+        #expect(decoded == fc)
+        // v1.0 dropped returnType/callableFrom from the wire — they are catalog metadata now.
+        let obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        #expect(obj["returnType"] == nil)
+        #expect(obj["callableFrom"] == nil)
     }
 
     @Test func minimalFunctionCall() throws {
         let json = #"{"call": "required", "args": {"value": "test"}}"#
         let decoded = try JSONDecoder().decode(FunctionCall.self, from: Data(json.utf8))
         #expect(decoded.call == "required")
-        #expect(decoded.returnType == nil)
+        #expect(decoded.catalogId == nil)
+    }
+
+    /// v1.0: a component/function may name its own catalog, overriding the surface default.
+    @Test func catalogIdRoundTrip() throws {
+        let fc = FunctionCall(call: "openUrl", catalogId: "mycompany.com:somecatalog")
+        let decoded = try JSONDecoder().decode(FunctionCall.self, from: JSONEncoder().encode(fc))
+        #expect(decoded.catalogId == "mycompany.com:somecatalog")
+    }
+
+    /// The `@` prefix is reserved for core system evaluations.
+    @Test func indexSystemFunction() throws {
+        #expect(FunctionCall.index().call == "@index")
+        #expect(FunctionCall.index().isSystemFunction)
+        #expect(FunctionCall(call: "openUrl").isSystemFunction == false)
+        let offset = FunctionCall.index(offset: 1)
+        #expect(offset.args?["offset"] == StructuredValue(integerLiteral: 1))
     }
 }
 
@@ -129,7 +147,7 @@ struct DynamicStringTests {
     }
 
     @Test func functionCallRoundTrip() throws {
-        let fc = FunctionCall(call: "formatDate", args: ["value": .string("2025-01-01")], returnType: .string)
+        let fc = FunctionCall(call: "formatDate", args: ["value": .string("2025-01-01")])
         let ds: DynamicString = .functionCall(fc)
         let data = try JSONEncoder().encode(ds)
         let decoded = try JSONDecoder().decode(DynamicString.self, from: data)
@@ -157,12 +175,14 @@ struct DynamicStringTests {
         #expect(decoded == .binding(DataBinding(path: "/user/name")))
     }
 
+    /// A stray v0.9-era `returnType` on the wire is ignored rather than fatal: v1.0 moved that
+    /// metadata into the catalog, and dropping the whole call over an extra key helps nobody.
     @Test func decodesFunctionCallFromJSON() throws {
         let json = #"{"call": "formatDate", "args": {"value": {"path": "/date"}, "format": "MMM dd"}, "returnType": "string"}"#
         let decoded = try JSONDecoder().decode(DynamicString.self, from: Data(json.utf8))
         if case .functionCall(let fc) = decoded {
             #expect(fc.call == "formatDate")
-            #expect(fc.returnType == .string)
+            #expect(fc.args?["format"] == .string("MMM dd"))
         } else {
             Issue.record("Expected .functionCall case")
         }
@@ -329,8 +349,7 @@ struct ActionTests {
     @Test func functionCallRoundTrip() throws {
         let action: Action = .functionCall(FunctionCall(
             call: "openUrl",
-            args: ["url": .string("https://example.com")],
-            returnType: .void
+            args: ["url": .string("https://example.com")]
         ))
         let data = try JSONEncoder().encode(action)
         let decoded = try JSONDecoder().decode(Action.self, from: data)
@@ -368,7 +387,7 @@ struct ActionTests {
 struct CheckRuleTests {
     @Test func roundTrip() throws {
         let rule = CheckRule(
-            condition: .functionCall(FunctionCall(call: "required", args: ["value": .string("test")], returnType: .boolean)),
+            condition: .functionCall(FunctionCall(call: "required", args: ["value": .string("test")])),
             message: "Field is required"
         )
         let data = try JSONEncoder().encode(rule)

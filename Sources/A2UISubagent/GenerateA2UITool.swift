@@ -177,8 +177,9 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
                         seenComponents = Self.encodeJSON(uc.components)
                     case .updateDataModel(let udm) where udm.surfaceId == surfaceId:
                         deleted = false
-                        if let value = udm.value {
-                            seenData = Self.encodeJSON(value)
+                        // v1.0: `value` は必須。`.null` は「その path を削除」なので復元対象にしない。
+                        if !udm.value.isNull {
+                            seenData = Self.encodeJSON(udm.value)
                         }
                     case .deleteSurface(let ds) where ds.surfaceId == surfaceId:
                         deleted = true

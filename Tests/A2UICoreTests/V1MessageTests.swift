@@ -96,7 +96,7 @@ struct V1FunctionMessageTests {
     @Test func callFunctionMessageRoundTrip() throws {
         let msg: AgentMessage = .callFunction(CallFunctionMessage(
             functionCallId: "call-1",
-            callFunction: FunctionCall(call: "pingServer", returnType: .void, callableFrom: .remoteOnly),
+            callFunction: FunctionCall(call: "pingAgent"),
             wantResponse: true
         ))
         let data = try JSONEncoder().encode(msg)
@@ -104,14 +104,17 @@ struct V1FunctionMessageTests {
         let obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         #expect(obj["version"] as? String == "v1.0")
         #expect(obj["functionCallId"] as? String == "call-1")
-        #expect((obj["callFunction"] as! [String: Any])["callableFrom"] as? String == "remoteOnly")
+        // v1.0 removed callableFrom/returnType from the wire payload — runtime looks them up
+        // in the catalog's FunctionDefinition instead.
+        let call = obj["callFunction"] as! [String: Any]
+        #expect(call["callableFrom"] == nil)
+        #expect(call["returnType"] == nil)
 
         let decoded = try JSONDecoder().decode(AgentMessage.self, from: data)
         guard case .callFunction(let cfm) = decoded else { Issue.record("expected .callFunction"); return }
         #expect(cfm.functionCallId == "call-1")
         #expect(cfm.wantResponse == true)
-        #expect(cfm.callFunction.callableFrom == .remoteOnly)
-        #expect(cfm.callFunction.call == "pingServer")
+        #expect(cfm.callFunction.call == "pingAgent")
     }
 
     @Test func functionResponseRoundTrip() throws {
@@ -167,10 +170,13 @@ struct V1TypeAdditionTests {
         #expect(e.responsePath == "/total")
     }
 
-    @Test func functionCallCallableFromDecodes() throws {
-        let json = #"{"call":"pingServer","returnType":"void","callableFrom":"clientOrRemote"}"#
+    /// v1.0 `FunctionCall` carries an optional `catalogId` (multi-catalog mixing) and no longer
+    /// carries `callableFrom` / `returnType` — those became catalog-side metadata.
+    @Test func functionCallCatalogIdDecodes() throws {
+        let json = #"{"call":"openUrl","catalogId":"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"}"#
         let fc = try JSONDecoder().decode(FunctionCall.self, from: Data(json.utf8))
-        #expect(fc.callableFrom == .clientOrRemote)
+        #expect(fc.call == "openUrl")
+        #expect(fc.catalogId == "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json")
     }
 
     @Test func userActionWantResponseAndActionId() throws {
