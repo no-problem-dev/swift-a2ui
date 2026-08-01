@@ -48,3 +48,28 @@ struct IconNameValueTests {
         #expect(throws: (any Error).self) { try decode(#"{"nope":1}"#) }
     }
 }
+
+/// A2UI v1.0 §Catalog entity naming — カタログの識別子は UAX #31 準拠が MUST。
+@Suite("Basic catalog identifiers conform to UAX #31")
+struct BasicCatalogIdentifierTests {
+
+    @Test("every component / function / argument name is a valid identifier")
+    func builtInCatalogConforms() {
+        let violations = SchemaRenderer.identifierViolations(
+            components: BasicCatalogSchema.components,
+            functions: BasicCatalogSchema.functions
+        )
+        #expect(violations.isEmpty, "UAX #31 violations: \(violations)")
+    }
+
+    @Test("the checker actually reports violations")
+    func checkerCatchesBadNames() {
+        let bad = ComponentSchema(
+            name: "User Card",
+            category: .display,
+            properties: [.required("submit-form", .dynamicString)]
+        )
+        let violations = SchemaRenderer.identifierViolations(components: [bad], functions: [])
+        #expect(violations.count == 2)
+    }
+}

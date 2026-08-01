@@ -240,6 +240,36 @@ public enum SchemaRenderer {
         commonTypesBase + name
     }
 
+    // MARK: - Identifier validation (v1.0 §Catalog entity naming)
+
+    /// カタログの識別子が UAX #31 に適合しているかを検査し、違反を返す（適合していれば空）。
+    ///
+    /// 対象はコンポーネント名・関数名・引数/プロパティ名。仕様がこれを **MUST** としているのは
+    /// SDK・パーサー・コードジェネレータをまたいだ互換性のため。
+    public static func identifierViolations(
+        components: [ComponentSchema],
+        functions: [FunctionSchema]
+    ) -> [String] {
+        var violations: [String] = []
+        for component in components {
+            if !CatalogIdentifier.isValid(component.name) {
+                violations.append("component name '\(component.name)'")
+            }
+            for property in component.properties where !CatalogIdentifier.isValid(property.name) {
+                violations.append("\(component.name).\(property.name)")
+            }
+        }
+        for function in functions {
+            if !CatalogIdentifier.isValid(function.name) {
+                violations.append("function name '\(function.name)'")
+            }
+            for argument in function.arguments where !CatalogIdentifier.isValid(argument.name) {
+                violations.append("\(function.name)(\(argument.name))")
+            }
+        }
+        return violations
+    }
+
     static func minify(_ value: StructuredValue) -> String {
         return JSONSerializer(options: .init(sortKeys: true)).string(from: value)
     }
