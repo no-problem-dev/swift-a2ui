@@ -133,13 +133,9 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
         }
     }
 
+    /// v1.0 の variant は `caption` / `body` の 2 つだけ。見出しは Markdown 側で表現する。
     private func typography(for variant: TextVariant?) -> Typography {
         switch variant {
-        case .h1: .headlineSmall
-        case .h2: .titleLarge
-        case .h3: .titleMedium
-        case .h4: .titleSmall
-        case .h5: .labelLarge
         case .caption: .labelSmall
         case .body, .none: .bodyMedium
         }
@@ -156,10 +152,12 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
         }
     }
 
+    /// v1.0 は見出し variant を廃止し、見出しは Markdown（`## …`）で表現する前提になった。
+    /// そのため `body` / 無指定では Markdown を解釈する。`caption` は補助テキストなので素のまま出す。
     private func shouldRenderMarkdown(_ text: String, variant: TextVariant?) -> Bool {
         guard !text.isEmpty else { return false }
         switch variant {
-        case .h1, .h2, .h3, .h4, .h5, .caption: return false
+        case .caption: return false
         case .body, .none: return BasicCatalog.containsMarkdownFormatting(text)
         }
     }

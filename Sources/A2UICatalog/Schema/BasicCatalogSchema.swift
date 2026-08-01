@@ -91,7 +91,7 @@ public enum BasicCatalogSchema {
                 "type": .string("object"),
                 "properties": .object(["value": .object(["description": .string("The value to check.")])]),
                 "required": .array([.string("value")]),
-                "additionalProperties": .bool(false),
+                "unevaluatedProperties": .bool(false),
             ]), returnType: "boolean"),
         FunctionSchema(name: "regex", description: "Checks that the value matches a regular expression string.",
             argsObject: argsObj(
@@ -112,7 +112,7 @@ public enum BasicCatalogSchema {
                 required: ["value"], anyOfRequired: ["min", "max"]), returnType: "boolean"),
         FunctionSchema(name: "email", description: "Checks that the value is a valid email address.",
             argsObject: argsObj(props: ["value": fnRef("DynamicString")], required: ["value"]), returnType: "boolean"),
-        FunctionSchema(name: "formatString", description: "Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\\${`.",
+        FunctionSchema(name: "formatString", description: "Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and renderer-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\\${`.",
             argsObject: argsObj(props: ["value": fnRef("DynamicString")], required: ["value"]), returnType: "string"),
         FunctionSchema(name: "formatNumber", description: "Formats a number with the specified grouping and decimal precision.",
             argsObject: argsObj(
@@ -145,9 +145,16 @@ public enum BasicCatalogSchema {
         FunctionSchema(name: "openUrl", description: "Opens the specified URL in a browser or handler. This function has no return value.",
             argsObject: .object([
                 "type": .string("object"),
-                "properties": .object(["url": .object(["type": .string("string"), "format": .string("uri"), "description": .string("The URL to open.")])]),
+                "properties": .object(["url": .object([
+                    "description": .string("The URL to open."),
+                    "oneOf": .array([
+                        .object(["type": .string("string"), "format": .string("uri")]),
+                        .object(["$ref": .string(SchemaRenderer.commonTypesRef("DataBinding"))]),
+                        .object(["$ref": .string(SchemaRenderer.commonTypesRef("FunctionCall"))]),
+                    ]),
+                ])]),
                 "required": .array([.string("url")]),
-                "additionalProperties": .bool(false),
+                "unevaluatedProperties": .bool(false),
             ]), returnType: "void"),
         FunctionSchema(name: "and", description: "Performs a logical AND operation on a list of boolean values.",
             argsObject: argsObj(props: ["values": boolListArg], required: ["values"]), returnType: "boolean"),
@@ -163,6 +170,7 @@ public enum BasicCatalogSchema {
             catalogId: catalogId,
             title: "A2UI Basic Catalog",
             description: "Unified catalog of basic A2UI components and functions.",
+            instructions: BasicCatalogInstructions.text,
             components: components,
             functions: functions
         )

@@ -96,6 +96,7 @@ public enum PropertyType: Sendable, Equatable {
     case dynamicValue
     // 構造的参照。
     case componentId      // common_types.json#/$defs/ComponentId
+    case child            // common_types.json#/$defs/Child (v1.0: a single child reference)
     case childList        // common_types.json#/$defs/ChildList
     case action           // common_types.json#/$defs/Action
     // インラインスカラー。

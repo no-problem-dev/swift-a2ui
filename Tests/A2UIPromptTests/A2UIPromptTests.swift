@@ -276,11 +276,13 @@ struct A2UIPromptBuilderBundledTests {
             catalogSchema: minimalCatalog,
             allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"]
         ).schemaBlock()
-        // catalog からも s2c からも到達できない型は消える（DynamicNumber / DynamicStringList が典型）
-        #expect(!pruned.contains("\"DynamicNumber\":"))
+        // catalog からも agent_to_renderer からも到達できない型は消える
         #expect(!pruned.contains("\"DynamicStringList\":"))
         // DynamicString は catalog 直接参照なので残る
         #expect(pruned.contains("\"DynamicString\":"))
+        // v1.0: DynamicString → FunctionCall → IndexSystemFunction → DynamicNumber と辿れるため、
+        // カタログが DynamicNumber を直接参照しなくても到達可能になった（`@index` の offset 経由）。
+        #expect(pruned.contains("\"DynamicNumber\":"))
     }
 
     @Test("presenter preset は手本と同じサブセットへ pruning される")

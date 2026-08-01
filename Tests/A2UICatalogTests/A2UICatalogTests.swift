@@ -42,12 +42,12 @@ private enum A2UITestError: Error {
 struct ComponentRoundTripTests {
 
     @Test func textComponent() throws {
-        let c = TextComponent(id: "t1", text: "Hello", variant: .h2)
+        let c = TextComponent(id: "t1", text: "Hello", variant: .caption)
         let data = try JSONEncoder().encode(c)
         let decoded = try JSONDecoder().decode(TextComponent.self, from: data)
         #expect(decoded.id == "t1")
         #expect(decoded.text == .literal("Hello"))
-        #expect(decoded.variant == .h2)
+        #expect(decoded.variant == .caption)
     }
 
     @Test func imageComponent() throws {
@@ -220,12 +220,12 @@ struct ComponentRoundTripTests {
 struct BasicComponentDiscriminatedTests {
 
     @Test func decodesTextViaDiscriminator() throws {
-        let json = #"{"id": "t1", "component": "Text", "text": "Hello", "variant": "h2"}"#
+        let json = #"{"id": "t1", "component": "Text", "text": "Hello", "variant": "caption"}"#
         let decoded = try JSONDecoder().decode(BasicComponent.self, from: Data(json.utf8))
         if case .text(let t) = decoded {
             #expect(t.id == "t1")
             #expect(t.text == .literal("Hello"))
-            #expect(t.variant == .h2)
+            #expect(t.variant == .caption)
         } else {
             Issue.record("Expected .text case")
         }

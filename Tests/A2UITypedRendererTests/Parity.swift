@@ -103,7 +103,7 @@ struct ParityTests {
       {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Card","child":"col"},
         {"id":"col","component":"Column","children":["t1","d1","t2"]},
-        {"id":"t1","component":"Text","text":"見出し","variant":"h3"},
+        {"id":"t1","component":"Text","text":"見出し","variant":"body"},
         {"id":"d1","component":"Divider"},
         {"id":"t2","component":"Text","text":"本文テキスト。"}
       ]}}
@@ -118,17 +118,17 @@ struct ParityTests {
         {"id":"col","component":"Column","children":["header","summary","div1","list1","div2","actions"]},
         {"id":"header","component":"Row","align":"center","children":["hicon","htitle"]},
         {"id":"hicon","component":"Icon","name":"train"},
-        {"id":"htitle","component":"Text","text":"乗換案内: 反町 → 六本木一丁目","variant":"h3"},
+        {"id":"htitle","component":"Text","text":"乗換案内: 反町 → 六本木一丁目","variant":"body"},
         {"id":"summary","component":"Row","justify":"spaceEvenly","children":["s1c","s2c","s3c"]},
         {"id":"s1c","component":"Column","align":"center","children":["s1l","s1v"]},
         {"id":"s1l","component":"Text","text":"所要時間","variant":"caption"},
-        {"id":"s1v","component":"Text","text":"約50分","variant":"h4"},
+        {"id":"s1v","component":"Text","text":"約50分","variant":"body"},
         {"id":"s2c","component":"Column","align":"center","children":["s2l","s2v"]},
         {"id":"s2l","component":"Text","text":"運賃","variant":"caption"},
-        {"id":"s2v","component":"Text","text":"487円","variant":"h4"},
+        {"id":"s2v","component":"Text","text":"487円","variant":"body"},
         {"id":"s3c","component":"Column","align":"center","children":["s3l","s3v"]},
         {"id":"s3l","component":"Text","text":"乗換","variant":"caption"},
-        {"id":"s3v","component":"Text","text":"1回","variant":"h4"},
+        {"id":"s3v","component":"Text","text":"1回","variant":"body"},
         {"id":"div1","component":"Divider"},
         {"id":"list1","component":"List","children":["step1","step2"]},
         {"id":"step1","component":"Row","align":"center","children":["d1","st1c"]},
@@ -166,7 +166,7 @@ struct ParityTests {
         {"id":"featItem","component":"Text","text":{"path":"label"}},
         {"id":"techList","component":"List","children":{"componentId":"techItem","path":"/techs"}},
         {"id":"techItem","component":"Text","text":{"path":"name"}},
-        {"id":"trendTitle","component":"Text","text":"最新トレンド","variant":"h3"},
+        {"id":"trendTitle","component":"Text","text":"最新トレンド","variant":"body"},
         {"id":"trends","component":"List","children":{"componentId":"trendItem","path":"/trends"}},
         {"id":"trendItem","component":"Text","text":{"path":"point"}}
       ]}},
@@ -192,7 +192,7 @@ struct ParityTests {
         {"id":"featItem","component":"Text","text":{"path":"label"}},
         {"id":"techList","component":"List","children":{"componentId":"techItem","path":"/techs"}},
         {"id":"techItem","component":"Text","text":{"path":"name"}},
-        {"id":"trendTitle","component":"Text","text":"最新トレンド","variant":"h3"},
+        {"id":"trendTitle","component":"Text","text":"最新トレンド","variant":"body"},
         {"id":"trends","component":"List","children":{"componentId":"trendItem","path":"/trends"}},
         {"id":"trendItem","component":"Text","text":{"path":"point"}}
       ]}}

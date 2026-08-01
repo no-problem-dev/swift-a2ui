@@ -13,7 +13,7 @@ struct A2UIExampleTests {
             A2UIExample.updateComponents(surfaceId: "s", [
                 CardComponent(id: "root", child: "col"),
                 ColumnComponent(id: "col", children: .ids(["title", "openBtn", "modal", "modalBody"])),
-                TextComponent(id: "title", text: "Hi", variant: .h2),
+                TextComponent(id: "title", text: "Hi", variant: .caption),
                 ButtonComponent(id: "openBtn", child: "title", action: .event(EventAction(name: "go"))),
                 ModalComponent(id: "modal", trigger: "openBtn", content: "modalBody"),
                 ColumnComponent(id: "modalBody", children: .ids(["title"])),

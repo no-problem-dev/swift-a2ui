@@ -69,7 +69,7 @@ public enum A2UIExample {
 
             ImageComponent(id: "hero", url: path("/photo"), fit: .cover, variant: .largeFeature),
             RowComponent(id: "titleRow", children: .ids(["title", "badge"]), justify: .spaceBetween, align: .center),
-            TextComponent(id: "title", text: path("/title"), variant: .h2),
+            TextComponent(id: "title", text: path("/title")),
             TextComponent(id: "badge", text: path("/badge"), variant: .caption),
             RowComponent(id: "metaRow", children: .ids(["calIcon", "date", "locIcon", "venue"]), align: .center),
             IconComponent(id: "calIcon", name: .preset(.event)),
@@ -93,7 +93,7 @@ public enum A2UIExample {
             TextComponent(id: "programTitle", text: path("title"), variant: .body),
 
             DividerComponent(id: "div2"),
-            TextComponent(id: "formTitle", text: "参加登録", variant: .h3),
+            TextComponent(id: "formTitle", text: "## 参加登録"),
             TextFieldComponent(id: "nameField", label: "お名前", value: path("/form/name")),
             ChoicePickerComponent(
                 id: "ticket",
@@ -117,11 +117,11 @@ public enum A2UIExample {
             IconComponent(id: "mapIcon", name: .preset(.locationOn)),
             TextComponent(id: "mapTriggerText", text: "アクセスマップを見る", variant: .body),
             ColumnComponent(id: "mapContent", children: .ids(["mapTitle", "mapBody"]), align: .stretch),
-            TextComponent(id: "mapTitle", text: "アクセス", variant: .h3),
+            TextComponent(id: "mapTitle", text: "## アクセス"),
             TextComponent(id: "mapBody", text: path("/access"), variant: .body),
 
             DividerComponent(id: "div4"),
-            TextComponent(id: "linksTitle", text: "関連リンク", variant: .h3),
+            TextComponent(id: "linksTitle", text: "## 関連リンク"),
             RowComponent(id: "links", children: .ids(["lk1", "lk2"]), justify: .start),
             ButtonComponent(id: "lk1", child: "lk1t", action: openUrl("/link1Url"), variant: .borderless),
             TextComponent(id: "lk1t", text: path("/link1Label")),
@@ -129,7 +129,7 @@ public enum A2UIExample {
             TextComponent(id: "lk2t", text: path("/link2Label")),
 
             DividerComponent(id: "div5"),
-            TextComponent(id: "nextTitle", text: "次に気になること", variant: .h4),
+            TextComponent(id: "nextTitle", text: "### 次に気になること"),
             RowComponent(id: "followups", children: .ids(["fu1", "fu2"]), justify: .start),
             ButtonComponent(id: "fu1", child: "fu1t", action: followup("/next1"), variant: .borderless),
             TextComponent(id: "fu1t", text: path("/next1")),
@@ -208,7 +208,7 @@ public enum A2UIExample {
 
             ImageComponent(id: "hero", url: path("/photo"), fit: .cover, variant: .largeFeature),
             RowComponent(id: "titleRow", children: .ids(["title", "badge"]), justify: .spaceBetween, align: .center),
-            TextComponent(id: "title", text: path("/title"), variant: .h2),
+            TextComponent(id: "title", text: path("/title")),
             TextComponent(id: "badge", text: path("/badge"), variant: .caption),
             RowComponent(id: "metaRow", children: .ids(["metaIcon", "metaText"]), align: .center),
             IconComponent(id: "metaIcon", name: .preset(.event)),
@@ -216,7 +216,7 @@ public enum A2UIExample {
             TextComponent(id: "summary", text: path("/summary"), variant: .body),
 
             DividerComponent(id: "div1"),
-            TextComponent(id: "highlightsTitle", text: "ポイント", variant: .h3),
+            TextComponent(id: "highlightsTitle", text: "## ポイント"),
             // Template-driven list: the canonical pattern for arrays. Teaches the spec's scope rule —
             // inside the instantiated template, paths WITHOUT a leading slash are RELATIVE to each
             // array element ("label" → /highlights/0/label); leading-slash paths stay absolute (root).
@@ -229,11 +229,11 @@ public enum A2UIExample {
             // Card is for sub-sections inside the surface — never the root.
             CardComponent(id: "detailCard", child: "detailBody"),
             ColumnComponent(id: "detailBody", children: .ids(["detailTitle", "detailText"]), align: .stretch),
-            TextComponent(id: "detailTitle", text: path("/detailTitle"), variant: .h4),
+            TextComponent(id: "detailTitle", text: path("/detailTitle")),
             TextComponent(id: "detailText", text: path("/detailText"), variant: .body),
 
             DividerComponent(id: "div3"),
-            TextComponent(id: "sourcesTitle", text: "出典", variant: .h3),
+            TextComponent(id: "sourcesTitle", text: "## 出典"),
             RowComponent(id: "sources", children: .ids(["src1", "src2"]), justify: .start),
             ButtonComponent(id: "src1", child: "src1t", action: openUrl("/source1Url"), variant: .borderless),
             TextComponent(id: "src1t", text: path("/source1Label")),
@@ -241,7 +241,7 @@ public enum A2UIExample {
             TextComponent(id: "src2t", text: path("/source2Label")),
 
             DividerComponent(id: "div4"),
-            TextComponent(id: "nextTitle", text: "次に気になること", variant: .h4),
+            TextComponent(id: "nextTitle", text: "### 次に気になること"),
             RowComponent(id: "followups", children: .ids(["fu1", "fu2"]), justify: .start),
             ButtonComponent(id: "fu1", child: "fu1t", action: followup("/next1"), variant: .borderless),
             TextComponent(id: "fu1t", text: path("/next1")),

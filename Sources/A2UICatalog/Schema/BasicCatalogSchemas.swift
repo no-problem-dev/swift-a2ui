@@ -49,10 +49,13 @@ extension IconComponent: CatalogSchemaDescribing {
                     ]),
                     .object([
                         "type": .string("object"),
-                        "properties": .object(["path": .object(["type": .string("string")])]),
-                        "required": .array([.string("path")]),
+                        "properties": .object([
+                            "svgPath": .object(["$ref": .string(SchemaRenderer.commonTypesRef("DynamicString"))]),
+                        ]),
+                        "required": .array([.string("svgPath")]),
                         "additionalProperties": .bool(false),
                     ]),
+                    .object(["$ref": .string(SchemaRenderer.commonTypesRef("DataBinding"))]),
                 ]),
             ]))),
         ])
@@ -122,7 +125,7 @@ extension ListComponent: CatalogSchemaDescribing {
 extension CardComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
         ComponentSchema(name: componentName, category: .layout, properties: [
-            .required("child", .componentId, "The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID. Do NOT define the child component inline."),
+            .required("child", .child, "The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID."),
         ])
     }
 }
@@ -138,7 +141,7 @@ extension TabsComponent: CatalogSchemaDescribing {
                     "type": .string("object"),
                     "properties": .object([
                         "title": .object(["description": .string("The tab title."), "$ref": ctURL("DynamicString")]),
-                        "child": .object(["$ref": ctURL("ComponentId"), "description": .string("The ID of the child component. Do NOT define the component inline.")]),
+                        "child": .object(["$ref": ctURL("Child"), "description": .string("The ID of the child component.")]),
                     ]),
                     "required": .array([.string("title"), .string("child")]),
                     "additionalProperties": .bool(false),
@@ -159,8 +162,8 @@ extension DividerComponent: CatalogSchemaDescribing {
 extension ModalComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
         ComponentSchema(name: componentName, category: .layout, properties: [
-            .required("trigger", .componentId, "The ID of the component that opens the modal when interacted with (e.g., a button). Do NOT define the component inline."),
-            .required("content", .componentId, "The ID of the component to be displayed inside the modal. Do NOT define the component inline."),
+            .required("trigger", .child, "The ID of the component that opens the modal when interacted with (e.g., a button)."),
+            .required("content", .child, "The ID of the component to be displayed inside the modal."),
         ])
     }
 }
@@ -168,7 +171,7 @@ extension ModalComponent: CatalogSchemaDescribing {
 extension ButtonComponent: CatalogSchemaDescribing {
     public static var componentSchema: ComponentSchema {
         ComponentSchema(name: componentName, category: .input, properties: [
-            .required("child", .componentId, "The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button. Do NOT define the child component inline."),
+            .required("child", .child, "The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button."),
             .optional("variant", .enumeration(ButtonVariant.self), "A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link.", default: .string("default")),
             .required("action", .action),
         ], mixins: [.checkable])

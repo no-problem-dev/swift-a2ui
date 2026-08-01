@@ -10,12 +10,23 @@ public enum SchemaRenderer {
 
     private static let commonTypesBase = "https://a2ui.org/specification/v1_0/common_types.json#/$defs/"
 
+    /// `catalog_definition.json` の `protocolVersion`。v1.0 以降を狙うカタログは必須で、
+    /// 省略すると後方互換のため `"0.9"` とみなされる。
+    public static let protocolVersion = "1.0"
+
+    /// 全コンポーネント共通の `weight`（v1.0 で各コンポーネントに直接載るようになった）。
+    private static let weightProperty: StructuredValue = .object([
+        "type": .string("number"),
+        "description": .string("The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."),
+    ])
+
     /// 指定したカタログ id・コンポーネントスキーマ・関数スキーマからカタログドキュメントをレンダリングする。
     /// LLM システムプロンプトへの埋め込みに適した最小化 JSON 文字列を返す。
     public static func renderCatalog(
         catalogId: String,
         title: String,
         description: String,
+        instructions: String? = nil,
         components: [ComponentSchema],
         functions: [FunctionSchema]
     ) -> String {
@@ -29,56 +40,39 @@ public enum SchemaRenderer {
             functionDefs[fn.name] = renderFunction(fn)
         }
 
-        let doc: StructuredValue = .object([
+        var doc: OrderedObject = [
             "$schema": .string("https://json-schema.org/draft/2020-12/schema"),
             "$id": .string(catalogId),
+            // v1.0: catalogs targeting 1.0 and beyond MUST declare this. Omitting it means "0.9".
+            "protocolVersion": .string(Self.protocolVersion),
             "title": .string(title),
             "description": .string(description),
             "catalogId": .string(catalogId),
-            "components": .object(componentDefs),
-            "functions": .object(functionDefs),
-            "$defs": renderDefs(componentNames: components.map(\.name), functionNames: functions.map(\.name)),
-        ])
+        ]
+        // v1.0: design guidelines embedded in the catalog, replacing the external rules.txt.
+        if let instructions {
+            doc["instructions"] = .string(instructions)
+        }
+        doc["components"] = .object(componentDefs)
+        doc["functions"] = .object(functionDefs)
+        doc["$defs"] = renderDefs(
+            componentNames: components.map(\.name),
+            functionNames: functions.map(\.name)
+        )
 
-        return minify(doc)
+        return minify(.object(doc))
     }
 
     // MARK: - Catalog `$defs` (shared fragments referenced by components / s2c / common_types)
 
     /// The catalog's `$defs` block, reproduced verbatim from the official `catalog.json`:
-    /// `CatalogComponentCommon` (the shared `weight` prop), `theme`, and the `anyComponent` /
-    /// `anyFunction` discriminated unions (order follows the catalog's component / function order).
+    /// the `anyComponent` / `anyFunction` discriminated unions (order follows the catalog's
+    /// component / function order).
+    ///
+    /// v1.0 removed `theme` (layout is separated from branding) and folded the shared `weight`
+    /// property into each component's own schema, so `CatalogComponentCommon` is gone too.
     static func renderDefs(componentNames: [String], functionNames: [String]) -> StructuredValue {
         .object([
-            "CatalogComponentCommon": .object([
-                "type": .string("object"),
-                "properties": .object([
-                    "weight": .object([
-                        "type": .string("number"),
-                        "description": .string("The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."),
-                    ]),
-                ]),
-            ]),
-            "theme": .object([
-                "type": .string("object"),
-                "properties": .object([
-                    "primaryColor": .object([
-                        "type": .string("string"),
-                        "description": .string("The primary brand color used for highlights (e.g., primary buttons, active borders). Renderers may generate variants of this color for different contexts. Format: Hexadecimal code (e.g., '#00BFFF')."),
-                        "pattern": .string("^#[0-9a-fA-F]{6}$"),
-                    ]),
-                    "iconUrl": .object([
-                        "type": .string("string"),
-                        "format": .string("uri"),
-                        "description": .string("A URL for an image that identifies the agent or tool associated with the surface."),
-                    ]),
-                    "agentDisplayName": .object([
-                        "type": .string("string"),
-                        "description": .string("Text to be displayed next to the surface to identify the agent or tool that created it."),
-                    ]),
-                ]),
-                "additionalProperties": .bool(true),
-            ]),
             "anyComponent": .object([
                 "oneOf": .array(componentNames.map { .object(["$ref": .string("#/components/\($0)")]) }),
                 "discriminator": .object(["propertyName": .string("component")]),
@@ -105,10 +99,8 @@ public enum SchemaRenderer {
     // MARK: - Component rendering
 
     static func renderComponent(_ component: ComponentSchema) -> StructuredValue {
-        var allOf: [StructuredValue] = [
-            ref("ComponentCommon"),
-            .object(["$ref": .string("#/$defs/CatalogComponentCommon")]),
-        ]
+        // v1.0: only ComponentCommon is shared by $ref; `weight` is declared inline per component.
+        var allOf: [StructuredValue] = [ref("ComponentCommon")]
         for mixin in component.mixins {
             switch mixin {
             case .checkable:
@@ -122,6 +114,9 @@ public enum SchemaRenderer {
         for prop in component.properties {
             properties[prop.name] = renderProperty(prop)
         }
+        // v1.0 folded the former CatalogComponentCommon `$ref` into each component; the shape is
+        // identical for all 18, so it is appended here rather than repeated in every type.
+        properties["weight"] = Self.weightProperty
 
         var inner: OrderedObject = [
             "type": .string("object"),
@@ -160,6 +155,7 @@ public enum SchemaRenderer {
         case .dynamicStringList: return ref("DynamicStringList")
         case .dynamicValue: return ref("DynamicValue")
         case .componentId: return ref("ComponentId")
+        case .child: return ref("Child")
         case .childList: return ref("ChildList")
         case .action: return ref("Action")
         case .string: return .object(["type": .string("string")])
@@ -211,27 +207,37 @@ public enum SchemaRenderer {
             argsValue = .object(argsObj)
         }
 
-        let properties: OrderedObject = [
-            "call": .object(["const": .string(fn.name)]),
-            "args": argsValue,
-            "returnType": .object(["const": .string(fn.returnType)]),
-        ]
-        _ = properties  // keep order deterministic via sortedKeys minify
-
-        var node: OrderedObject = [
+        // v1.0: functions are `allOf: [FunctionCommon, {call/args}]` with `returnType` hoisted to
+        // the function level as static catalog metadata (it left the wire payload entirely).
+        let inner: OrderedObject = [
             "type": .string("object"),
-            "properties": .object(properties),
+            "properties": .object([
+                "call": .object(["const": .string(fn.name)]),
+                "args": argsValue,
+            ]),
             "required": .array([.string("call"), .string("args")]),
-            "unevaluatedProperties": .bool(false),
         ]
+
+        var node: OrderedObject = ["type": .string("object")]
         if let description = fn.description { node["description"] = .string(description) }
+        node["returnType"] = .string(fn.returnType)
+        if let callableFrom = fn.callableFrom {
+            node["callableFrom"] = .string(callableFrom)
+        }
+        node["allOf"] = .array([ref("FunctionCommon"), .object(inner)])
+        node["unevaluatedProperties"] = .bool(false)
         return .object(node)
     }
 
     // MARK: - Helpers
 
     private static func ref(_ name: String) -> StructuredValue {
-        .object(["$ref": .string(commonTypesBase + name)])
+        .object(["$ref": .string(commonTypesRef(name))])
+    }
+
+    /// `common_types.json#/$defs/<name>` の絶対 URI。`.raw` フラグメントを手書きするスキーマから使う。
+    public static func commonTypesRef(_ name: String) -> String {
+        commonTypesBase + name
     }
 
     static func minify(_ value: StructuredValue) -> String {

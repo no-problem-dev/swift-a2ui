@@ -78,15 +78,15 @@ struct WeightedRowRegressionTests {
       {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
       {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
         {"id":"root","component":"Column","align":"stretch","children":["comparisonHeader","comparisonContent"]},
-        {"id":"comparisonHeader","component":"Text","text":"「ワークフロー」と「エージェント」の違い","variant":"h2"},
+        {"id":"comparisonHeader","component":"Text","text":"「ワークフロー」と「エージェント」の違い"},
         {"id":"comparisonContent","component":"Card","child":"comparisonGrid"},
         {"id":"comparisonGrid","component":"Column","align":"stretch","children":["compRow"]},
         {"id":"compRow","component":"Row","align":"start","justify":"spaceBetween","children":["compLeft","compRight"]},
         {"id":"compLeft","component":"Column","weight":1,"children":["compLeftTitle","compLeftDesc"]},
-        {"id":"compLeftTitle","component":"Text","text":"🚅 ワークフロー","variant":"h4"},
+        {"id":"compLeftTitle","component":"Text","text":"🚅 ワークフロー"},
         {"id":"compLeftDesc","component":"Text","text":"**制御：人間（コード）**\\nあらかじめ決められた「レールの上の処理」を正確に実行します。予測可能性が高く、業務プロセスの自動化に最適です。"},
         {"id":"compRight","component":"Column","weight":1,"children":["compRightTitle","compRightDesc"]},
-        {"id":"compRightTitle","component":"Text","text":"🧭 エージェント","variant":"h4"},
+        {"id":"compRightTitle","component":"Text","text":"🧭 エージェント"},
         {"id":"compRightDesc","component":"Text","text":"**制御：AI（自律判断）**\\n目的を与えられ、AIが自分で「次に何をするか」を判断しながら進みます。未知の課題や柔軟な対応が必要な場面で強力です。"}
       ]}}
     ]
@@ -197,15 +197,18 @@ struct WeightedRowRegressionTests {
         let img = try #require(rasterize(A2UISurfaceView(try surface(Self.captureCorpus))))
         let p = pixels(img)
         let w = img.width
+        // 白背景より少しでも暗ければインクとみなす。v1.0 で見出し variant が廃止され、この
+        // キャプチャから濃い要素が無くなったため、`< 160` のような濃さ前提の閾値では
+        // 折り返した本文を拾えない(本文は輝度 ~242 の淡色で描かれる)。
         var lowestInk = 0
         for y in 0..<img.height {
             for x in 0..<w {
                 let i = (y * w + x) * 4
-                if max(p[i], p[i + 1], p[i + 2]) < 160 { lowestInk = y }
+                if max(p[i], p[i + 1], p[i + 2]) < 245 { lowestInk = y }
             }
         }
         // 2 カラム各 ~180pt 幅に折り返されれば本文は複数行になり、コンテンツは
-        // 見出し + タイトル + 1 行(~120px)よりずっと下まで届く。
+        // タイトル + 1 行(~120px)よりずっと下まで届く。
         #expect(lowestInk > 200, "lowest ink y: \(lowestInk)")
     }
 }

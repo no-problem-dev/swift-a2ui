@@ -20,7 +20,7 @@ struct SchemaRendererComponentTests {
             category: .display,
             properties: [
                 .required("text", .dynamicString, "The text content to display."),
-                .optional("variant", .enumeration(["h1", "h2", "h3", "h4", "h5", "caption", "body"]), default: .string("body")),
+                .optional("variant", .enumeration(["caption", "body"]), default: .string("body")),
             ]
         )
         let json = render(schema)
@@ -38,26 +38,28 @@ struct SchemaRendererComponentTests {
         // variant → string enum + default
         let variant = props["variant"] as! [String: Any]
         #expect(variant["type"] as? String == "string")
-        #expect(variant["enum"] as! [String] == ["h1", "h2", "h3", "h4", "h5", "caption", "body"])
+        #expect(variant["enum"] as! [String] == ["caption", "body"])
         #expect(variant["default"] as? String == "body")
+        // v1.0 folded the shared `weight` into every component's own schema.
+        #expect((props["weight"] as! [String: Any])["type"] as? String == "number")
         // required includes component + text, not variant
         let required = inner["required"] as! [String]
         #expect(Set(required) == ["component", "text"])
 
-        // mixins: ComponentCommon + CatalogComponentCommon
-        #expect(allOf.count == 3)
+        // v1.0 dropped CatalogComponentCommon: only ComponentCommon + the inner object remain.
+        #expect(allOf.count == 2)
         #expect((allOf[0]["$ref"] as? String)?.hasSuffix("ComponentCommon") == true)
         // Official catalog marks every component object `unevaluatedProperties: false`.
         #expect(json["unevaluatedProperties"] as? Bool == false)
     }
 
-    @Test("Button schema includes Checkable mixin + child(ComponentId) + action(Action)")
+    @Test("Button schema includes Checkable mixin + child(Child) + action(Action)")
     func buttonSchema() {
         let schema = ComponentSchema(
             name: "Button",
             category: .input,
             properties: [
-                .required("child", .componentId),
+                .required("child", .child),
                 .optional("variant", .enumeration(["default", "primary", "borderless"]), default: .string("default")),
                 .required("action", .action),
             ],
@@ -65,13 +67,13 @@ struct SchemaRendererComponentTests {
         )
         let json = render(schema)
         let allOf = json["allOf"] as! [[String: Any]]
-        // ComponentCommon, CatalogComponentCommon, Checkable, then inner = 4 entries
-        #expect(allOf.count == 4)
-        #expect((allOf[2]["$ref"] as? String)?.hasSuffix("Checkable") == true)
+        // v1.0: ComponentCommon, Checkable, then the inner object = 3 entries.
+        #expect(allOf.count == 3)
+        #expect((allOf[1]["$ref"] as? String)?.hasSuffix("Checkable") == true)
 
         let inner = allOf.last!
         let props = inner["properties"] as! [String: Any]
-        #expect((props["child"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v1_0/common_types.json#/$defs/ComponentId")
+        #expect((props["child"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v1_0/common_types.json#/$defs/Child")
         #expect((props["action"] as! [String: Any])["$ref"] as? String == "https://a2ui.org/specification/v1_0/common_types.json#/$defs/Action")
         #expect(Set(inner["required"] as! [String]) == ["component", "child", "action"])
     }
@@ -92,7 +94,7 @@ struct SchemaEnumerableTests {
     @Test("enumeration(_:) derives cases from a SchemaEnumerable enum")
     func enumerationFromType() {
         if case .enumeration(let cases) = PropertyType.enumeration(TextVariant.self) {
-            #expect(cases == ["h1", "h2", "h3", "h4", "h5", "caption", "body"])
+            #expect(cases == ["caption", "body"])
         } else {
             Issue.record("expected .enumeration")
         }
@@ -113,10 +115,31 @@ struct SchemaRendererCatalogTests {
         )
         let json = (try! JSONSerialization.jsonObject(with: doc.data(using: .utf8)!)) as! [String: Any]
         #expect(json["catalogId"] as? String == "https://example.com/cat.json")
+        // v1.0: catalogs targeting 1.0+ MUST declare protocolVersion (omitting it means "0.9").
+        #expect(json["protocolVersion"] as? String == "1.0")
         #expect((json["components"] as! [String: Any])["Text"] != nil)
         let fn = (json["functions"] as! [String: Any])["required"] as! [String: Any]
-        #expect(((fn["properties"] as! [String: Any])["call"] as! [String: Any])["const"] as? String == "required")
-        #expect((fn["returnType"]) == nil)  // returnType is under properties, not top-level
+        // v1.0: functions are allOf: [FunctionCommon, {call, args}] with returnType hoisted.
+        let fnInner = (fn["allOf"] as! [[String: Any]]).last!
+        #expect(((fnInner["properties"] as! [String: Any])["call"] as! [String: Any])["const"] as? String == "required")
+        #expect(fn["returnType"] as? String == "boolean")
+    }
+
+    @Test("instructions is emitted only when provided")
+    func instructionsOptional() {
+        func doc(instructions: String?) -> [String: Any] {
+            let rendered = SchemaRenderer.renderCatalog(
+                catalogId: "https://example.com/cat.json",
+                title: "Test",
+                description: "desc",
+                instructions: instructions,
+                components: [ComponentSchema(name: "Text", category: .display, properties: [.required("text", .dynamicString)])],
+                functions: []
+            )
+            return (try! JSONSerialization.jsonObject(with: rendered.data(using: .utf8)!)) as! [String: Any]
+        }
+        #expect(doc(instructions: nil)["instructions"] == nil)
+        #expect(doc(instructions: "Use Row and Column.")["instructions"] as? String == "Use Row and Column.")
     }
 }
 
