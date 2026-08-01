@@ -24,7 +24,7 @@ public struct BasicComponentCatalog: ComponentCatalog, Sendable {
     ///
     /// Swift 型（コンポーネントプロパティ宣言 + `SchemaEnumerable` 準拠 enum）が唯一の真実の源。
     /// LLM 向けスキーマはそこから導出されるため、双方がズレることはない。
-    /// （`GeneratedSchemaEquivalence` テストが公式 v0.9 カタログとの一致を検証する。）
+    /// （`GeneratedSchemaEquivalence` テストが公式カタログとの一致を検証する。）
     public static func catalogSchemaJSON() -> String {
         BasicCatalogSchema.render()
     }

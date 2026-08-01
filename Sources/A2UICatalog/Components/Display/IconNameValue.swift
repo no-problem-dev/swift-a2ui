@@ -1,15 +1,19 @@
 import A2UICore
 
-/// Icon の `name` 値（A2UI v1.0）: プリセットアイコン名またはデータバインディング `{ "path": "…" }`。
+/// Icon の `name` 値（A2UI v1.0）。公式カタログの `oneOf` は 3 分岐:
 ///
-/// v1.0 では v0.9 のカスタム SVG ブランチ（`{ "svgPath": "…" }`）が Icon の `name` oneOf から削除された。
-/// 残る `{ "path": "…" }` は標準のデータバインディング。公式サンプル（例: 06_music-player の
-/// `{"path": "/playIcon"}` → `"pause"`）もこれを通じてプリセット名をバインドする。
-/// プリセット以外の文字列は `raw` として保持される: 公式 lit レンダラーが Material Symbols フォントへ
-/// そのまま転送するため、SF Symbols で表示できなくても往復可能でなければならない。
+/// 1. プリセットアイコン名（文字列 enum）
+/// 2. カスタム SVG `{ "svgPath": <DynamicString> }`
+/// 3. データバインディング `{ "path": "…" }`
+///
+/// 公式サンプル（例: 06_music-player の `{"path": "/playIcon"}` → `"pause"`）はバインディング経由で
+/// プリセット名を差し替える。プリセット以外の文字列は `raw` として保持する: 公式 lit レンダラーが
+/// Material Symbols フォントへそのまま転送するため、SF Symbols で表示できなくても往復可能でなければならない。
 public enum IconNameValue: Codable, Sendable, Equatable {
     case preset(IconName)
     case binding(DataBinding)
+    /// カスタム SVG パス。v1.0 では `DynamicString` なのでバインディングや関数呼び出しも入りうる。
+    case svgPath(DynamicString)
     case raw(String)
 
     public init(from decoder: Decoder) throws {
@@ -25,7 +29,9 @@ public enum IconNameValue: Codable, Sendable, Equatable {
         }
 
         let keyed = try decoder.container(keyedBy: CodingKeys.self)
-        if keyed.allKeys.contains(.path) {
+        if keyed.allKeys.contains(.svgPath) {
+            self = .svgPath(try keyed.decode(DynamicString.self, forKey: .svgPath))
+        } else if keyed.allKeys.contains(.path) {
             self = .binding(DataBinding(path: try keyed.decode(String.self, forKey: .path)))
         } else {
             throw DecodingError.dataCorruptedError(
@@ -46,10 +52,14 @@ public enum IconNameValue: Codable, Sendable, Equatable {
         case .binding(let value):
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(value.path, forKey: .path)
+        case .svgPath(let value):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value, forKey: .svgPath)
         }
     }
 
     private enum CodingKeys: String, CodingKey {
         case path
+        case svgPath
     }
 }

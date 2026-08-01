@@ -129,8 +129,8 @@ struct SurfaceOwnershipOutboundTests {
         let capabilities = A2UIRendererCapabilities(supportedCatalogIds: ["cat"])
         let prepared = try makeOwnership().outboundMetadata(base, capabilities: capabilities, for: "researcher")
 
-        #expect(A2UIMessageMetadata.clientCapabilities(in: prepared) == capabilities)
-        let dataModel = A2UIMessageMetadata.clientDataModel(in: prepared)
+        #expect(A2UIMessageMetadata.rendererCapabilities(in: prepared) == capabilities)
+        let dataModel = A2UIMessageMetadata.rendererDataModel(in: prepared)
         #expect(dataModel?.surfaces.keys.sorted() == ["owned"])
     }
 
@@ -142,7 +142,7 @@ struct SurfaceOwnershipOutboundTests {
         ]), into: &base)
 
         let prepared = try makeOwnership().outboundMetadata(base, capabilities: nil, for: "visualizer")
-        #expect(A2UIMessageMetadata.clientDataModel(in: prepared)?.surfaces.isEmpty == true)
+        #expect(A2UIMessageMetadata.rendererDataModel(in: prepared)?.surfaces.isEmpty == true)
     }
 
     @Test func passesThroughWhenNothingToDo() throws {
@@ -152,6 +152,6 @@ struct SurfaceOwnershipOutboundTests {
         let unrelated: A2AMetadata = ["trace": .string("abc")]
         let prepared = try ownership.outboundMetadata(unrelated, capabilities: nil, for: "researcher")
         #expect(prepared?["trace"]?.stringValue == "abc")
-        #expect(A2UIMessageMetadata.clientDataModel(in: prepared) == nil)
+        #expect(A2UIMessageMetadata.rendererDataModel(in: prepared) == nil)
     }
 }

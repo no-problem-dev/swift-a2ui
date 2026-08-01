@@ -80,7 +80,7 @@ public enum SchemaPruner {
 
     /// 公式 `_with_pruned_messages` 相当: agent_to_renderer をメッセージ allowlist で絞り込む。
     ///
-    /// - v0.9+ 形式（`oneOf` + `$defs`）: oneOf を `#/$defs/X` の allowed のみ残し、
+    /// - v0.9 以降の形式（`oneOf` + `$defs`）: oneOf を `#/$defs/X` の allowed のみ残し、
     ///   `$defs` を到達可能性 BFS で絞る
     /// - v0.8 形式（`properties` 直下）: `properties` を到達可能性 BFS で絞る
     ///
@@ -94,7 +94,7 @@ public enum SchemaPruner {
               case .object(var root) = agentToRenderer else { return agentToRenderer }
 
         if case .array(let oneOf)? = root["oneOf"] {
-            // v0.9+: oneOf を allowed の "#/$defs/X" のみ残す（公式: 非該当はすべて除去）
+            // v0.9 以降: oneOf を allowed の "#/$defs/X" のみ残す（公式: 非該当はすべて除去）
             let filtered = oneOf.filter { item in
                 guard case .object(let dict) = item,
                       case .string(let ref)? = dict["$ref"],

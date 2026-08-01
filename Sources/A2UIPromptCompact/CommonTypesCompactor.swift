@@ -3,7 +3,7 @@ import Foundation
 
 /// `common_types.json` から FunctionCall 関連の `$defs` を物理的に剥がすユーティリティ。
 ///
-/// **非公式最適化**: A2UI v0.9 spec は catalog に `functions` を持たない構成を明示禁止していないが、
+/// **非公式最適化**: A2UI spec は catalog に `functions` を持たない構成を明示禁止していないが、
 /// 推奨もしていない。catalog 側で `functions: []` を採用しているアプリ専用の最適化として、
 /// LLM に「function 形式は使えない」と確信させるため `FunctionCall` / `DynamicValue` の型定義と、
 /// 各 Dynamic* 型の `oneOf` 内の FunctionCall 分岐を取り除く。

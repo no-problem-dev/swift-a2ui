@@ -17,9 +17,13 @@ public struct A2UIRendererCapabilities: Codable, Sendable, Equatable {
 /// サーフェスごとのクライアント側データモデルのスナップショット。オーケストレータは
 /// 対象エージェントが所有するサーフェスのみを転送する（公式サンプルの "Data Model Stripping"）。
 public struct A2UIRendererDataModel: Codable, Sendable, Equatable {
+    /// プロトコルバージョン。v1.0 の `renderer_data_model.json` は `surfaces` と並ぶ平坦な項目
+    /// として持つ（capabilities のようにバージョンキーで包まない）。
+    public var version: String
     public var surfaces: [String: StructuredValue]
 
-    public init(surfaces: [String: StructuredValue] = [:]) {
+    public init(surfaces: [String: StructuredValue] = [:], version: String = A2UIVersion.current) {
+        self.version = version
         self.surfaces = surfaces
     }
 
@@ -39,16 +43,24 @@ public enum A2UIMessageMetadata {
     /// 公式 `a2uiRendererDataModel` キー。
     public static let rendererDataModelKey = "a2uiRendererDataModel"
 
-    public static func clientCapabilities(in metadata: A2AMetadata?) -> A2UIRendererCapabilities? {
-        metadata?[rendererCapabilitiesKey].flatMap { try? $0.decode(A2UIRendererCapabilities.self) }
+    /// v1.0: capabilities はバージョンキー配下に入れ子になる
+    /// （`{"a2uiRendererCapabilities": {"v1.0": {"supportedCatalogIds": […]}}}`）。
+    public static func rendererCapabilities(in metadata: A2AMetadata?) -> A2UIRendererCapabilities? {
+        guard let envelope = metadata?[rendererCapabilitiesKey] else { return nil }
+        // 現行バージョンのブロックを読む。無ければ入れ子でない旧形として解釈を試みる。
+        if let versioned = try? envelope[A2UIVersion.current].decode(A2UIRendererCapabilities.self),
+           !versioned.supportedCatalogIds.isEmpty || versioned.inlineCatalogs != nil {
+            return versioned
+        }
+        return try? envelope.decode(A2UIRendererCapabilities.self)
     }
 
-    public static func clientDataModel(in metadata: A2AMetadata?) -> A2UIRendererDataModel? {
+    public static func rendererDataModel(in metadata: A2AMetadata?) -> A2UIRendererDataModel? {
         metadata?[rendererDataModelKey].flatMap { try? $0.decode(A2UIRendererDataModel.self) }
     }
 
     public static func embed(_ capabilities: A2UIRendererCapabilities, into metadata: inout A2AMetadata) throws {
-        metadata[rendererCapabilitiesKey] = try .encoded(capabilities)
+        metadata[rendererCapabilitiesKey] = .object([A2UIVersion.current: try .encoded(capabilities)])
     }
 
     public static func embed(_ dataModel: A2UIRendererDataModel, into metadata: inout A2AMetadata) throws {

@@ -1,7 +1,7 @@
 import A2UICore
 import Foundation
 
-/// A2UI v0.9 型強制変換の実装。
+/// A2UI の型強制変換の実装。
 ///
 /// `renderer_guide.md` §3 の型強制変換テーブルを実装する:
 ///

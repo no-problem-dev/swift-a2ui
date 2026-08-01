@@ -41,7 +41,7 @@ public enum A2UIExample {
     /// `A2UIPromptBuilder.buildSystemPrompt` の `examples:` 引数として渡す。
     ///
     /// ルートは全幅 `Column`（align: stretch）: ホストフレームがサーフェス境界を定め、
-    /// 公式 v0.9 サンプルの規約に準拠する。セッション内でのサーフェス配置（単一 / ページング /
+    /// 公式サンプルの規約に準拠する。セッション内でのサーフェス配置（単一 / ページング /
     /// スタック）はプロトコル外の関心事であり、アプリ側が担う。
     public static func referenceSurface(surfaceId id: String = "main") -> String {
         json(referenceMessages(surfaceId: id))

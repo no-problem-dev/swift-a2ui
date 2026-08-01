@@ -1,9 +1,10 @@
-/// サーバ → クライアントの関数呼び出しリクエスト（A2UI v1.0）。
+/// エージェント → レンダラの関数呼び出しリクエスト（A2UI v1.0）。
 ///
 /// `functionCallId` は対応する `FunctionResponse`（または `error`）にそのまま複写する必要がある。
-/// `callFunction.callableFrom` は `remoteOnly` または `clientOrRemote` でなければならない
-/// （サーバは `clientOnly` 関数を呼び出せない）。ワイヤー上ではこれらのフィールドは
-/// `version` と同じメッセージ最上位に並ぶ。
+/// 呼び出せるかどうかはカタログの `FunctionDefinition.callableFrom`（`agentOnly` /
+/// `rendererOrAgent`）で決まり、**ワイヤーには載らない** — レンダラが実行時にカタログを引いて
+/// 検証し、`rendererOnly` や未登録の関数は `INVALID_FUNCTION_CALL` で拒否する。
+/// ワイヤー上ではこれらのフィールドは `version` と同じメッセージ最上位に並ぶ。
 public struct CallFunctionMessage: Codable, Sendable, Equatable {
     public let functionCallId: CallId
     public let wantResponse: Bool?

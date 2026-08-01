@@ -176,8 +176,20 @@ struct A2UIMessageMetadataTests {
         let capabilities = A2UIRendererCapabilities(supportedCatalogIds: ["cat-a"])
         try A2UIMessageMetadata.embed(capabilities, into: &metadata)
 
-        #expect(A2UIMessageMetadata.clientCapabilities(in: metadata) == capabilities)
-        #expect(metadata["a2uiRendererCapabilities"]?["supportedCatalogIds"][0].stringValue == "cat-a")
+        #expect(A2UIMessageMetadata.rendererCapabilities(in: metadata) == capabilities)
+        // v1.0: capabilities はバージョンキー配下に入れ子になる。
+        #expect(
+            metadata["a2uiRendererCapabilities"]?["v1.0"]["supportedCatalogIds"][0].stringValue == "cat-a")
+    }
+
+    /// v1.0 以前の平坦な形も読めること（Postel: 受け取りは寛容に）。
+    @Test func capabilitiesDecodeToleratesUnversionedShape() throws {
+        let metadata: A2AMetadata = [
+            "a2uiRendererCapabilities": .object(["supportedCatalogIds": .array([.string("cat-a")])])
+        ]
+        #expect(
+            A2UIMessageMetadata.rendererCapabilities(in: metadata)
+                == A2UIRendererCapabilities(supportedCatalogIds: ["cat-a"]))
     }
 
     @Test func dataModelRoundTripThroughMetadata() throws {
@@ -188,7 +200,9 @@ struct A2UIMessageMetadataTests {
         ])
         try A2UIMessageMetadata.embed(dataModel, into: &metadata)
 
-        #expect(A2UIMessageMetadata.clientDataModel(in: metadata) == dataModel)
+        #expect(A2UIMessageMetadata.rendererDataModel(in: metadata) == dataModel)
+        // v1.0: データモデル側は `version` を平坦に持つ（capabilities のような入れ子ではない）。
+        #expect(metadata["a2uiRendererDataModel"]?["version"].stringValue == "v1.0")
     }
 
     @Test func keepingStripsUnownedSurfaces() {
@@ -202,7 +216,7 @@ struct A2UIMessageMetadataTests {
     }
 
     @Test func absentMetadataReadsAsNil() {
-        #expect(A2UIMessageMetadata.clientCapabilities(in: nil) == nil)
-        #expect(A2UIMessageMetadata.clientDataModel(in: [:]) == nil)
+        #expect(A2UIMessageMetadata.rendererCapabilities(in: nil) == nil)
+        #expect(A2UIMessageMetadata.rendererDataModel(in: [:]) == nil)
     }
 }

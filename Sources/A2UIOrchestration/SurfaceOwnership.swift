@@ -79,7 +79,7 @@ extension SurfaceOwnership {
         if let capabilities {
             try A2UIMessageMetadata.embed(capabilities, into: &result)
         }
-        if let dataModel = A2UIMessageMetadata.clientDataModel(in: result) {
+        if let dataModel = A2UIMessageMetadata.rendererDataModel(in: result) {
             try A2UIMessageMetadata.embed(dataModel.keeping(surfaceIds(ownedBy: agent)), into: &result)
         }
         return result.isEmpty ? nil : result

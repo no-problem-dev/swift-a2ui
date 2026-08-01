@@ -206,6 +206,9 @@ extension BasicComponentView {
                 return "questionmark.circle"
             }
             return symbol(for: icon)
+        case .svgPath:
+            // カスタム SVG は SF Symbols に写像できない（描画するなら別経路が要る）。
+            return "questionmark.circle"
         case .raw:
             return "questionmark.circle"
         }
