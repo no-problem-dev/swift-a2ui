@@ -34,7 +34,7 @@ extension Part {
 
     /// A2UI サーバメッセージをデコードする。A2UI パーツでない場合は `nil`。
     /// パーツが A2UI を主張しているがペイロードが不正な場合にのみスローする。
-    public func a2uiServerMessage() throws -> AgentMessage? {
+    public func a2uiAgentMessage() throws -> AgentMessage? {
         guard isA2UI, let value = data else { return nil }
         return try value.decode(AgentMessage.self)
     }

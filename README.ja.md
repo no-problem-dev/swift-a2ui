@@ -17,7 +17,7 @@ status: active
 
 ### 主な特徴
 
-- **A2UI v0.10 完全対応**: `createSurface` / `updateComponents` / `updateDataModel` / `callFunction` / `actionResponse` の全メッセージ型を実装
+- **A2UI v1.0 完全対応**: `createSurface` / `updateComponents` / `updateDataModel` / `callFunction` / `actionResponse` の全メッセージ型を実装
 - **型安全なカタログ**: Swift の型システムを SSOT とした LLM 向けスキーマ生成（JSON ファイルとの乖離をコンパイル時に検出）
 - **AnyView ゼロのジェネリックレンダラー**: カタログを型パラメータとした `A2UISurfaceView<Catalog>` で型消去なしに SwiftUI へ描画
 - **公式プロトコルへの忠実な準拠**: Python SDK (`a2ui.adk` / `a2ui.a2a`) の設計をそのまま Swift に写したモジュール構成
@@ -27,7 +27,7 @@ status: active
 
 ## モジュール構成
 
-13 のモジュールを役割ごとに 5 グループに分けて説明する。
+15 のモジュールを役割ごとに 5 グループに分けて説明する。
 
 ### グループ 1 — コアプロトコル層
 
@@ -35,13 +35,13 @@ A2UI の有線フォーマット（JSON）を Swift の型として定義する�
 
 | モジュール | 役割 |
 |-----------|------|
-| **A2UICore** | `ServerMessage` / `ClientMessage` の enum、`CreateSurface` / `UpdateComponents` / `UpdateDataModel` 等の個別メッセージ型、`UserAction`、`DataBinding`、`DynamicString` / `DynamicBoolean` / `DynamicNumber` などのバインダブル値型 |
+| **A2UICore** | `AgentMessage` / `RendererMessage` の enum、`CreateSurface` / `UpdateComponents` / `UpdateDataModel` 等の個別メッセージ型、`UserAction`、`DataBinding`、`DynamicString` / `DynamicBoolean` / `DynamicNumber` などのバインダブル値型 |
 
 **主な型:**
 
 ```swift
 // サーバ → クライアント
-public enum ServerMessage: Sendable, Equatable, Codable {
+public enum AgentMessage: Sendable, Equatable, Codable {
     case createSurface(CreateSurface)
     case updateComponents(UpdateComponents)
     case updateDataModel(UpdateDataModel)
@@ -51,9 +51,9 @@ public enum ServerMessage: Sendable, Equatable, Codable {
 }
 
 // クライアント → サーバ
-public enum ClientMessage: Sendable, Equatable, Codable {
+public enum RendererMessage: Sendable, Equatable, Codable {
     case action(UserAction)
-    case error(ClientError)
+    case error(RendererError)
     case functionResponse(FunctionResponse)
 }
 ```
@@ -84,7 +84,7 @@ let schema: String = BasicComponentCatalog.catalogSchemaJSON()
 
 // カタログ ID
 let id: String = BasicComponentCatalog.catalogId
-// → "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"
+// → "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 ```
 
 ---
@@ -132,7 +132,7 @@ for chunk in llmStream {
     let parts = parser.feed(chunk)
     for part in parts {
         if let messages = part.messages {
-            // A2UI ServerMessage 配列を描画系へ適用する
+            // A2UI AgentMessage 配列を描画系へ適用する
             processor.process(messages)
         }
         if let text = part.text {
@@ -167,7 +167,7 @@ import A2UITypedRenderer
 @State var surface = TypedSurface<BasicCatalog>(rootId: "root", nodes: [])
 
 // 2. サーフェスメッセージを適用するハンドラ
-func apply(_ message: ServerMessage) {
+func apply(_ message: AgentMessage) {
     switch message {
     case .updateComponents(let msg):
         guard let nodes = try? TypedSurface<BasicCatalog>.decodeNodes(
@@ -208,9 +208,9 @@ LLM エージェントへの A2UI ツール提供と、マルチエージェン�
 
 | モジュール | 役割 |
 |-----------|------|
-| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — LLM が `send_a2ui_json_to_client` ツールを呼ぶ公式パターン。JSON の解析・自動補正・バリデーション（allowlist 準拠）を行い、`validated_a2ui_json` を返す。`A2UIToolResultExtractor` — ツール結果から `[ServerMessage]` を取り出す |
+| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — LLM が `send_a2ui_json_to_client` ツールを呼ぶ公式パターン。JSON の解析・自動補正・バリデーション（allowlist 準拠）を行い、`validated_a2ui_json` を返す。`A2UIToolResultExtractor` — ツール結果から `[AgentMessage]` を取り出す |
 | **A2UIAgent** | `A2UIPresenterAgent` — presenter（コンテンツ提示）型エージェントの自己記述一式。`systemPrompt()` / `tools()` / `agentExtension()` / `hostOutputConstraint()` を提供。ホストは注入するだけで UI の全知識はこのモジュールに閉じる |
-| **A2UIA2A** | A2A プロトコルとの統合。`Part.a2ui(_:)` で A2UI メッセージを `application/a2ui+json` データパートとして包む。`A2UIExtension` — エージェントカードへの A2UI プロトコル宣言。`A2UIClientCapabilities` / `A2UIClientDataModel` / `A2UIMessageMetadata` |
+| **A2UIA2A** | A2A プロトコルとの統合。`Part.a2ui(_:)` で A2UI メッセージを `application/a2ui+json` データパートとして包む。`A2UIExtension` — エージェントカードへの A2UI プロトコル宣言。`A2UIRendererCapabilities` / `A2UIRendererDataModel` / `A2UIMessageMetadata` |
 | **A2UIOrchestration** | `SurfaceOwnership` — サーフェス所有権台帳（どのエージェントがどのサーフェスを持つか）。`owner(ofUserActionIn:)` による確定的な UserAction ルーティング。`outboundMetadata(_:capabilities:for:)` によるデータモデル・ストリッピング（エージェント間のデータ漏洩防止） |
 
 **`A2UIPresenterAgent` の注入例:**

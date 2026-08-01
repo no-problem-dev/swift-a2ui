@@ -115,9 +115,10 @@ public enum A2UIDefaultGuidelines {
     Create polished, visually appealing interfaces:
     - Always include a title heading for the surface, outside any List.
       Wrap in a Column: [title, list] as root.
-    - For card templates, create clear visual hierarchy:
-      - h3 for primary text (names, titles)
-      - h2 for featured numbers (prices, scores) — makes them stand out
+    - For card templates, create clear visual hierarchy. `variant` is only
+      "caption" or "body"; express headings with Markdown in the text itself:
+      - "## " prefix for primary text (names, titles)
+      - "**bold**" for featured numbers (prices, scores) — makes them stand out
       - caption for secondary info (ratings, categories, metadata)
       - body for descriptions
     - Use Divider between logical sections within cards.

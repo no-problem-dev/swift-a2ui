@@ -6,7 +6,7 @@ A2UI プロトコルの共有メッセージ型・コンポーネントプロト
 
 `A2UICore` は `swift-a2ui` パッケージ全体の土台。LLM エージェントとクライアント間で交わされるすべてのメッセージ型を所有し、他のすべての A2UI モジュールがこのモジュールに依存する。ビジネスロジック・SwiftUI・LLM クライアントへの依存は一切持たず、任意のアーキテクチャ層でインポートできる。
 
-プロトコルは `ServerMessage` と `ClientMessage` の 2 方向で整理される。エージェント（サーバー）はサーフェスの作成（`CreateSurface`）・コンポーネントの更新（`UpdateComponents`）・データモデルの更新（`UpdateDataModel`）・サーフェスの削除（`DeleteSurface`）をクライアントに送信する。クライアントはユーザー操作（`UserAction`）・関数レスポンス（`FunctionResponse`）・エラー（`ClientError`）をエージェントに返す。
+プロトコルは `AgentMessage` と `RendererMessage` の 2 方向で整理される。エージェント（サーバー）はサーフェスの作成（`CreateSurface`）・コンポーネントの更新（`UpdateComponents`）・データモデルの更新（`UpdateDataModel`）・サーフェスの削除（`DeleteSurface`）をクライアントに送信する。クライアントはユーザー操作（`UserAction`）・関数レスポンス（`FunctionResponse`）・エラー（`RendererError`）をエージェントに返す。
 
 コンポーネントの定義は `A2UIComponentProtocol` を介して型安全に表現される。プロパティは `DynamicString`・`DynamicBoolean`・`DynamicNumber`・`DynamicValue` などの動的型で保持され、`DataBinding` を使ってデータモデルのパスにバインドできる。
 
@@ -16,13 +16,13 @@ A2UI プロトコルの共有メッセージ型・コンポーネントプロト
 import A2UICore
 
 // エージェントがクライアントへ送る最初のメッセージ
-let create = ServerMessage.createSurface(CreateSurface(
+let create = AgentMessage.createSurface(CreateSurface(
     surfaceId: "main",
-    catalogId: "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"
+    catalogId: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 ))
 
 // クライアントからエージェントへ届くユーザー操作
-let action = ClientMessage.action(UserAction(
+let action = RendererMessage.action(UserAction(
     name: "submit",
     surfaceId: "main",
     sourceComponentId: "submit-button",
@@ -35,7 +35,7 @@ let action = ClientMessage.action(UserAction(
 
 ### メッセージ（サーバー → クライアント）
 
-- ``ServerMessage``
+- ``AgentMessage``
 - ``CreateSurface``
 - ``UpdateComponents``
 - ``UpdateDataModel``
@@ -43,13 +43,13 @@ let action = ClientMessage.action(UserAction(
 
 ### メッセージ（クライアント → サーバー）
 
-- ``ClientMessage``
+- ``RendererMessage``
 - ``UserAction``
 - ``FunctionResponse``
 - ``CallFunctionMessage``
 - ``ActionResponseMessage``
 - ``ActionResponse``
-- ``ClientError``
+- ``RendererError``
 
 ### コンポーネントプロトコル
 

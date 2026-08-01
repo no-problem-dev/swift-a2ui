@@ -8,7 +8,7 @@
 
 `DataModel` はサーフェス全体のデータを保持する mutable なクラス。`DynamicString`・`DynamicBoolean` などのバインディング値はこのモデルの対応パスから実行時に読み取られる。`TypeCoercion` はパスから取得した動的値を Swift の具体型へ変換する。
 
-`ComponentTreeResolver` はコンポーネントの階層ツリーをフラットなノードマップに解決し、レンダラーが高速にルックアップできる形式に変換する。`ComponentValidator` は `ServerMessage` として受信したペイロードの内容（参照されているバインディングパスが存在するかなど）を検証する。`JSONPointer` は RFC 6901 準拠の JSON Pointer 解析と評価を提供し、データモデルの特定パスへのアクセスを担う。
+`ComponentTreeResolver` はコンポーネントの階層ツリーをフラットなノードマップに解決し、レンダラーが高速にルックアップできる形式に変換する。`ComponentValidator` は `AgentMessage` として受信したペイロードの内容（参照されているバインディングパスが存在するかなど）を検証する。`JSONPointer` は RFC 6901 準拠の JSON Pointer 解析と評価を提供し、データモデルの特定パスへのアクセスを担う。
 
 ```swift
 import A2UISurface

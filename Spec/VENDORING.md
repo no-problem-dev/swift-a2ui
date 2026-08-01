@@ -23,9 +23,24 @@ Tests/A2UICoreTests/Fixtures/agent_to_renderer.json   ← conformance tests
 
 Same for `common_types.json`, and for the basic catalog (`Spec/v1_0/catalogs/basic/catalog.json`
 → `Tests/A2UICatalogTests/Fixtures/{catalog,official_basic_catalog}.json`) and its 36
-numbered examples. Verified by `Tests/A2UICoreTests/VendoredSpecIntegrityTests.swift`.
+numbered examples.
 
 Updating the spec means re-copying all of them together, never editing one in place.
+To re-check the copies by hand:
+
+```sh
+for f in agent_to_renderer common_types; do
+  shasum -a1 Spec/v1_0/json/$f.json \
+             Sources/A2UIPrompt/Resources/$f.json \
+             Tests/A2UICoreTests/Fixtures/$f.json
+done
+cmp Spec/v1_0/catalogs/basic/catalog.json Tests/A2UICatalogTests/Fixtures/official_basic_catalog.json
+```
+
+Two test suites catch the drift that matters even so:
+`Tests/A2UIPromptTests/VendoredSpecIntegrityTests.swift` asserts the schema we ship to the
+LLM really is upstream v1.0, and `GeneratedCatalogFidelityTests` deep-diffs the type-derived
+catalog against the vendored official one.
 
 ## Known upstream deviations
 

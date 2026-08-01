@@ -8,7 +8,7 @@
 
 `RenderableCatalog` プロトコルは `A2UICatalog` に加えて `render` 要件を追加する。カタログ型がこのプロトコルに準拠することで、`A2UISurfaceView<Catalog>` がそのカタログのコンポーネントを自動的にディスパッチして描画できる。`RenderContext<Catalog>` はレンダリング中に必要な状態（データモデル・イベントハンドラ・テーマ）を保持する。
 
-`TypedMessageProcessor<Catalog>` は LLM から届く `ServerMessage` を受け取り、`TypedSurface<Catalog>` の状態を更新する。`TypedSurface<Catalog>` は `@Observable` として SwiftUI に公開されるサーフェスの実体。`BasicComponentView<Catalog>` は `BasicEmbeddingNode` が埋め込まれた標準コンポーネントすべての SwiftUI 描画を担う。
+`TypedMessageProcessor<Catalog>` は LLM から届く `AgentMessage` を受け取り、`TypedSurface<Catalog>` の状態を更新する。`TypedSurface<Catalog>` は `@Observable` として SwiftUI に公開されるサーフェスの実体。`BasicComponentView<Catalog>` は `BasicEmbeddingNode` が埋め込まれた標準コンポーネントすべての SwiftUI 描画を担う。
 
 ```swift
 import SwiftUI
@@ -28,7 +28,7 @@ struct ContentView: View {
 
 // サーバーメッセージを適用する（TypedMessageProcessor を使う場合）
 @MainActor
-func apply(_ messages: [ServerMessage], to processor: TypedMessageProcessor<BasicCatalog>) {
+func apply(_ messages: [AgentMessage], to processor: TypedMessageProcessor<BasicCatalog>) {
     processor.process(messages)
 }
 ```

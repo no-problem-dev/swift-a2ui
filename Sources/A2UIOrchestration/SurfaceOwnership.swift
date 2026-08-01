@@ -40,7 +40,7 @@ extension SurfaceOwnership {
     /// パートのバッチごとに、サブエージェントの名前（公式の `event.author`）を `agent` として呼び出す。
     public mutating func record(surfacesCreatedIn parts: [Part], by agent: String) {
         for part in parts {
-            guard case .createSurface(let creation)? = try? part.a2uiServerMessage() else { continue }
+            guard case .createSurface(let creation)? = try? part.a2uiAgentMessage() else { continue }
             record(owner: agent, of: creation.surfaceId)
         }
     }

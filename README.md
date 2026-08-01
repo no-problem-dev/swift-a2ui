@@ -17,7 +17,7 @@ English | [日本語](./README.ja.md)
 
 ### Key Features
 
-- **Full A2UI v0.10 support**: All message types implemented — `createSurface` / `updateComponents` / `updateDataModel` / `callFunction` / `actionResponse`
+- **Full A2UI v1.0 support**: All message types implemented — `createSurface` / `updateComponents` / `updateDataModel` / `callFunction` / `actionResponse`
 - **Type-safe catalog**: LLM-facing JSON Schema generated from Swift types as the single source of truth (schema drift detected at compile time)
 - **Zero-`AnyView` generic renderer**: `A2UISurfaceView<Catalog>` with the catalog as a type parameter renders to SwiftUI without type erasure
 - **Faithful conformance to the official protocol**: Module structure mirrors the Python SDK (`a2ui.adk` / `a2ui.a2a`) design
@@ -27,7 +27,7 @@ English | [日本語](./README.ja.md)
 
 ## Module Structure
 
-13 modules organized into 5 groups by role.
+15 modules organized into 5 groups by role.
 
 ### Group 1 — Core Protocol Layer
 
@@ -35,13 +35,13 @@ The lowest layer: defines the A2UI wire format (JSON) as Swift types. No SwiftUI
 
 | Module | Role |
 |--------|------|
-| **A2UICore** | `ServerMessage` / `ClientMessage` enums; individual message types (`CreateSurface`, `UpdateComponents`, `UpdateDataModel`, etc.); `UserAction`; `DataBinding`; bindable value types (`DynamicString` / `DynamicBoolean` / `DynamicNumber`) |
+| **A2UICore** | `AgentMessage` / `RendererMessage` enums; individual message types (`CreateSurface`, `UpdateComponents`, `UpdateDataModel`, etc.); `UserAction`; `DataBinding`; bindable value types (`DynamicString` / `DynamicBoolean` / `DynamicNumber`) |
 
 **Key types:**
 
 ```swift
-// Server → Client
-public enum ServerMessage: Sendable, Equatable, Codable {
+// Agent → Renderer
+public enum AgentMessage: Sendable, Equatable, Codable {
     case createSurface(CreateSurface)
     case updateComponents(UpdateComponents)
     case updateDataModel(UpdateDataModel)
@@ -50,10 +50,10 @@ public enum ServerMessage: Sendable, Equatable, Codable {
     case actionResponse(ActionResponseMessage)
 }
 
-// Client → Server
-public enum ClientMessage: Sendable, Equatable, Codable {
+// Renderer → Agent
+public enum RendererMessage: Sendable, Equatable, Codable {
     case action(UserAction)
-    case error(ClientError)
+    case error(RendererError)
     case functionResponse(FunctionResponse)
 }
 ```
@@ -84,7 +84,7 @@ let schema: String = BasicComponentCatalog.catalogSchemaJSON()
 
 // Catalog ID
 let id: String = BasicComponentCatalog.catalogId
-// → "https://a2ui.org/specification/v0_10/catalogs/basic/catalog.json"
+// → "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 ```
 
 ---
@@ -132,7 +132,7 @@ for chunk in llmStream {
     let parts = parser.feed(chunk)
     for part in parts {
         if let messages = part.messages {
-            // Apply the [ServerMessage] array to the rendering layer
+            // Apply the [AgentMessage] array to the rendering layer
             processor.process(messages)
         }
         if let text = part.text {
@@ -167,7 +167,7 @@ import A2UITypedRenderer
 @State var surface = TypedSurface<BasicCatalog>(rootId: "root", nodes: [])
 
 // 2. Handler to apply server messages
-func apply(_ message: ServerMessage) {
+func apply(_ message: AgentMessage) {
     switch message {
     case .updateComponents(let msg):
         guard let nodes = try? TypedSurface<BasicCatalog>.decodeNodes(
@@ -208,9 +208,9 @@ Provides A2UI tools to LLM agents and supports multi-agent configurations.
 
 | Module | Role |
 |--------|------|
-| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — the official `send_a2ui_json_to_client` tool pattern. Parses, auto-corrects, and validates JSON (allowlist conformance), then returns `validated_a2ui_json`. `A2UIToolResultExtractor` — extracts `[ServerMessage]` from tool results |
+| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — the official `send_a2ui_json_to_client` tool pattern. Parses, auto-corrects, and validates JSON (allowlist conformance), then returns `validated_a2ui_json`. `A2UIToolResultExtractor` — extracts `[AgentMessage]` from tool results |
 | **A2UIAgent** | `A2UIPresenterAgent` — self-describing package for presenter (content-display) agents. Provides `systemPrompt()` / `tools()` / `agentExtension()` / `hostOutputConstraint()`. Hosts inject these; all UI knowledge is encapsulated in this module |
-| **A2UIA2A** | A2A protocol integration. `Part.a2ui(_:)` wraps A2UI messages as `application/a2ui+json` data parts. `A2UIExtension` — declares the A2UI protocol on an agent card. `A2UIClientCapabilities` / `A2UIClientDataModel` / `A2UIMessageMetadata` |
+| **A2UIA2A** | A2A protocol integration. `Part.a2ui(_:)` wraps A2UI messages as `application/a2ui+json` data parts. `A2UIExtension` — declares the A2UI protocol on an agent card. `A2UIRendererCapabilities` / `A2UIRendererDataModel` / `A2UIMessageMetadata` |
 | **A2UIOrchestration** | `SurfaceOwnership` — surface-ownership ledger (which agent owns which surface). Deterministic `UserAction` routing via `owner(ofUserActionIn:)`. Data-model stripping via `outboundMetadata(_:capabilities:for:)` (prevents data leakage between agents) |
 
 **Injecting `A2UIPresenterAgent`:**

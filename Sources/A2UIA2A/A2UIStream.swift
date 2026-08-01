@@ -8,8 +8,8 @@ extension Sequence where Element == Part {
     /// このパート列に含まれる A2UI サーバメッセージを取り出す。
     /// A2UI でないパートは無視し、A2UI を名乗るが壊れているパートも握りつぶす
     /// （描画/ルーティングを止めないための寛容な抽出）。
-    public func a2uiServerMessages() -> [AgentMessage] {
-        compactMap { try? $0.a2uiServerMessage() }
+    public func a2uiAgentMessages() -> [AgentMessage] {
+        compactMap { try? $0.a2uiAgentMessage() }
     }
 
     /// A2UI を含むか。
@@ -20,8 +20,8 @@ extension Sequence where Element == Part {
 
 extension StreamResponse {
     /// このストリームイベントのペイロードから A2UI サーバメッセージを取り出す。
-    public func a2uiServerMessages() -> [AgentMessage] {
-        parts.a2uiServerMessages()
+    public func a2uiAgentMessages() -> [AgentMessage] {
+        parts.a2uiAgentMessages()
     }
 
     /// このストリームイベントが A2UI を含むか。

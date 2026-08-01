@@ -108,7 +108,7 @@ struct A2UIPartTests {
         let data = try JSONEncoder().encode(part)
         let decoded = try JSONDecoder().decode(Part.self, from: data)
         #expect(decoded.isA2UI)
-        #expect(try decoded.a2uiServerMessage() == message)
+        #expect(try decoded.a2uiAgentMessage() == message)
     }
 
     @Test func wireShapeCarriesVersionEnvelope() throws {
@@ -135,7 +135,7 @@ struct A2UIPartTests {
     @Test func plainDataPartIsNotA2UI() throws {
         let part = Part.data(.object(["foo": .string("bar")]))
         #expect(!part.isA2UI)
-        #expect(try part.a2uiServerMessage() == nil)
+        #expect(try part.a2uiAgentMessage() == nil)
         #expect(try part.a2uiRendererMessage() == nil)
         #expect(part.a2uiUserAction == nil)
     }
@@ -143,7 +143,7 @@ struct A2UIPartTests {
     @Test func textPartIsNotA2UI() throws {
         let part = Part.text("just text")
         #expect(!part.isA2UI)
-        #expect(try part.a2uiServerMessage() == nil)
+        #expect(try part.a2uiAgentMessage() == nil)
     }
 
     @Test func metadataMimeTypeTagIsAccepted() throws {
@@ -151,12 +151,12 @@ struct A2UIPartTests {
         let value = try StructuredValue.encoded(makeServerMessage())
         let part = Part.data(value, metadata: [A2UIMediaType.metadataKey: .string(A2UIMediaType.a2uiJSON)])
         #expect(part.isA2UI)
-        #expect(try part.a2uiServerMessage() == makeServerMessage())
+        #expect(try part.a2uiAgentMessage() == makeServerMessage())
     }
 
     @Test func malformedA2UIPartThrowsOnDecodeButReadsAsNoUserAction() {
         let part = Part.data(.object(["nonsense": .bool(true)]), mediaType: A2UIMediaType.a2uiJSON)
-        #expect(throws: (any Error).self) { try part.a2uiServerMessage() }
+        #expect(throws: (any Error).self) { try part.a2uiAgentMessage() }
         // Routing reads a malformed action as "no action" and falls back to LLM routing.
         #expect(part.a2uiUserAction == nil)
     }
