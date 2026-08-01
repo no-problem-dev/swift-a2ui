@@ -19,6 +19,7 @@ public struct ChoicePickerComponent: A2UIComponentProtocol, Codable, Sendable, E
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let options: [ChoiceOption]
     public let value: DynamicStringList
     public let label: DynamicString?
@@ -37,7 +38,8 @@ public struct ChoicePickerComponent: A2UIComponentProtocol, Codable, Sendable, E
         filterable: Bool? = nil,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -50,5 +52,6 @@ public struct ChoicePickerComponent: A2UIComponentProtocol, Codable, Sendable, E
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

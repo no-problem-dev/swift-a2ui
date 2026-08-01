@@ -8,6 +8,7 @@ public struct DateTimeInputComponent: A2UIComponentProtocol, Codable, Sendable, 
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let value: DynamicString
     public let enableDate: Bool?
     public let enableTime: Bool?
@@ -26,7 +27,8 @@ public struct DateTimeInputComponent: A2UIComponentProtocol, Codable, Sendable, 
         label: DynamicString? = nil,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -39,5 +41,6 @@ public struct DateTimeInputComponent: A2UIComponentProtocol, Codable, Sendable, 
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

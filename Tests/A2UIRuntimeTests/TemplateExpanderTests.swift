@@ -33,9 +33,9 @@ struct TemplateExpanderTests {
         let ctx = employeesContext()
         let result = TemplateExpander.expand(.template(componentId: "card", path: "/employees"), in: ctx)
         #expect(result == [
-            ResolvedChild(componentId: "card", basePath: "/employees/0"),
-            ResolvedChild(componentId: "card", basePath: "/employees/1"),
-            ResolvedChild(componentId: "card", basePath: "/employees/2"),
+            ResolvedChild(componentId: "card", basePath: "/employees/0", collectionIndex: 0),
+            ResolvedChild(componentId: "card", basePath: "/employees/1", collectionIndex: 1),
+            ResolvedChild(componentId: "card", basePath: "/employees/2", collectionIndex: 2),
         ])
     }
 
@@ -78,8 +78,8 @@ struct TemplateExpanderTests {
         let ctx = DataContext(dataModel: dm)
         let result = TemplateExpander.expand(.template(componentId: "row", path: "/map"), in: ctx)
         #expect(result == [
-            ResolvedChild(componentId: "row", basePath: "/map/a"),
-            ResolvedChild(componentId: "row", basePath: "/map/b"),
+            ResolvedChild(componentId: "row", basePath: "/map/a", collectionIndex: 0),
+            ResolvedChild(componentId: "row", basePath: "/map/b", collectionIndex: 1),
         ])
     }
 
@@ -94,8 +94,8 @@ struct TemplateExpanderTests {
         let deptCtx = DataContext(dataModel: dm, path: "/departments/0")
         let result = TemplateExpander.expand(.template(componentId: "m", path: "members"), in: deptCtx)
         #expect(result == [
-            ResolvedChild(componentId: "m", basePath: "/departments/0/members/0"),
-            ResolvedChild(componentId: "m", basePath: "/departments/0/members/1"),
+            ResolvedChild(componentId: "m", basePath: "/departments/0/members/0", collectionIndex: 0),
+            ResolvedChild(componentId: "m", basePath: "/departments/0/members/1", collectionIndex: 1),
         ])
     }
 
@@ -105,6 +105,6 @@ struct TemplateExpanderTests {
         let raw: StructuredValue = .object(["componentId": .string("card"), "path": .string("/employees")])
         let result = TemplateExpander.expandRaw(raw, in: ctx)
         #expect(result?.count == 3)
-        #expect(result?.first == ResolvedChild(componentId: "card", basePath: "/employees/0"))
+        #expect(result?.first == ResolvedChild(componentId: "card", basePath: "/employees/0", collectionIndex: 0))
     }
 }

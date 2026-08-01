@@ -11,19 +11,38 @@ public struct DataContext: Sendable {
     public let dataModel: DataModel
     /// 現在のスコープパス（例: `/employees/0`）。空文字列はルートスコープを意味する。
     public let path: String
+    /// テンプレート反復（Collection Scope）の 0 始まりの添字。反復の外では `nil`。
+    ///
+    /// 仕様 v1.0: 組み込み `@index` は**テンプレートのインスタンス化中のみ**評価でき、
+    /// その外で呼ぶと評価エラーになる。その「反復の中かどうか」をこの値が表す。
+    public let collectionIndex: Int?
     private let functions: any FunctionResolving
 
-    public init(dataModel: DataModel, path: String = "", functions: any FunctionResolving = NoFunctionResolver()) {
+    public init(
+        dataModel: DataModel,
+        path: String = "",
+        collectionIndex: Int? = nil,
+        functions: any FunctionResolving = NoFunctionResolver()
+    ) {
         self.dataModel = dataModel
         self.path = path
+        self.collectionIndex = collectionIndex
         self.functions = functions
     }
 
     /// 現在のスコープに対して `relativePath` を解決し、その位置にスコープを持つ子コンテキストを生成する。
     /// テンプレートリストのレンダリングで使用。各アイテムは `nested("/items/<index>")` (絶対インデックスパス) を受け取る。
-    public func nested(_ relativePath: String) -> DataContext {
+    ///
+    /// - Parameter collectionIndex: テンプレート反復として入るときの 0 始まりの添字。
+    ///   省略すると反復スコープではなくなり、`@index` は評価エラーになる。
+    public func nested(_ relativePath: String, collectionIndex: Int? = nil) -> DataContext {
         let childPath = JSONPointer.absolutePath(relativePath, scope: path)
-        return DataContext(dataModel: dataModel, path: childPath, functions: functions)
+        return DataContext(
+            dataModel: dataModel,
+            path: childPath,
+            collectionIndex: collectionIndex,
+            functions: functions
+        )
     }
 
     // MARK: - Resolution (snapshot)

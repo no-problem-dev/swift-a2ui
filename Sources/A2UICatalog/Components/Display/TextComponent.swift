@@ -8,6 +8,7 @@ public struct TextComponent: A2UIComponentProtocol, Codable, Sendable, Equatable
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let text: DynamicString
     public let variant: TextVariant?
 
@@ -16,7 +17,8 @@ public struct TextComponent: A2UIComponentProtocol, Codable, Sendable, Equatable
         text: DynamicString,
         variant: TextVariant? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -24,5 +26,6 @@ public struct TextComponent: A2UIComponentProtocol, Codable, Sendable, Equatable
         self.variant = variant
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

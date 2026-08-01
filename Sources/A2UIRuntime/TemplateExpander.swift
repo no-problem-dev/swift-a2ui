@@ -10,10 +10,14 @@ import Foundation
 public struct ResolvedChild: Sendable, Hashable {
     public let componentId: String
     public let basePath: String
+    /// テンプレート反復の 0 始まりの添字。静的 `ids` リストでは `nil`。
+    /// 組み込み `@index`（v1.0）はこの値を返す。
+    public let collectionIndex: Int?
 
-    public init(componentId: String, basePath: String) {
+    public init(componentId: String, basePath: String, collectionIndex: Int? = nil) {
         self.componentId = componentId
         self.basePath = basePath
+        self.collectionIndex = collectionIndex
     }
 }
 
@@ -40,12 +44,20 @@ public enum TemplateExpander {
             switch value {
             case .array(let items):
                 return items.indices.map { index in
-                    ResolvedChild(componentId: componentId, basePath: "\(absolutePath)/\(index)")
+                    ResolvedChild(
+                        componentId: componentId,
+                        basePath: "\(absolutePath)/\(index)",
+                        collectionIndex: index
+                    )
                 }
             case .object(let dict):
                 // Iterate object keys in a stable (sorted) order.
-                return dict.keys.sorted().map { key in
-                    ResolvedChild(componentId: componentId, basePath: "\(absolutePath)/\(key)")
+                return dict.keys.sorted().enumerated().map { offset, key in
+                    ResolvedChild(
+                        componentId: componentId,
+                        basePath: "\(absolutePath)/\(key)",
+                        collectionIndex: offset
+                    )
                 }
             default:
                 return []

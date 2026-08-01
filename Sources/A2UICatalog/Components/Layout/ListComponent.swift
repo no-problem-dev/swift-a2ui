@@ -9,6 +9,7 @@ public struct ListComponent: A2UIComponentProtocol, Codable, Sendable, Equatable
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let children: ChildList
     public let direction: ListDirection?
     public let align: LayoutAlign?
@@ -19,7 +20,8 @@ public struct ListComponent: A2UIComponentProtocol, Codable, Sendable, Equatable
         direction: ListDirection? = nil,
         align: LayoutAlign? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -28,5 +30,6 @@ public struct ListComponent: A2UIComponentProtocol, Codable, Sendable, Equatable
         self.align = align
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

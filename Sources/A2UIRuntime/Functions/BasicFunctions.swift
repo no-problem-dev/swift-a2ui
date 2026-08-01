@@ -24,6 +24,15 @@ public struct BasicFunctions: FunctionResolving {
             return ArgResolver.resolve(v, in: context, functions: self)
         }
 
+        // v1.0 の組み込み `@index`。カタログ関数ではなくコア側のシステム評価なので、
+        // カタログのディスパッチより前に処理する（`@` プレフィックスはコア予約）。
+        if call.call == FunctionCall.indexFunctionName {
+            // Collection Scope（テンプレート反復）の外での呼び出しは評価エラー = 未解決。
+            guard let index = context.collectionIndex else { return nil }
+            let offset = args["offset"] == nil ? 0 : Int(argNumber("offset"))
+            return .int(index + offset)
+        }
+
         switch call.call {
         case "formatString":
             // value is a string template; resolve to its literal template first (it may itself be a binding).

@@ -8,6 +8,7 @@ public struct CheckBoxComponent: A2UIComponentProtocol, Codable, Sendable, Equat
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let label: DynamicString
     public let value: DynamicBoolean
     public let checks: [CheckRule]?
@@ -18,7 +19,8 @@ public struct CheckBoxComponent: A2UIComponentProtocol, Codable, Sendable, Equat
         value: DynamicBoolean,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -27,5 +29,6 @@ public struct CheckBoxComponent: A2UIComponentProtocol, Codable, Sendable, Equat
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

@@ -14,7 +14,7 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
     case known(Known)
     case unknown(name: String, id: ComponentId, raw: StructuredValue)
 
-    private enum Keys: String, CodingKey { case component, id }
+    private enum Keys: String, CodingKey { case component, id, catalogId }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: Keys.self)
@@ -25,6 +25,15 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         } else {
             let id = try container.decodeIfPresent(ComponentId.self, forKey: .id) ?? ""
             self = .unknown(name: name, id: id, raw: try StructuredValue(from: decoder))
+        }
+    }
+
+    /// v1.0: このコンポーネントが明示したカタログ ID（`ComponentCommon.catalogId`）。
+    /// 省略時は `nil` で、サーフェス既定の `catalogId` にフォールバックする。
+    public var declaredCatalogId: String? {
+        switch self {
+        case .known(let node): return node.catalogId
+        case .unknown(_, _, let raw): return raw["catalogId"].stringValue
         }
     }
 

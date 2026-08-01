@@ -8,6 +8,7 @@ public struct ButtonComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let child: ComponentId
     public let action: Action
     public let variant: ButtonVariant?
@@ -20,7 +21,8 @@ public struct ButtonComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
         variant: ButtonVariant? = nil,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -30,5 +32,6 @@ public struct ButtonComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

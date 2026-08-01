@@ -20,4 +20,14 @@ public protocol ComponentNode: Decodable, Sendable, Equatable {
 
     /// このインスタンスのワイヤー上の `component` ディスクリミネータ。
     var componentName: String { get }
+
+    /// v1.0 `ComponentCommon.catalogId`: このコンポーネントが属するカタログを明示する。
+    /// サーフェス既定の `catalogId` を上書きし、1 枚のサーフェスでカタログを混在させられる。
+    /// 明示しないコンポーネント（大多数）は `nil` を返せばよい。
+    var catalogId: String? { get }
+}
+
+extension ComponentNode {
+    /// 既定ではカタログを明示しない — サーフェス既定の `catalogId` に従う。
+    public var catalogId: String? { nil }
 }

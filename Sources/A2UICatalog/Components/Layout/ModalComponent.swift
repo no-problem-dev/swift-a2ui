@@ -8,6 +8,7 @@ public struct ModalComponent: A2UIComponentProtocol, Codable, Sendable, Equatabl
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let trigger: ComponentId
     public let content: ComponentId
 
@@ -16,7 +17,8 @@ public struct ModalComponent: A2UIComponentProtocol, Codable, Sendable, Equatabl
         trigger: ComponentId,
         content: ComponentId,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -24,5 +26,6 @@ public struct ModalComponent: A2UIComponentProtocol, Codable, Sendable, Equatabl
         self.content = content
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

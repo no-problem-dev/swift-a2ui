@@ -8,6 +8,7 @@ public struct ColumnComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let children: ChildList
     public let justify: LayoutJustify?
     public let align: LayoutAlign?
@@ -18,7 +19,8 @@ public struct ColumnComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
         justify: LayoutJustify? = nil,
         align: LayoutAlign? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -27,5 +29,6 @@ public struct ColumnComponent: A2UIComponentProtocol, Codable, Sendable, Equatab
         self.align = align
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

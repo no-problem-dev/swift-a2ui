@@ -8,11 +8,12 @@ public struct AudioPlayerComponent: A2UIComponentProtocol, Codable, Sendable, Eq
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let url: DynamicString
     public let componentDescription: DynamicString?
 
     private enum CodingKeys: String, CodingKey {
-        case component, id, accessibility, weight, url
+        case component, id, accessibility, weight, catalogId, url
         case componentDescription = "description"
     }
 
@@ -21,7 +22,8 @@ public struct AudioPlayerComponent: A2UIComponentProtocol, Codable, Sendable, Eq
         url: DynamicString,
         description: DynamicString? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -29,5 +31,6 @@ public struct AudioPlayerComponent: A2UIComponentProtocol, Codable, Sendable, Eq
         self.componentDescription = description
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

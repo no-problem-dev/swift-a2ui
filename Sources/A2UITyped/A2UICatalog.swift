@@ -45,6 +45,13 @@ public enum CombinedNode<Primary: ComponentNode, Fallback: ComponentNode>: Compo
         }
     }
 
+    public var catalogId: String? {
+        switch self {
+        case .primary(let node): return node.catalogId
+        case .fallback(let node): return node.catalogId
+        }
+    }
+
     private enum Keys: String, CodingKey { case component }
 
     public init(from decoder: Decoder) throws {

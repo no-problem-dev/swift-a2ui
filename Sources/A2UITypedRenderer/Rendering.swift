@@ -23,6 +23,9 @@ public protocol RenderableCatalog: A2UICatalog {
 public struct RenderContext<Catalog: RenderableCatalog> {
     let surface: TypedSurface<Catalog>
     let scope: String
+    /// テンプレート反復の 0 始まりの添字（Collection Scope）。反復の外では `nil` で、
+    /// そのとき組み込み `@index` は評価されない（仕様 v1.0）。
+    let collectionIndex: Int?
     /// デザインシステムカラーパレット（テーマ / ダークモード）。リーフビューが参照する。
     let colors: any ColorPalette
     /// 環境の URL オープナー — `functionCall: openUrl` の唯一の副作用シンク（旧 ClientFunctions
@@ -32,11 +35,13 @@ public struct RenderContext<Catalog: RenderableCatalog> {
     init(
         surface: TypedSurface<Catalog>,
         scope: String,
+        collectionIndex: Int? = nil,
         colors: any ColorPalette = LightColorPalette(),
         openURL: OpenURLAction = OpenURLAction { _ in .discarded }
     ) {
         self.surface = surface
         self.scope = scope
+        self.collectionIndex = collectionIndex
         self.colors = colors
         self.openURL = openURL
     }
@@ -44,7 +49,12 @@ public struct RenderContext<Catalog: RenderableCatalog> {
     /// 現在のスコープのデータコンテキスト。Basic Catalog の関数レジストリを組み込み済みで、
     /// `{call: …}` 動的値と `checks`（関数呼び出し）が実際に解決される。
     var dataContext: DataContext {
-        DataContext(dataModel: surface.dataModel, path: scope, functions: BasicFunctions())
+        DataContext(
+            dataModel: surface.dataModel,
+            path: scope,
+            collectionIndex: collectionIndex,
+            functions: BasicFunctions()
+        )
     }
 
     // MARK: - Client-side validation (`checks` / Checkable)
@@ -111,8 +121,10 @@ public struct RenderContext<Catalog: RenderableCatalog> {
     }
 
     /// id で子をレンダリングする — `NodeView` による名前付き型で型安全を保つ再帰的セアム。
+    ///
+    /// 反復スコープは引き継ぐ: テンプレートインスタンスの内側にネストした子でも `@index` が使える。
     public func child(_ id: ComponentId) -> NodeView<Catalog> {
-        NodeView(surface: surface, id: id, scope: scope)
+        NodeView(surface: surface, id: id, scope: scope, collectionIndex: collectionIndex)
     }
 
     /// `ChildList` を具体的な子スロットへ解決し、`{componentId, path}` テンプレートを
@@ -124,9 +136,15 @@ public struct RenderContext<Catalog: RenderableCatalog> {
         return TemplateExpander.expand(list, in: dataContext)
     }
 
-    /// 解決済みの子スロットをレンダリングする — テンプレートインスタンスは要素スコープ（`basePath`）を持つ。
+    /// 解決済みの子スロットをレンダリングする — テンプレートインスタンスは要素スコープ（`basePath`）と
+    /// 反復の添字（`@index` 用）を持つ。静的 `ids` の子は添字を持たない。
     public func child(_ resolved: ResolvedChild) -> NodeView<Catalog> {
-        NodeView(surface: surface, id: resolved.componentId, scope: resolved.basePath)
+        NodeView(
+            surface: surface,
+            id: resolved.componentId,
+            scope: resolved.basePath,
+            collectionIndex: resolved.collectionIndex
+        )
     }
 
     /// 子ノードを検索する（例: レイアウト判断のために種別を型安全に確認する場合）。
@@ -187,13 +205,16 @@ public struct NodeView<Catalog: RenderableCatalog>: View {
     let surface: TypedSurface<Catalog>
     let id: ComponentId
     let scope: String
+    /// テンプレート反復の添字（Collection Scope）。反復の外では `nil`。
+    var collectionIndex: Int?
 
     public var body: some View {
         if let node = surface.node(id) {
             switch node {
             case .known(let known):
                 Catalog.view(for: known, in: RenderContext(
-                    surface: surface, scope: scope, colors: colors, openURL: openURL))
+                    surface: surface, scope: scope, collectionIndex: collectionIndex,
+                    colors: colors, openURL: openURL))
             case .unknown(let name, _, _):
                 UnknownComponentView(name: name)
             }

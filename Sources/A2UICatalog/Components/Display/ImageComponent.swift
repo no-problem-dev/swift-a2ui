@@ -8,13 +8,14 @@ public struct ImageComponent: A2UIComponentProtocol, Codable, Sendable, Equatabl
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let url: DynamicString
     public let imageDescription: DynamicString?
     public let fit: ImageFit?
     public let variant: ImageVariant?
 
     private enum CodingKeys: String, CodingKey {
-        case component, id, accessibility, weight, url, fit, variant
+        case component, id, accessibility, weight, catalogId, url, fit, variant
         case imageDescription = "description"
     }
 
@@ -25,7 +26,8 @@ public struct ImageComponent: A2UIComponentProtocol, Codable, Sendable, Equatabl
         fit: ImageFit? = nil,
         variant: ImageVariant? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -35,5 +37,6 @@ public struct ImageComponent: A2UIComponentProtocol, Codable, Sendable, Equatabl
         self.variant = variant
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

@@ -8,18 +8,21 @@ public struct DividerComponent: A2UIComponentProtocol, Codable, Sendable, Equata
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let axis: DividerAxis?
 
     public init(
         id: ComponentId,
         axis: DividerAxis? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
         self.axis = axis
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

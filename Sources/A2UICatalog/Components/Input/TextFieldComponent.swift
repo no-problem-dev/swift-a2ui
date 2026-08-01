@@ -8,6 +8,7 @@ public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equa
     public let id: ComponentId
     public let accessibility: AccessibilityAttributes?
     public let weight: Double?
+    public let catalogId: String?
     public let label: DynamicString
     public let value: DynamicString?
     public let variant: TextFieldVariant?
@@ -22,7 +23,8 @@ public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equa
         placeholder: DynamicString? = nil,
         checks: [CheckRule]? = nil,
         accessibility: AccessibilityAttributes? = nil,
-        weight: Double? = nil
+        weight: Double? = nil,
+        catalogId: String? = nil
     ) {
         self.component = Self.componentName
         self.id = id
@@ -33,5 +35,6 @@ public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equa
         self.checks = checks
         self.accessibility = accessibility
         self.weight = weight
+        self.catalogId = catalogId
     }
 }

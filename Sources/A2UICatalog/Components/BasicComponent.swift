@@ -177,3 +177,29 @@ extension BasicComponent {
         }
     }
 }
+
+extension BasicComponent {
+    /// v1.0 `ComponentCommon.catalogId` — このコンポーネントが明示したカタログ（未指定なら nil）。
+    public var catalogId: String? {
+        switch self {
+        case .text(let c): c.catalogId
+        case .image(let c): c.catalogId
+        case .icon(let c): c.catalogId
+        case .video(let c): c.catalogId
+        case .audioPlayer(let c): c.catalogId
+        case .row(let c): c.catalogId
+        case .column(let c): c.catalogId
+        case .list(let c): c.catalogId
+        case .card(let c): c.catalogId
+        case .tabs(let c): c.catalogId
+        case .modal(let c): c.catalogId
+        case .divider(let c): c.catalogId
+        case .button(let c): c.catalogId
+        case .textField(let c): c.catalogId
+        case .checkBox(let c): c.catalogId
+        case .choicePicker(let c): c.catalogId
+        case .slider(let c): c.catalogId
+        case .dateTimeInput(let c): c.catalogId
+        }
+    }
+}

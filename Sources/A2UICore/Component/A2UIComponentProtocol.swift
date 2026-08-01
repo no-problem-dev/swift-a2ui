@@ -10,4 +10,7 @@ public protocol A2UIComponentProtocol: Codable, Sendable, Equatable {
     var id: ComponentId { get }
     var accessibility: AccessibilityAttributes? { get }
     var weight: Double? { get }
+    /// v1.0 `ComponentCommon.catalogId`: このコンポーネントのカタログを明示し、
+    /// サーフェス既定の `catalogId` を上書きする（1 枚のサーフェスでのカタログ混在）。
+    var catalogId: String? { get }
 }
