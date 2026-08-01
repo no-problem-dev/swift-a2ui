@@ -114,8 +114,12 @@ public enum A2UIActivityContent: Sendable, Equatable {
 extension ActivitySnapshotEvent {
     /// サーバー側: paint スナップショットを構築する。
     ///
-    /// 禁則(公式ソース明記): `createSurface` 単独の emit は不可 — レンダラが
-    /// 未到着の root を解決しようとして落ちるため、必ず components を同梱する。
+    /// 禁則: **中身の無いサーフェス**は emit できない — レンダラが未到着の root を
+    /// 解決しようとして落ちるため。
+    ///
+    /// v1.0 では `createSurface` 自身が `components` を持てるので、同梱されていれば
+    /// それで満たされる（アペンドオンリーの 1 メッセージ形）。v0.9 のように別途
+    /// `updateComponents` を送る形でも満たされる。どちらでもないときだけ弾く。
     public static func a2uiPaint(
         messageId: String,
         operations: [AgentMessage]
@@ -123,16 +127,20 @@ extension ActivitySnapshotEvent {
         guard !operations.isEmpty else {
             throw AGUIError("A2UI paint snapshot requires at least one operation")
         }
-        let hasCreateSurface = operations.contains {
-            if case .createSurface = $0 { return true } else { return false }
+        let createdSurfaces = operations.compactMap { operation -> CreateSurface? in
+            if case .createSurface(let cs) = operation { return cs } else { return nil }
         }
-        let hasComponents = operations.contains {
-            if case .updateComponents = $0 { return true } else { return false }
-        }
-        if hasCreateSurface, !hasComponents {
-            throw AGUIError(
-                "createSurface must be accompanied by updateComponents in the same snapshot"
-            )
+        let surfacesGettingComponents = Set(operations.compactMap { operation -> String? in
+            if case .updateComponents(let uc) = operation { return uc.surfaceId } else { return nil }
+        })
+        for surface in createdSurfaces {
+            let hasInlineComponents = !(surface.components ?? []).isEmpty
+            guard hasInlineComponents || surfacesGettingComponents.contains(surface.surfaceId) else {
+                throw AGUIError(
+                    "createSurface '\(surface.surfaceId)' carries no components:"
+                        + " pass them inline (v1.0) or send updateComponents in the same snapshot"
+                )
+            }
         }
         return ActivitySnapshotEvent(
             messageId: messageId,

@@ -92,13 +92,45 @@ struct A2UIActivityContentTests {
         #expect(decoded == .paint(operations))
     }
 
-    /// 禁則: createSurface 単独 emit(components 同梱必須)。
-    @Test func paintBuilderRejectsCreateSurfaceAlone() {
+    /// v1.0 で components を同梱した createSurface は単独で正当
+    /// （アペンドオンリーの 1 メッセージ形）。これを弾いてはいけない。
+    @Test func paintBuilderAcceptsCreateSurfaceWithInlineComponents() throws {
+        let operations: [AgentMessage] = [
+            .createSurface(CreateSurface(
+                surfaceId: "s1",
+                catalogId: "delish",
+                components: [.object([
+                    "id": .string("root"), "component": .string("Text"), "text": .string("hi"),
+                ])]
+            )),
+        ]
+        let snapshot = try ActivitySnapshotEvent.a2uiPaint(messageId: "m", operations: operations)
+        #expect(try A2UIActivityContent(snapshot: snapshot) == .paint(operations))
+    }
+
+    /// 禁則: 中身の無いサーフェス（inline components も updateComponents も無い）。
+    @Test func paintBuilderRejectsSurfaceWithoutComponents() {
         #expect(throws: AGUIError.self) {
             _ = try ActivitySnapshotEvent.a2uiPaint(
                 messageId: "m",
                 operations: [.createSurface(CreateSurface(surfaceId: "s1", catalogId: "delish"))]
             )
+        }
+        // 空配列の同梱も「中身が無い」
+        #expect(throws: AGUIError.self) {
+            _ = try ActivitySnapshotEvent.a2uiPaint(
+                messageId: "m",
+                operations: [.createSurface(CreateSurface(
+                    surfaceId: "s1", catalogId: "delish", components: []
+                ))]
+            )
+        }
+        // 別サーフェス宛の updateComponents では満たされない
+        #expect(throws: AGUIError.self) {
+            _ = try ActivitySnapshotEvent.a2uiPaint(messageId: "m", operations: [
+                .createSurface(CreateSurface(surfaceId: "s1", catalogId: "delish")),
+                .updateComponents(UpdateComponents(surfaceId: "other", components: [])),
+            ])
         }
         #expect(throws: AGUIError.self) {
             _ = try ActivitySnapshotEvent.a2uiPaint(messageId: "m", operations: [])
