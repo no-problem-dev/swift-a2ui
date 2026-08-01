@@ -82,7 +82,9 @@ let package = Package(
         // Two-stage generation pattern (@ag-ui/a2ui-toolkit port). The outer `generate_a2ui`
         // tool carries intent only; a subagent LLM call is forced onto `render_a2ui` so the
         // model has no API-level option to emit prose instead of a tool call. Validation
-        // retries live here too. UI-free — tests run on the CLI.
+        // retries live here too. Append-only: each call emits exactly one `createSurface`
+        // (v1.0 carries components + dataModel inline), so surfaces stack up like a
+        // transcript and are never rewritten. UI-free — tests run on the CLI.
         .target(name: "A2UISubagent", dependencies: [
             "A2UICore", "A2UIParser", "A2UITyped",
             .product(name: "LLMClient", package: "swift-llm-client"),

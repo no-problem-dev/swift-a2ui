@@ -72,28 +72,6 @@ struct A2UISubagentPromptTests {
         #expect(!prompt.contains("Create polished, visually appealing"))
     }
 
-    @Test("編集コンテキストは末尾に付き、変更要求も載る")
-    func appendsEditContext() {
-        let prompt = A2UISubagentPrompt(catalogSchema: "CATALOG").render(
-            editContext: A2UISubagentPrompt.EditContext(
-                prior: A2UIPriorSurface(
-                    surfaceId: "s1",
-                    componentsJSON: #"[{"id":"root"}]"#,
-                    dataJSON: #"{"items":[]}"#
-                ),
-                changes: "2 番目のカードを赤に"
-            )
-        )
-        #expect(prompt.contains("## Editing an existing surface"))
-        #expect(prompt.contains("You are editing surface 's1'"))
-        #expect(prompt.contains("### Previous components"))
-        #expect(prompt.contains("### Previous data"))
-        #expect(prompt.contains("### Requested changes\n2 番目のカードを赤に"))
-        // 末尾セクションであること
-        let catalogIndex = try! #require(prompt.range(of: "## Available Components")).lowerBound
-        let editIndex = try! #require(prompt.range(of: "## Editing an existing surface")).lowerBound
-        #expect(catalogIndex < editIndex)
-    }
 }
 
 @Suite("RenderA2UIArguments — untrusted なモデル出力の narrow")
@@ -200,6 +178,7 @@ struct GenerateA2UIToolTests {
 
     private func tool(
         maxAttempts: Int = 3,
+        surfaceId: String = "surface-fixed",
         invoke: @escaping GenerateA2UITool.Invoke,
         validate: @escaping GenerateA2UITool.Validate = { _ in [] }
     ) -> GenerateA2UITool {
@@ -208,55 +187,59 @@ struct GenerateA2UIToolTests {
             prompt: A2UISubagentPrompt(catalogSchema: "CATALOG"),
             runner: A2UISubagentRunner(maxAttempts: maxAttempts),
             invoke: invoke,
-            validate: validate
+            validate: validate,
+            // ホストが発行する surfaceId をテストでは固定する（既定は UUID）。
+            makeSurfaceId: { surfaceId }
         )
     }
 
-    @Test("引数スキーマに A2UI JSON は含まれない（意図のみ）")
+    @Test("引数スキーマは意図だけ — A2UI JSON も更新対象も含まない")
     func schemaCarriesIntentOnly() throws {
         let subject = tool(invoke: { _, _, _ in nil })
         let encoded = String(decoding: try JSONEncoder().encode(subject.inputSchema), as: UTF8.self)
         #expect(encoded.contains("intent"))
-        #expect(encoded.contains("target_surface_id"))
-        #expect(encoded.contains("changes"))
         #expect(!encoded.contains("components"))
         #expect(!encoded.contains("a2ui_json"))
+        // アペンドオンリー: 更新の語彙はモデルに見せない
+        #expect(!encoded.contains("target_surface_id"))
+        #expect(!encoded.contains("changes"))
     }
 
-    @Test("成功時は公式のエンベロープ形（a2ui_operations）で返す")
-    func buildsOperationsEnvelope() async throws {
+    /// アペンドオンリーの核心。v1.0 の createSurface は components / dataModel を
+    /// 同梱できるので、1 ターン = createSurface 1 通で完結する。
+    @Test("生成されるのは createSurface 1 通だけ（update 系は出さない）")
+    func emitsSingleCreateSurface() async throws {
         let subject = tool(invoke: { _, _, _ in
-            RenderA2UIArguments(surfaceId: "s1", components: validComponents, data: nil)
+            RenderA2UIArguments(
+                surfaceId: "model-invented",
+                components: validComponents,
+                data: .object(["k": .string("v")])
+            )
         })
         let result = try await subject.execute(with: Data("{}".utf8))
         #expect(!result.isError)
-        let payload = result.stringValue
-        #expect(payload.contains(A2UISubagentConstants.operationsKey))
-        #expect(payload.contains("createSurface"))
-        #expect(payload.contains("updateComponents"))
-        // catalogId はホスト固定（モデルは選べない）。JSONEncoder は / をエスケープする
-        #expect(payload.contains(#"catalogs\/delish\/v1\/catalog.json"#))
+
+        let envelope = try JSONSerialization.jsonObject(with: Data(result.stringValue.utf8)) as! [String: Any]
+        let ops = envelope[A2UISubagentConstants.operationsKey] as! [[String: Any]]
+        #expect(ops.count == 1)
+        #expect(ops[0]["version"] as? String == "v1.0")
+        #expect(Set(ops[0].keys) == ["version", "createSurface"])
+
+        // components も dataModel も createSurface の中に入る
+        let cs = ops[0]["createSurface"] as! [String: Any]
+        #expect(cs["components"] != nil)
+        #expect(cs["dataModel"] != nil)
+        // catalogId / surfaceId はホストの所有物。モデルが返した id は使わない
+        #expect(cs["catalogId"] as? String == "https://example.com/catalogs/delish/v1/catalog.json")
+        #expect(cs["surfaceId"] as? String == "surface-fixed")
     }
 
-    @Test("intent=update は対象サーフェス ID を維持する（モデルが別 ID を返しても上書きしない）")
-    func keepsTargetSurfaceIdOnUpdate() async throws {
-        let subject = tool(invoke: { _, _, _ in
-            RenderA2UIArguments(surfaceId: "model-invented", components: validComponents, data: nil)
-        })
-        let result = try await subject.execute(
-            with: Data(#"{"intent":"update","target_surface_id":"existing-surface"}"#.utf8)
-        )
-        #expect(result.stringValue.contains("existing-surface"))
-        #expect(!result.stringValue.contains("model-invented"))
-    }
-
-    @Test("surfaceId が空ならフォールバック ID を使う")
-    func fallsBackToDefaultSurfaceId() async throws {
-        let subject = tool(invoke: { _, _, _ in
-            RenderA2UIArguments(surfaceId: "", components: validComponents, data: nil)
-        })
-        let result = try await subject.execute(with: Data("{}".utf8))
-        #expect(result.stringValue.contains(A2UISubagentConstants.defaultSurfaceId))
+    @Test("毎回あたらしい surfaceId が振られる（仕様: レンダラ生存期間で一意）")
+    func mintsAFreshSurfaceIdPerTurn() {
+        let first = A2UISubagentConstants.newSurfaceId()
+        let second = A2UISubagentConstants.newSurfaceId()
+        #expect(first != second)
+        #expect(first.hasPrefix(A2UISubagentConstants.surfaceIdPrefix))
     }
 
     @Test("検証エラーは次の試行のプロンプトに fix-it として載る")
@@ -314,49 +297,6 @@ struct GenerateA2UIToolTests {
         #expect(result.stringValue.contains("did not call \(A2UISubagentConstants.renderToolName)"))
     }
 
-    @Test("intent=update は履歴から過去サーフェスを復元してプロンプトに載せる")
-    func passesUpdateIntentToPrompt() async throws {
-        actor Recorder {
-            var prompt = ""
-            func record(_ value: String) { prompt = value }
-        }
-        let recorder = Recorder()
-        let subject = tool(invoke: { prompt, _, _ in
-            await recorder.record(prompt)
-            return RenderA2UIArguments(surfaceId: "s1", components: validComponents, data: nil)
-        })
-        // 過去に s1 を描画したツール結果を含むトランスクリプト
-        let priorEnvelope = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"旧テキスト"}]}}]}"#
-        let transcript: [LLMMessage] = [
-            .user("表示して"),
-            .toolUses([(id: "g1", name: A2UISubagentConstants.generateToolName, input: Data("{}".utf8))]),
-            .toolResults([(toolCallId: "g1", name: A2UISubagentConstants.generateToolName, content: .success(priorEnvelope))]),
-        ]
-        _ = try await subject.execute(
-            with: Data(#"{"intent":"update","target_surface_id":"s1","changes":"色を変える"}"#.utf8),
-            transcript: transcript
-        )
-        let prompt = await recorder.prompt
-        #expect(prompt.contains("## Editing an existing surface"))
-        #expect(prompt.contains("You are editing surface 's1'"))
-        #expect(prompt.contains("旧テキスト"))
-        #expect(prompt.contains("色を変える"))
-    }
-
-    @Test("intent=update で過去サーフェスが見つからなければエラー（モデルに自己修正させる）")
-    func updateWithoutPriorSurfaceErrors() async throws {
-        let subject = tool(invoke: { _, _, _ in
-            Issue.record("subagent should not be invoked")
-            return nil
-        })
-        let result = try await subject.execute(
-            with: Data(#"{"intent":"update","target_surface_id":"missing"}"#.utf8),
-            transcript: [.user("hi")]
-        )
-        #expect(result.isError)
-        #expect(result.stringValue.contains("no prior render"))
-    }
-
     @Test("副エージェントには進行中の generate_a2ui 呼び出しを剥がした会話が渡る")
     func stripsInFlightCallFromConversation() async throws {
         actor Recorder {
@@ -384,7 +324,7 @@ struct GenerateA2UIToolTests {
     }
 }
 
-@Suite("GenerateA2UITool — strip / findPriorSurface")
+@Suite("GenerateA2UITool — 進行中呼び出しの除去")
 struct GenerateA2UIToolHistoryTests {
 
     @Test("末尾が自ツールの未解決呼び出しのときだけ剥がす（Strands 方式）")
@@ -408,48 +348,6 @@ struct GenerateA2UIToolHistoryTests {
         #expect(GenerateA2UITool.strippingInFlightCall(from: otherTool, toolName: generate).count == 2)
     }
 
-    @Test("findPriorSurface は新しい順に探索し、最新の状態を返す")
-    func findsMostRecentSurfaceState() throws {
-        let older = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v1"}]}}]}"#
-        let newer = #"{"a2ui_operations":[{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v2"}]}}]}"#
-        let transcript: [LLMMessage] = [
-            .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .success(older))]),
-            .toolResults([(toolCallId: "b", name: "generate_a2ui", content: .success(newer))]),
-        ]
-        let prior = try #require(GenerateA2UITool.findPriorSurface(in: transcript, surfaceId: "s1"))
-        #expect(prior.componentsJSON.contains("v2"))
-        #expect(!prior.componentsJSON.contains("v1"))
-    }
-
-    @Test("最新の言及が deleteSurface なら見つからない（消えたサーフェスを復活させない）")
-    func deletedSurfaceIsNotFound() {
-        let created = #"{"a2ui_operations":[{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"v1"}]}}]}"#
-        let deleted = #"{"a2ui_operations":[{"version":"v1.0","deleteSurface":{"surfaceId":"s1"}}]}"#
-        let transcript: [LLMMessage] = [
-            .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .success(created))]),
-            .toolResults([(toolCallId: "b", name: "generate_a2ui", content: .success(deleted))]),
-        ]
-        #expect(GenerateA2UITool.findPriorSurface(in: transcript, surfaceId: "s1") == nil)
-    }
-
-    @Test("同一メッセージ内で delete の後の create は復活（document 順評価）")
-    func deleteThenCreateInSameMessageRevives() throws {
-        let payload = #"{"a2ui_operations":[{"version":"v1.0","deleteSurface":{"surfaceId":"s1"}},{"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"c"}},{"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":"revived"}]}}]}"#
-        let transcript: [LLMMessage] = [
-            .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .success(payload))]),
-        ]
-        let prior = try #require(GenerateA2UITool.findPriorSurface(in: transcript, surfaceId: "s1"))
-        #expect(prior.componentsJSON.contains("revived"))
-    }
-
-    @Test("エラー結果と無関係な JSON は無視する")
-    func ignoresErrorsAndUnrelatedResults() {
-        let transcript: [LLMMessage] = [
-            .toolResults([(toolCallId: "a", name: "generate_a2ui", content: .failure("boom"))]),
-            .toolResults([(toolCallId: "b", name: "search_recipes", content: .success(#"{"recipes":[]}"#))]),
-        ]
-        #expect(GenerateA2UITool.findPriorSurface(in: transcript, surfaceId: "s1") == nil)
-    }
 }
 
 @Suite("A2UISubagentRunner")

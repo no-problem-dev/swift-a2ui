@@ -12,29 +12,37 @@ public enum A2UISubagentConstants {
     public static let renderToolName = "render_a2ui"
     /// エンベロープのオペレーション配列キー。
     public static let operationsKey = "a2ui_operations"
-    /// 既定の surfaceId（モデルが空文字を返した場合のフォールバック）。
-    public static let defaultSurfaceId = "dynamic-surface"
+    /// surfaceId の接頭辞。実際の ID は `newSurfaceId()` が発行する。
+    public static let surfaceIdPrefix = "surface"
     /// リトライ打ち切り時のエラーコード。
     public static let recoveryExhaustedCode = "a2ui_recovery_exhausted"
 
+    /// このターンのサーフェス ID を発行する。
+    ///
+    /// 仕様は `surfaceId` がレンダラの生存期間で一意であることを要求する（既存 ID への
+    /// 削除なしの再作成はエラー）。アペンドオンリーでは毎ターン新しいサーフェスを作るので、
+    /// ホストが UUID で発行してモデルには選ばせない。
+    public static func newSurfaceId() -> String {
+        "\(surfaceIdPrefix)-\(UUID().uuidString.lowercased())"
+    }
+
     /// 外側ツールの説明（メインのプランナー向け）。
+    ///
+    /// 更新はできない（アペンドオンリー）。過去のサーフェスを書き換える言い回しを載せると
+    /// モデルがそれを試みるので、「新しく描く」ことだけを説明する。
     public static let generateToolDescription =
-        "Generate or update a dynamic A2UI surface based on the conversation. "
+        "Render a new dynamic A2UI surface based on the conversation. "
             + "A secondary LLM designs the UI components and data. "
-            + "Use intent='create' (default) when the user requests new visual content "
+            + "Use when the user requests visual content "
             + "(cards, forms, lists, dashboards, comparisons, etc.). "
-            + "Use intent='update' with target_surface_id to modify a surface you "
-            + "previously rendered (e.g. 'change the second card's price', "
-            + "'add a Buy button', 'use red instead of blue')."
+            + "Each call renders a NEW surface appended to the conversation; previously "
+            + "rendered surfaces are never modified. To show revised content, render a new "
+            + "surface carrying the updated information."
 
     /// 外側ツールの引数説明。
     public enum GenerateArgDescriptions {
         public static let intent =
-            "'create' to render a new surface; 'update' to modify a surface previously rendered "
-                + "in this conversation. Defaults to 'create'."
-        public static let targetSurfaceId =
-            "Required when intent='update'. The surface id of the prior render to modify."
-        public static let changes =
-            "Optional natural-language description of the changes to apply when intent='update'."
+            "Optional natural-language description of what to render "
+                + "(e.g. 'a comparison of the three recipes we found')."
     }
 }
