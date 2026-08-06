@@ -21,9 +21,17 @@ public enum A2UISchemaContext {
     ///   - components: カタログのコンポーネントスキーマ(JSON 値)。
     ///     **省略するのが既定**(ID だけ送る)。サーバーがそのカタログを
     ///     知らない場合にだけ、中身を添えて送る用途に使う。
+    ///   - marker: この context エントリが宣言であることを示す `description`。
+    ///     **既定は公式 middleware の定数**(バイト一致で判別される)。
+    ///
+    ///     `context` は汎用の配列なので、宣言かどうかはこの文字列でしか
+    ///     見分けられない。繋ぎ先が自前で、判別に使う値を決められるなら
+    ///     短いものに差し替えてよい — 137 文字を毎 run 送る必要は無い。
+    ///     **送る側と読む側で同じ値を使うこと。**
     public static func declaration(
         catalogId: String,
-        components: StructuredValue? = nil
+        components: StructuredValue? = nil,
+        marker: String = A2UIAGUIConstants.schemaContextDescription
     ) throws -> AGUIContext {
         var object: OrderedObject = ["catalogId": .string(catalogId)]
         if let components {
@@ -32,7 +40,7 @@ public enum A2UISchemaContext {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return AGUIContext(
-            description: A2UIAGUIConstants.schemaContextDescription,
+            description: marker,
             value: String(decoding: try encoder.encode(StructuredValue.object(object)), as: UTF8.self)
         )
     }
@@ -41,8 +49,11 @@ public enum A2UISchemaContext {
     ///
     /// components の有無は見ない(公式 middleware の `extractFrontendCatalogId` と同じく、
     /// カタログ ID のフォールバック解決はスキーマの有無と独立)。
-    public static func declaredCatalogId(in context: [AGUIContext]) -> String? {
-        guard let entry = declaration(in: context),
+    public static func declaredCatalogId(
+        in context: [AGUIContext],
+        marker: String = A2UIAGUIConstants.schemaContextDescription
+    ) -> String? {
+        guard let entry = declaration(in: context, marker: marker),
               let data = entry.value.data(using: .utf8),
               let value = try? JSONDecoder().decode(StructuredValue.self, from: data) else {
             return nil
@@ -51,9 +62,12 @@ public enum A2UISchemaContext {
         return (catalogId?.isEmpty ?? true) ? nil : catalogId
     }
 
-    /// サーバー側: A2UI 宣言エントリそのもの(description 完全一致)。
-    public static func declaration(in context: [AGUIContext]) -> AGUIContext? {
-        context.first { $0.description == A2UIAGUIConstants.schemaContextDescription }
+    /// サーバー側: A2UI 宣言エントリそのもの(`marker` と完全一致するもの)。
+    public static func declaration(
+        in context: [AGUIContext],
+        marker: String = A2UIAGUIConstants.schemaContextDescription
+    ) -> AGUIContext? {
+        context.first { $0.description == marker }
     }
 
     /// 解析済みのカタログ宣言(`{catalogId}` または `{catalogId, components}`)。
@@ -95,9 +109,12 @@ public enum A2UISchemaContext {
     ///
     /// `components` が**空オブジェクト**のときも除外する — 「1 つも描けない」を
     /// 明示した宣言であり、ID だけの宣言(絞り込みの指定なし)とは区別する。
-    public static func declarations(in context: [AGUIContext]) -> [Declaration] {
+    public static func declarations(
+        in context: [AGUIContext],
+        marker: String = A2UIAGUIConstants.schemaContextDescription
+    ) -> [Declaration] {
         context.compactMap { entry in
-            guard entry.description == A2UIAGUIConstants.schemaContextDescription,
+            guard entry.description == marker,
                   let data = entry.value.data(using: .utf8),
                   let value = try? JSONDecoder().decode(StructuredValue.self, from: data),
                   let object = value.objectValue,

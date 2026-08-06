@@ -41,6 +41,26 @@ struct A2UISchemaDeclarationsTests {
         #expect(parsed[0].components == nil)
     }
 
+    /// `context` は汎用の配列なので、宣言かどうかは description でしか
+    /// 見分けられない。判別に使う値は差し替えられる(既定は公式の定数)。
+    @Test("marker を差し替えても往復する")
+    func customMarkerRoundTrips() throws {
+        let marker = "a2ui.catalog"
+        let entry = try A2UISchemaContext.declaration(
+            catalogId: "https://example.com/catalogs/delish/v1/catalog.json",
+            marker: marker
+        )
+        #expect(entry.description == marker)
+
+        // 同じ marker で読めば見つかる
+        let parsed = A2UISchemaContext.declarations(in: [entry], marker: marker)
+        #expect(parsed.count == 1)
+        #expect(parsed[0].catalogId == "https://example.com/catalogs/delish/v1/catalog.json")
+
+        // 既定(公式の定数)で読むと見つからない — 送る側と読む側で揃える必要がある
+        #expect(A2UISchemaContext.declarations(in: [entry]).isEmpty)
+    }
+
     @Test("複数宣言は出現順(preference 順)を保つ")
     func multipleDeclarationsPreserveOrder() throws {
         let v2 = try A2UISchemaContext.declaration(
