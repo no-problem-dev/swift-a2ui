@@ -23,6 +23,15 @@ struct A2UIAGUIActionTests {
         #expect(userAction?["surfaceId"]?.stringValue == "s1")
     }
 
+    /// 繋ぎ先が `name` だけを読むなら、仕様外の `actionName` は落とせる。
+    @Test func forwardedPropsCanOmitActionName() throws {
+        let props = try A2UIAGUIAction.forwardedProps(action, duplicatingActionName: false)
+        let userAction = props.objectValue?["a2uiAction"]?.objectValue?["userAction"]?.objectValue
+        #expect(userAction?["actionName"] == nil)
+        // 仕様どおりの `name` は残る
+        #expect(userAction?["name"]?.stringValue == "select_recipe")
+    }
+
     @Test func forwardedPropsMergesIntoExistingBase() throws {
         let base: StructuredValue = .object(["delishApiToken": .string("tok")])
         let props = try A2UIAGUIAction.forwardedProps(action, merging: base)
