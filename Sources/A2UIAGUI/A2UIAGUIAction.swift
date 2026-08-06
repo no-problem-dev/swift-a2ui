@@ -10,16 +10,23 @@ import Foundation
 public enum A2UIAGUIAction {
     /// クライアント側: forwardedProps に a2uiAction を積む。
     ///
-    /// A2UI 仕様は `name` だが、`actionName` を期待するバックエンド実装が
-    /// 実在するため両方を積む(公式 Kotlin クライアントと同じ防御)。
+    /// - Parameter duplicatingActionName: `name` と同じ値を `actionName` にも積むか。
+    ///   **既定は `true`** — A2UI 仕様は `name` だが、`actionName` を期待する
+    ///   バックエンド実装が実在するため(公式 Kotlin クライアントと同じ防御)。
+    ///
+    ///   繋ぎ先が自前で `name` だけを読むと決まっているなら `false` にする。
+    ///   仕様外の項目なので、落とす方が A2UI の形に近い。
     public static func forwardedProps(
         _ action: UserAction,
-        merging base: StructuredValue = .object(OrderedObject())
+        merging base: StructuredValue = .object(OrderedObject()),
+        duplicatingActionName: Bool = true
     ) throws -> StructuredValue {
         guard var actionObject = (try StructuredValue.encoded(action)).objectValue else {
             throw AGUIError("UserAction did not encode to an object")
         }
-        actionObject["actionName"] = .string(action.name)
+        if duplicatingActionName {
+            actionObject["actionName"] = .string(action.name)
+        }
         var root = base.objectValue ?? OrderedObject()
         root["a2uiAction"] = .object(["userAction": .object(actionObject)])
         return .object(root)
