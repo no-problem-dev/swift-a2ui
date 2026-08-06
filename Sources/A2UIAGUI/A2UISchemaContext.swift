@@ -6,26 +6,34 @@ import Foundation
 ///
 /// capabilities でもツール metadata でもなく、description 完全一致の context
 /// エントリで宣言するのが公式 a2ui-middleware の契約。`value` は
-/// `{catalogId, components}` を文字列化した JSON。
+/// `{catalogId}`(または `{catalogId, components}`)を文字列化した JSON。
+///
+/// **既定は catalogId だけ送る。** A2UI 本体の `supportedCatalogIds` は
+/// 文字列 ID の配列で、コンポーネントのスキーマを送るのは
+/// `inlineCatalogs`(エージェントが `acceptsInlineCatalogs` を出したときだけ
+/// 使える任意の経路)の側。ID が中身を決める鍵なので、中身を変えたら
+/// カタログの版を上げる。
 public enum A2UISchemaContext {
     /// クライアント側: 宣言エントリを構築する。
     ///
     /// - Parameters:
     ///   - catalogId: クライアントが描画できるカタログの ID。
     ///   - components: カタログのコンポーネントスキーマ(JSON 値)。
+    ///     **省略するのが既定**(ID だけ送る)。サーバーがそのカタログを
+    ///     知らない場合にだけ、中身を添えて送る用途に使う。
     public static func declaration(
         catalogId: String,
-        components: StructuredValue
+        components: StructuredValue? = nil
     ) throws -> AGUIContext {
-        let value: StructuredValue = .object([
-            "catalogId": .string(catalogId),
-            "components": components,
-        ])
+        var object: OrderedObject = ["catalogId": .string(catalogId)]
+        if let components {
+            object["components"] = components
+        }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return AGUIContext(
             description: A2UIAGUIConstants.schemaContextDescription,
-            value: String(decoding: try encoder.encode(value), as: UTF8.self)
+            value: String(decoding: try encoder.encode(StructuredValue.object(object)), as: UTF8.self)
         )
     }
 
@@ -48,22 +56,27 @@ public enum A2UISchemaContext {
         context.first { $0.description == A2UIAGUIConstants.schemaContextDescription }
     }
 
-    /// 解析済みのカタログ宣言(`{catalogId, components}`)。
+    /// 解析済みのカタログ宣言(`{catalogId}` または `{catalogId, components}`)。
     public struct Declaration: Sendable, Equatable {
         /// クライアントが描画できるカタログの ID。
         public let catalogId: String
         /// 宣言された components マップ(コンポーネント名 → JSON Schema)。
-        public let components: StructuredValue
+        /// **`nil` が既定** — ID だけの宣言。中身はカタログの版が決める。
+        public let components: StructuredValue?
 
         /// 宣言されたコンポーネント名の集合。
-        public var componentNames: Set<String> {
-            guard let object = components.objectValue else {
-                return []
+        ///
+        /// **`nil` は「絞り込みの指定なし」**で、空集合(「1 つも描けない」)とは
+        /// 意味が違う。ID だけの宣言では nil になり、受け手は自分が知っている
+        /// そのカタログの全体を使う。
+        public var componentNames: Set<String>? {
+            guard let object = components?.objectValue else {
+                return nil
             }
             return Set(object.keys)
         }
 
-        public init(catalogId: String, components: StructuredValue) {
+        public init(catalogId: String, components: StructuredValue? = nil) {
             self.catalogId = catalogId
             self.components = components
         }
@@ -76,8 +89,12 @@ public enum A2UISchemaContext {
     /// サーバーは自分が知っている catalogId を持つ最初の宣言を選ぶ。
     /// 公式 a2ui-middleware の単一エントリ契約はこの特殊ケース(1 件)。
     ///
-    /// catalogId が空・components が空オブジェクトの宣言は「描画能力なし」として
-    /// 除外する(公式 middleware の empty-schema 判定と同じ)。
+    /// **`components` は任意。** 無ければ ID だけの宣言として通す
+    /// (中身はカタログの版が決める)。catalogId が空の宣言だけを
+    /// 「描画能力なし」として除外する。
+    ///
+    /// `components` が**空オブジェクト**のときも除外する — 「1 つも描けない」を
+    /// 明示した宣言であり、ID だけの宣言(絞り込みの指定なし)とは区別する。
     public static func declarations(in context: [AGUIContext]) -> [Declaration] {
         context.compactMap { entry in
             guard entry.description == A2UIAGUIConstants.schemaContextDescription,
@@ -85,9 +102,15 @@ public enum A2UISchemaContext {
                   let value = try? JSONDecoder().decode(StructuredValue.self, from: data),
                   let object = value.objectValue,
                   let catalogId = object["catalogId"]?.stringValue,
-                  !catalogId.isEmpty,
-                  let components = object["components"],
-                  !(components.objectValue?.isEmpty ?? true) else {
+                  !catalogId.isEmpty else {
+                return nil
+            }
+            guard let components = object["components"] else {
+                // ID だけの宣言(既定の形)。
+                return Declaration(catalogId: catalogId)
+            }
+            guard let map = components.objectValue, !map.isEmpty else {
+                // 「1 つも描けない」を明示した宣言は落とす。
                 return nil
             }
             return Declaration(catalogId: catalogId, components: components)
