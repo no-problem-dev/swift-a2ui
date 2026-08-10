@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// カタログの `Known` ノード型に A2UI が定める unknown コンポーネント処理を追加するラッパー。

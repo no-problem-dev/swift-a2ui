@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// サーフェスの初期作成を指示するエージェント → レンダラメッセージ（A2UI v1.0）。
 ///
 /// `components` と `dataModel` は初回描画用のオプション項目で、直後の `updateComponents` /

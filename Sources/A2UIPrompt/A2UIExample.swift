@@ -1,3 +1,4 @@
+import StructuredDataCore
 import Foundation
 import A2UICore
 import A2UICatalog

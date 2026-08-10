@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// 関数の呼び出し元制約（A2UI v1.0 `callableFrom`）。
 ///
 /// v1.0 では**ワイヤ上の `FunctionCall` には載らない** — カタログの `FunctionDefinition` が持つ

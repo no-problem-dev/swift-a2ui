@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// 1 つのコンポーネントの仕様をタイプセーフに記述する型。LLM 向けスキーマを生成するために使用する。

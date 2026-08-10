@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される文字列値。
 public enum DynamicString: Sendable, Equatable {
     case literal(String)

@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表されるブール値。
 public enum DynamicBoolean: Sendable, Equatable {
     case literal(Bool)

@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// 解決済みコンポーネントツリーの 1 ノード。

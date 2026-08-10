@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// エージェント → レンダラの関数呼び出しリクエスト（A2UI v1.0）。
 ///
 /// `functionCallId` は対応する `FunctionResponse`（または `error`）にそのまま複写する必要がある。

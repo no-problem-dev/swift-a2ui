@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// JSON Pointer `path` が指すサーフェスデータモデルの位置に `value` を書き込む（A2UI v1.0）。
 ///
 /// v1.0 で `value` は**必須**になった。キーを削除するときは `value` を明示的に `.null` にする

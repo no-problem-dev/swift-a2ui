@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 // Type-safe schema descriptions for the A2UI Basic Catalog components.

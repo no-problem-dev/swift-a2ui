@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2ACore
 import A2UICore
 

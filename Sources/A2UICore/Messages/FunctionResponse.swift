@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// クライアント → サーバのサーバ起動関数呼び出し結果（A2UI v1.0）。
 ///
 /// `functionCallId` と `call` は発信元の `CallFunctionMessage` からそのまま複写する。

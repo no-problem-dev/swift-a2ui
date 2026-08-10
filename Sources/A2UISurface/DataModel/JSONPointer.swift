@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// `StructuredValue` に対する RFC 6901 JSON Pointer の実装。

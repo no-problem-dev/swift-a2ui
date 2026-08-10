@@ -1,3 +1,4 @@
+import JSONParsing
 import Foundation
 import Testing
 @testable import A2UICore

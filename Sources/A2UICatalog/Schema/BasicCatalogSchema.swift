@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 // MARK: - Function-arg helpers (verbatim official catalog.json fragments)

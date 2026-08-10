@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// クライアントが送信するユーザーアクション（A2UI v1.0）。
 ///
 /// `wantResponse` が `true` の場合、クライアントはサーバからの `actionResponse` を待つ。

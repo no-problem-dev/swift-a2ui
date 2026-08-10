@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される数値。
 public enum DynamicNumber: Sendable, Equatable {
     case literal(Double)

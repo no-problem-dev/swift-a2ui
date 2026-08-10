@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表されるスカラー/コレクション値。
 public enum DynamicValue: Sendable, Equatable {
     case string(String)

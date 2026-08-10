@@ -1,3 +1,4 @@
+import StructuredDataCore
 import Foundation
 import Testing
 @testable import A2UITyped

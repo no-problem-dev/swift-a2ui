@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// カタログ関数の仕様をタイプセーフに記述する型（仕様 §7 functions ブロック）。

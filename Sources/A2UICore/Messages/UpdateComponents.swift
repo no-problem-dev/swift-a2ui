@@ -1,3 +1,4 @@
+import StructuredDataCore
 /// サーフェス上のコンポーネントを差し替え・挿入するメッセージ（A2UI v1.0）。
 ///
 /// カタログ非依存: 型付きデコードは `A2UICatalog` 側で行う。

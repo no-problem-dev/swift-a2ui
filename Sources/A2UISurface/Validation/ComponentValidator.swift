@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// コンポーネントのトポロジーと ID 一意性を検証する。

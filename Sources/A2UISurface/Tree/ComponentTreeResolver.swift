@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// フラットなコンポーネント辞書を "root" コンポーネントを頂点とするツリーへ解決する。

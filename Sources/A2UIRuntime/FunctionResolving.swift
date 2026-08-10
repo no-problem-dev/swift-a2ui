@@ -1,3 +1,4 @@
+import StructuredDataCore
 import A2UICore
 
 /// 動的値の解決中に `FunctionCall` を評価するフック。

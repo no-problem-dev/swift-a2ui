@@ -1,3 +1,4 @@
+import StructuredDataCore
 import Foundation
 import Observation
 import A2UICore

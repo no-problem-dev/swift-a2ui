@@ -1,3 +1,4 @@
+import StructuredDataCore
 import SwiftUI
 import DesignSystem
 import A2UICore

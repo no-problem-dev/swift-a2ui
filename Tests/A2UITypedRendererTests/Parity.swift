@@ -1,3 +1,4 @@
+import StructuredDataCore
 import Testing
 import SwiftUI
 import AppKit

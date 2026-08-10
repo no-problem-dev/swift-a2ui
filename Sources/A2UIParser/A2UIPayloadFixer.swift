@@ -1,3 +1,5 @@
+import JSONParsing
+import StructuredDataCore
 import Foundation
 import A2UICore
 
