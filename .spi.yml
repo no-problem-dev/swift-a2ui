@@ -1,0 +1,19 @@
+version: 1
+builder:
+  configs:
+    - documentation_targets:
+        - A2UIA2A
+        - A2UIAgent
+        - A2UIAgentTool
+        - A2UIAGUI
+        - A2UICatalog
+        - A2UICore
+        - A2UIOrchestration
+        - A2UIParser
+        - A2UIPrompt
+        - A2UIPromptCompact
+        - A2UIRuntime
+        - A2UISubagent
+        - A2UISurface
+        - A2UITyped
+        - A2UITypedRenderer
