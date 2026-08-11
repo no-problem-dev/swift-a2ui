@@ -6,7 +6,7 @@
 
 `A2UIAgent` は A2UI のプレゼンター（コンテンツ提示）エージェントを動かすために必要なすべての知識を 1 つのモジュールに集約する。Python SDK の `a2ui.adk` と `rizzcharts` パターンに対応する Swift 実装。
 
-`A2UIPresenterAgent` 名前空間がこのモジュールのすべてを公開する。`systemPrompt(language:)` は役割定義・UI 規則・ワークフロー規則を合成した完全なシステムプロンプトを生成する。`tools(components:)` は許可コンポーネントセットに絞り込んだ `SendA2UIToClientTool` を返す。スキーマと使用例はツールが所有し、アタッチ時にシステムプロンプトへ自動で同伴する（公式 rizzcharts 準拠）。`agentExtension()` は A2A の AgentCard に埋め込む A2UI 対応宣言を返す。
+`A2UIPresenterAgent` 名前空間がこのモジュールのすべてを公開する。`systemPrompt(language:)` は役割定義・UI 規則・ワークフロー規則を合成した完全なシステムプロンプトを生成する。`tools(components:)` は許可コンポーネントセットに絞り込んだ `SendA2UIToClientTool` を返す。スキーマと使用例はツールが所有し、アタッチ時にシステムプロンプトへ自動で同伴する（`rizzcharts` サンプルと同じ配置）。`agentExtension()` は A2A の AgentCard に埋め込む A2UI 対応宣言を返す。
 
 ホストアプリはこれらを executor に注入するだけでよく、UI ドメインの知識をアプリ側に持つ必要がない。言語・モデル・コンポーネントパレットの選択だけがホストの判断領域。
 

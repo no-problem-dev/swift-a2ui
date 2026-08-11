@@ -1,26 +1,21 @@
----
-title: swift-a2ui README
-created: 2026-06-27
-tags: [a2ui, swift, spm, llm, ui-protocol]
-status: active
----
-
 English | [日本語](./README.ja.md)
 
 # swift-a2ui
 
-> A complete Swift implementation of the Google A2UI protocol — a type-safe library suite for LLM agents to render rich UI on the client
+A Swift implementation of the A2UI protocol — a type-safe library suite for LLM agents to render rich UI on the client.
+
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`swift-a2ui` is a Swift implementation of the [A2UI (Agent-to-UI) protocol](https://a2ui.org). It provides a compile-time type-safe Swift API through which an LLM agent can declaratively create, update, and delete UI surfaces on the client via JSON messages, and receive user actions back with responses.
+`swift-a2ui` is an unofficial Swift implementation of the [A2UI (Agent-to-UI) protocol](https://a2ui.org). It provides a compile-time type-safe Swift API through which an LLM agent can declaratively create, update, and delete UI surfaces on the client via JSON messages, and receive user actions back with responses.
 
 ### Key Features
 
-- **Full A2UI v1.0 support**: All message types implemented — `createSurface` / `updateComponents` / `updateDataModel` / `callFunction` / `actionResponse`
+- **The v1.0 message types**: `createSurface` / `updateComponents` / `updateDataModel` / `deleteSurface` / `callFunction` / `actionResponse` are modelled as Swift types
 - **Type-safe catalog**: LLM-facing JSON Schema generated from Swift types as the single source of truth (schema drift detected at compile time)
 - **Zero-`AnyView` generic renderer**: `A2UISurfaceView<Catalog>` with the catalog as a type parameter renders to SwiftUI without type erasure
-- **Faithful conformance to the official protocol**: Module structure mirrors the Python SDK (`a2ui.adk` / `a2ui.a2a`) design
+- **Familiar module layout**: module structure follows the Python SDK (`a2ui.adk` / `a2ui.a2a`) design
 - **Multi-agent support**: A2A protocol integration and surface-ownership ledger for orchestration
 
 ---
@@ -208,7 +203,7 @@ Provides A2UI tools to LLM agents and supports multi-agent configurations.
 
 | Module | Role |
 |--------|------|
-| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — the official `send_a2ui_json_to_client` tool pattern. Parses, auto-corrects, and validates JSON (allowlist conformance), then returns `validated_a2ui_json`. `A2UIToolResultExtractor` — extracts `[AgentMessage]` from tool results |
+| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — the `send_a2ui_json_to_client` tool pattern. Parses, auto-corrects, and validates JSON against the allowlist, then returns `validated_a2ui_json`. `A2UIToolResultExtractor` — extracts `[AgentMessage]` from tool results |
 | **A2UIAgent** | `A2UIPresenterAgent` — self-describing package for presenter (content-display) agents. Provides `systemPrompt()` / `tools()` / `agentExtension()` / `hostOutputConstraint()`. Hosts inject these; all UI knowledge is encapsulated in this module |
 | **A2UIA2A** | A2A protocol integration. `Part.a2ui(_:)` wraps A2UI messages as `application/a2ui+json` data parts. `A2UIExtension` — declares the A2UI protocol on an agent card. `A2UIRendererCapabilities` / `A2UIRendererDataModel` / `A2UIMessageMetadata` |
 | **A2UIOrchestration** | `SurfaceOwnership` — surface-ownership ledger (which agent owns which surface). Deterministic `UserAction` routing via `owner(ofUserActionIn:)`. Data-model stripping via `outboundMetadata(_:capabilities:for:)` (prevents data leakage between agents) |

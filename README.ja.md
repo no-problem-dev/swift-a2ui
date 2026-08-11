@@ -1,26 +1,21 @@
----
-title: swift-a2ui README (日本語)
-created: 2026-06-27
-tags: [a2ui, swift, spm, llm, ui-protocol]
-status: active
----
-
 [English](./README.md) | 日本語
 
 # swift-a2ui
 
-> Google A2UI プロトコルの Swift 完全実装 — LLM エージェントがクライアントにリッチ UI を描画するための型安全なライブラリ群
+A2UI プロトコルの Swift 実装 — LLM エージェントがクライアントにリッチ UI を描画するための型安全なライブラリ群。
+
+> **非公式。** A2UI プロトコルの作者とは何の関係もなく、承認も受けていない。仕様に準拠することはこのプロジェクトの目標ではない。
 
 ## 概要
 
-`swift-a2ui` は [A2UI (Agent-to-UI) プロトコル](https://a2ui.org) の Swift 実装。LLM エージェントが JSON メッセージを通じてクライアント上に宣言的な UI サーフェスを生成・更新・削除し、ユーザーのアクションを受け取ってレスポンスを返す仕組みを、コンパイル時型安全な Swift API として提供する。
+`swift-a2ui` は [A2UI (Agent-to-UI) プロトコル](https://a2ui.org) の非公式な Swift 実装。LLM エージェントが JSON メッセージを通じてクライアント上に宣言的な UI サーフェスを生成・更新・削除し、ユーザーのアクションを受け取ってレスポンスを返す仕組みを、コンパイル時型安全な Swift API として提供する。
 
 ### 主な特徴
 
-- **A2UI v1.0 完全対応**: `createSurface` / `updateComponents` / `updateDataModel` / `callFunction` / `actionResponse` の全メッセージ型を実装
+- **v1.0 のメッセージ型**: `createSurface` / `updateComponents` / `updateDataModel` / `deleteSurface` / `callFunction` / `actionResponse` を Swift の型として持つ
 - **型安全なカタログ**: Swift の型システムを SSOT とした LLM 向けスキーマ生成（JSON ファイルとの乖離をコンパイル時に検出）
 - **AnyView ゼロのジェネリックレンダラー**: カタログを型パラメータとした `A2UISurfaceView<Catalog>` で型消去なしに SwiftUI へ描画
-- **公式プロトコルへの忠実な準拠**: Python SDK (`a2ui.adk` / `a2ui.a2a`) の設計をそのまま Swift に写したモジュール構成
+- **見慣れたモジュール構成**: Python SDK (`a2ui.adk` / `a2ui.a2a`) の設計をそのまま Swift に写したモジュール構成
 - **マルチエージェント対応**: A2A プロトコル統合とサーフェス所有権台帳によるオーケストレーション
 
 ---
@@ -208,7 +203,7 @@ LLM エージェントへの A2UI ツール提供と、マルチエージェン�
 
 | モジュール | 役割 |
 |-----------|------|
-| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — LLM が `send_a2ui_json_to_client` ツールを呼ぶ公式パターン。JSON の解析・自動補正・バリデーション（allowlist 準拠）を行い、`validated_a2ui_json` を返す。`A2UIToolResultExtractor` — ツール結果から `[AgentMessage]` を取り出す |
+| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — LLM が `send_a2ui_json_to_client` ツールを呼ぶパターン。JSON の解析・自動補正・allowlist に対するバリデーションを行い、`validated_a2ui_json` を返す。`A2UIToolResultExtractor` — ツール結果から `[AgentMessage]` を取り出す |
 | **A2UIAgent** | `A2UIPresenterAgent` — presenter（コンテンツ提示）型エージェントの自己記述一式。`systemPrompt()` / `tools()` / `agentExtension()` / `hostOutputConstraint()` を提供。ホストは注入するだけで UI の全知識はこのモジュールに閉じる |
 | **A2UIA2A** | A2A プロトコルとの統合。`Part.a2ui(_:)` で A2UI メッセージを `application/a2ui+json` データパートとして包む。`A2UIExtension` — エージェントカードへの A2UI プロトコル宣言。`A2UIRendererCapabilities` / `A2UIRendererDataModel` / `A2UIMessageMetadata` |
 | **A2UIOrchestration** | `SurfaceOwnership` — サーフェス所有権台帳（どのエージェントがどのサーフェスを持つか）。`owner(ofUserActionIn:)` による確定的な UserAction ルーティング。`outboundMetadata(_:capabilities:for:)` によるデータモデル・ストリッピング（エージェント間のデータ漏洩防止） |
