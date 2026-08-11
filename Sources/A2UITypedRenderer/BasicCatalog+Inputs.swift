@@ -7,11 +7,11 @@ import A2UITyped
 // Interactive components — faithful ports of A2UIRenderer.InputViews, fed by typed props and the
 // two-way `RenderContext.binding(_:)` helpers instead of `ResolvedComponent`/`Writable`.
 
-/// `Button` — バリアントスタイルとアクションディスパッチ（ButtonView の忠実な移植）。
+/// `Button` — maps the `variant` to a button style and dispatches the component's action.
 ///
-/// ホストの `surfaceStyle` 環境に応答する: `.glass` 系ではソリッド塗りではなく
-/// Liquid Glass ボタン（primary はティント付き、default は中立ガラス、borderless は
-/// ガラスチップ）でレンダリングし、カードと同じデザイン言語に揃える。
+/// Follows the host's `surfaceStyle` environment: under a glass style it renders as a Liquid Glass
+/// button instead of a solid fill — tinted for `primary`, neutral glass for `default`, a glass chip
+/// for `borderless` — so buttons and cards speak the same design language.
 struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -26,9 +26,9 @@ struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
         content.disabled(!ctx.checksPass(component.checks))
     }
 
-    // ボタンは DS のスタイル（glass / solid）に統一して描画する。macOS の適正寸法・内容幅は
-    // DesignSystem 側（ButtonSize / 各 ButtonStyle）が platform-aware に処理するため、レンダラに
-    // プラットフォーム分岐は持たない。iOS は従来の glass / pill のまま。
+    // Buttons are drawn only through the design system's styles (glass / solid). The macOS sizing
+    // and content width are handled platform-aware inside DesignSystem (ButtonSize and the button
+    // styles), so the renderer carries no platform branch of its own.
     @ViewBuilder private var content: some View {
         switch component.variant {
         case .primary:
@@ -53,9 +53,11 @@ struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
 
     private func action() { ctx.dispatch(component.action, from: component.id) }
 
-    /// borderless（チップ）の背景。glass ではフロストマテリアルのカプセル。
-    /// チップは横スクロール行に並ぶことが多く、glassEffect だとスクロール領域
-    /// 全幅のガラス板（帯）を描くアーティファクトが出るため、マテリアルで統一する。
+    /// Background for the borderless chip: a frosted-material capsule under a glass style.
+    ///
+    /// Material rather than `glassEffect`, because chips usually sit in a horizontally scrolling
+    /// row and `glassEffect` there paints one glass slab across the full width of the scroll
+    /// content instead of per chip.
     @ViewBuilder private var chipBackground: some View {
         if isGlass {
             Capsule().fill(.ultraThinMaterial)
@@ -75,7 +77,8 @@ struct ButtonNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
     }
 }
 
-/// `TextField` — TextFieldView の忠実な移植。
+/// `TextField` — the `longText` variant grows vertically, `number` brings up the decimal pad on
+/// iOS, and a failing `check` surfaces as the field's error message rather than disabling it.
 struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     let component: TextFieldComponent
     let ctx: RenderContext<Catalog>
@@ -83,7 +86,7 @@ struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: B
     var body: some View {
         let label = ctx.resolve(component.label)
         let placeholder = component.placeholder.map { ctx.resolve($0) } ?? label
-        // DSTextField に統一。macOS のフィールド高は DesignSystem 側が platform-aware に縮める。
+        // Always DSTextField; DesignSystem shrinks the field height on macOS platform-aware.
         let field = DSTextField(
             label,
             text: ctx.binding(component.value),
@@ -99,7 +102,7 @@ struct TextFieldNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: B
     }
 }
 
-/// `CheckBox` — CheckBoxView の忠実な移植。
+/// `CheckBox` — a `Toggle` writing straight back to the bound boolean path.
 struct CheckBoxNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     let component: CheckBoxComponent
@@ -113,7 +116,8 @@ struct CheckBoxNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Ba
     }
 }
 
-/// `Slider` — SliderView の忠実な移植。
+/// `Slider` — `steps` turns the continuous range into that many increments. The upper bound is
+/// nudged above the lower one so a degenerate `min == max` range cannot trap `Slider`.
 struct SliderNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -138,7 +142,8 @@ struct SliderNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
     }
 }
 
-/// `ChoicePicker` — ChoicePickerView + FlowChips の忠実な移植。
+/// `ChoicePicker` — chips on iOS, native selection controls on macOS. The bound value is always a
+/// string array, and a single-selection picker writes a one-element array rather than a scalar.
 struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -153,8 +158,8 @@ struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node
                 Text(ctx.resolve(label)).typography(.labelMedium).foregroundStyle(colors.onSurfaceVariant)
             }
             #if os(macOS)
-            // macOS 標準の選択コントロール: 複数=チェックボックス群 / 単一=少数は radio group・
-            // 多数は pop-up（menu）。チップ群（iOS）は使わない。
+            // The stock macOS selection controls: checkboxes for multiple selection, a radio group
+            // for a few single-selection options, and a pop-up menu once there are many. No chips.
             macSelection
             #else
             FlowChips(
@@ -224,7 +229,8 @@ struct ChoicePickerNodeView<Catalog: RenderableCatalog>: View where Catalog.Node
     }
 }
 
-/// `DateTimeInput` — DateTimeInputView の忠実な移植。
+/// `DateTimeInput` — `enableDate` / `enableTime` pick which `DatePicker` fields show; date only is
+/// the default. The bound value is an ISO 8601 string, and anything unparseable reads as now.
 struct DateTimeInputNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -257,7 +263,8 @@ struct DateTimeInputNodeView<Catalog: RenderableCatalog>: View where Catalog.Nod
     }
 }
 
-/// `ChoicePicker` 用の選択可能なチップグループ（FlowChips の忠実な移植）。
+/// The selectable chip group behind `ChoicePicker` on iOS. Selection is passed in and reported back
+/// through `onToggle`, so the chips hold no state of their own.
 private struct FlowChips: View {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing

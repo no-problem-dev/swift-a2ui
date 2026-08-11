@@ -1,16 +1,20 @@
-/// サーフェス上のコンポーネントインスタンスを一意に識別する文字列キー（JSON Pointer ルート）。
+/// Names one component instance within a surface: containers list their children by it, and an
+/// `UpdateComponents` replaces the component that already holds it.
+///
+/// Uniqueness only holds inside a surface, so an id is never a key across surfaces.
 public typealias ComponentId = String
 
-/// 全 A2UI コンポーネント struct が準拠する基底プロトコル。
+/// What every A2UI component type has to provide, whichever catalog defines it.
 ///
-/// `componentName` はワイヤー上の判別子（例: `"Button"`）。`id` はサーフェス内の識別子で、
-/// 更新処理とデータバインディングのスコープに使用する。
+/// `componentName` is the discriminator on the wire (`"Button"`, for example) and is what decoding
+/// dispatches on; `id` identifies the instance inside its surface and scopes both updates and data
+/// bindings.
 public protocol A2UIComponentProtocol: Codable, Sendable, Equatable {
     static var componentName: String { get }
     var id: ComponentId { get }
     var accessibility: AccessibilityAttributes? { get }
     var weight: Double? { get }
-    /// v1.0 `ComponentCommon.catalogId`: このコンポーネントのカタログを明示し、
-    /// サーフェス既定の `catalogId` を上書きする（1 枚のサーフェスでのカタログ混在）。
+    /// Catalog this component is resolved in (`ComponentCommon.catalogId`), overriding the surface
+    /// default from `CreateSurface.catalogId` — this is what lets one surface mix catalogs.
     var catalogId: String? { get }
 }

@@ -1,9 +1,10 @@
 import A2UICore
 
-/// Basic カタログのコンポーネントを網羅する closed enum。
+/// Every component the basic catalog can carry, as a closed enum.
 ///
-/// `component` フィールドの文字列ディスクリミネータに基づいてデコード/エンコードする。
-/// 各ケースは対応する `A2UIComponentProtocol` 準拠型を保持する。
+/// Decoding dispatches on the `component` string discriminator and throws on an unknown value, so
+/// a surface naming a component outside this catalog fails loudly instead of rendering blank.
+/// Each case holds the matching `A2UIComponentProtocol` type.
 public enum BasicComponent: Sendable, Equatable {
     case text(TextComponent)
     case image(ImageComponent)
@@ -105,7 +106,8 @@ extension BasicComponent: Codable {
 }
 
 extension BasicComponent {
-    /// コンポーネントインスタンスの id。
+    /// Identifier other components refer to this one by — `Card.child`, `Modal.trigger`, and the
+    /// ID lists inside `ChildList` all resolve against it.
     public var id: ComponentId {
         switch self {
         case .text(let c): c.id
@@ -129,7 +131,8 @@ extension BasicComponent {
         }
     }
 
-    /// Row / Column 直下での flex-grow 相当(catalog.json CatalogComponentCommon.weight)。
+    /// Relative growth within its parent, like CSS `flex-grow`. The spec allows it only on a direct
+    /// child of a `Row` or a `Column`; anywhere else it carries no meaning.
     public var weight: Double? {
         switch self {
         case .text(let c): c.weight
@@ -153,7 +156,8 @@ extension BasicComponent {
         }
     }
 
-    /// ワイヤー上の `component` ディスクリミネータ文字列。
+    /// The `component` discriminator as it appears on the wire (`"Text"`, `"Button"`, …) — the same
+    /// string `init(from:)` dispatches on.
     public var componentName: String {
         switch self {
         case .text: TextComponent.componentName
@@ -179,7 +183,8 @@ extension BasicComponent {
 }
 
 extension BasicComponent {
-    /// v1.0 `ComponentCommon.catalogId` — このコンポーネントが明示したカタログ（未指定なら nil）。
+    /// Catalog this component names for itself (v1.0 `ComponentCommon.catalogId`), overriding the
+    /// surface default so one surface can mix catalogs. `nil` when it inherits the surface's.
     public var catalogId: String? {
         switch self {
         case .text(let c): c.catalogId

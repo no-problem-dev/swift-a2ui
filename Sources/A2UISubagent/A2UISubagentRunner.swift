@@ -2,11 +2,12 @@ import A2UICore
 import Foundation
 import StructuredDataCore
 
-/// 副エージェント呼び出しの 1 試行の記録。
+/// Record of one sub-agent attempt, kept even for the successful one so a caller can see how
+/// many retries the surface cost.
 public struct A2UIAttemptRecord: Sendable, Equatable {
     public let attempt: Int
     public let ok: Bool
-    /// 検証で見つかった問題（人間可読・そのままプロンプトに戻す形）。
+    /// Problems the validator found, worded for a human and fed back into the prompt verbatim.
     public let issues: [String]
 
     public init(attempt: Int, ok: Bool, issues: [String]) {
@@ -16,9 +17,9 @@ public struct A2UIAttemptRecord: Sendable, Equatable {
     }
 }
 
-/// リトライ込みの副エージェント実行結果。
+/// Outcome of a sub-agent run, covering every attempt it took.
 public struct A2UISubagentResult: Sendable, Equatable {
-    /// 検証を通った A2UI メッセージ列。失敗時は空。
+    /// The A2UI messages that passed validation; empty when every attempt failed.
     public let messages: [AgentMessage]
     public let attempts: [A2UIAttemptRecord]
     public var ok: Bool { !messages.isEmpty }
@@ -29,16 +30,18 @@ public struct A2UISubagentResult: Sendable, Equatable {
     }
 }
 
-/// 副エージェントを検証リトライ付きで回す。
+/// Drives the sub-agent with validation-driven retries.
 ///
-/// ミラー元: `@ag-ui/a2ui-toolkit` の `runA2UIGenerationWithRecovery`。
+/// Mirrors `runA2UIGenerationWithRecovery` in `@ag-ui/a2ui-toolkit`.
 ///
-/// 設計上の要点:
-/// - プロンプトは**毎回 basePrompt から作り直す**（前回の追記を蓄積しない）
-/// - 検証を通った試行は絶対に再試行しない
-/// - 打ち切ったら空の結果を返し、呼び出し側がツールエラーとしてモデルへ返す
+/// The design rests on three points:
+/// - Each attempt **rebuilds the prompt from `basePrompt`**, so fix-it blocks never stack up
+/// - An attempt that passed validation is never retried
+/// - Exhausting the budget returns an empty result, which the caller reports back to the model
+///   as a tool error rather than as silence
 public struct A2UISubagentRunner: Sendable {
-    /// 既定の最大試行回数（公式 `MAX_A2UI_ATTEMPTS`）。
+    /// Retry budget used when the caller does not set one, matching upstream's
+    /// `MAX_A2UI_ATTEMPTS`.
     public static let defaultMaxAttempts = 3
 
     private let maxAttempts: Int
@@ -47,14 +50,16 @@ public struct A2UISubagentRunner: Sendable {
         self.maxAttempts = max(1, maxAttempts)
     }
 
-    /// 副エージェントを呼び、検証を通るまで（最大 `maxAttempts` 回）繰り返す。
+    /// Calls the sub-agent until validation passes, at most `maxAttempts` times.
     ///
     /// - Parameters:
-    ///   - basePrompt: 副エージェントのシステムプロンプト（毎回この文字列を起点にする）。
-    ///   - invoke: プロンプトを受けて `render_a2ui` の引数を返すクロージャ。
-    ///     ツール呼び出しが得られなければ `nil`。
-    ///   - buildMessages: 引数を A2UI メッセージ列に変換するクロージャ（catalogId はホストが決める）。
-    ///   - validate: メッセージ列を検証し、問題があれば人間可読な文字列で返すクロージャ。
+    ///   - basePrompt: The sub-agent's system prompt. Every attempt starts from this exact
+    ///     string, with only the current attempt's fix-it block appended.
+    ///   - invoke: Takes a prompt and returns the `render_a2ui` arguments, or `nil` when no
+    ///     tool call came back — which counts as a failed attempt, not an error.
+    ///   - buildMessages: Turns those arguments into A2UI messages; the host owns the
+    ///     `catalogId` it stamps in.
+    ///   - validate: Checks the messages and returns one human-readable string per problem.
     public func run(
         basePrompt: String,
         invoke: (_ prompt: String, _ attempt: Int) async throws -> RenderA2UIArguments?,
@@ -85,7 +90,8 @@ public struct A2UISubagentRunner: Sendable {
         return A2UISubagentResult(messages: [], attempts: attempts)
     }
 
-    /// 検証エラーを fix-it ブロックとして基底プロンプトに追記する。
+    /// Appends the validation problems to the base prompt as a fix-it block, and returns the
+    /// prompt untouched when there are none.
     static func augment(_ prompt: String, with issues: [String]) -> String {
         guard !issues.isEmpty else { return prompt }
         let formatted = issues.map { "- \($0)" }.joined(separator: "\n")

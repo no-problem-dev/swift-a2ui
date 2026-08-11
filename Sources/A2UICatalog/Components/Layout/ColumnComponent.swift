@@ -1,6 +1,11 @@
 import A2UICore
 
-/// 縦方向レイアウトコンポーネント。子コンポーネントを垂直に配置する。
+/// Stacks its children vertically.
+///
+/// `children` is a fixed list of component IDs or a template expanded over a data path; children
+/// are always referred to by ID and can never be declared inline. `justify` distributes them
+/// vertically — `spaceBetween` pins a header to the top and a footer to the bottom — and `align`
+/// positions them horizontally. Nest `Row`s inside to build a grid.
 public struct ColumnComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Column"
 

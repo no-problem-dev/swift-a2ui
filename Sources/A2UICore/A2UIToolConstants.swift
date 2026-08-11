@@ -1,12 +1,17 @@
-/// 公式 A2UI ツールコール生成パターンの定数群 — Python SDK の `a2ui.schema.constants`
-/// ツールブロック（`A2UI_TOOL_NAME` 等）に対応する Swift 版。
+/// The names an LLM tool call uses to hand a UI to the client: the tool itself and the keys its
+/// result carries.
+///
+/// They mirror the `a2ui.schema.constants` tool block of the Python SDK (`A2UI_TOOL_NAME` and
+/// friends), so a Swift host and a Python host present the same tool to a model. Change one here
+/// and prompts written against the other stop matching.
 public enum A2UIToolConstants {
-    /// LLM がクライアントへ UI を送信する際に呼び出す関数名。
+    /// Function the model calls to send a UI to the client.
     public static let toolName = "send_a2ui_json_to_client"
-    /// 検証成功時にペイロードを格納するリザルトキー。
+    /// Result key holding the payload once it has passed validation.
     public static let validatedJSONKey = "validated_a2ui_json"
-    /// 失敗内容を格納するリザルトキー（モデルに返す。クライアントには渡さない）。
+    /// Result key holding the failure. It goes back to the model to retry with, and is never
+    /// forwarded to the client.
     public static let errorKey = "error"
-    /// ツールの唯一の必須文字列引数。
+    /// The tool's only required argument: a string carrying the A2UI JSON.
     public static let jsonArgName = "a2ui_json"
 }

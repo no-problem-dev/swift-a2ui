@@ -1,6 +1,9 @@
 import A2UICore
 
-/// チェックボックスコンポーネント。ラベル付きのオン/オフ入力。
+/// A labeled on/off control bound to a boolean in the data model.
+///
+/// `value` is required, so the initial state is always stated — there is no third, unset state.
+/// `checks` run against that value, which is how a must-be-accepted box is expressed.
 public struct CheckBoxComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "CheckBox"
 

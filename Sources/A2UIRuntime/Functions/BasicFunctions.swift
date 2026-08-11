@@ -3,13 +3,17 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// Basic Catalog 関数レジストリ（仕様 §7 + basic_catalog_implementation_guide §2）。
+/// The Basic Catalog function registry (spec §7 plus basic_catalog_implementation_guide §2).
 ///
-/// `FunctionResolving` に準拠し、`DataContext` へ注入できる。各関数はコンテキストを通じて
-/// （動的な可能性のある）引数を解決してから、純粋なロジックを実行する。
+/// Conforms to `FunctionResolving`, so it can be injected into a `DataContext`. Every function resolves
+/// its arguments — which may themselves be dynamic — through the context before running its pure logic.
+/// A name outside the registry resolves to `nil`, which the caller coerces to an empty value.
 public struct BasicFunctions: FunctionResolving {
 
-    /// ロケール依存関数（formatNumber / Currency、pluralize）で使用するロケール。
+    /// The locale used by `formatNumber`, `formatCurrency`, and `pluralize`.
+    ///
+    /// It defaults to `en_US` rather than the device locale, so an app that formats for its user has to
+    /// pass one in explicitly.
     public let locale: Locale
 
     public init(locale: Locale = Locale(identifier: "en_US")) {
@@ -25,10 +29,10 @@ public struct BasicFunctions: FunctionResolving {
             return ArgResolver.resolve(v, in: context, functions: self)
         }
 
-        // v1.0 の組み込み `@index`。カタログ関数ではなくコア側のシステム評価なので、
-        // カタログのディスパッチより前に処理する（`@` プレフィックスはコア予約）。
+        // The v1.0 built-in `@index` is a core system evaluation rather than a catalog function, so it
+        // is handled ahead of catalog dispatch (the `@` prefix is reserved by the core).
         if call.call == FunctionCall.indexFunctionName {
-            // Collection Scope（テンプレート反復）の外での呼び出しは評価エラー = 未解決。
+            // Called outside a collection scope (a template iteration) it is an evaluation error, i.e. unresolved.
             guard let index = context.collectionIndex else { return nil }
             let offset = args["offset"] == nil ? 0 : Int(argNumber("offset"))
             return .int(index + offset)
@@ -200,8 +204,10 @@ public struct BasicFunctions: FunctionResolving {
         return ""
     }
 
-    /// CLDR 複数形カテゴリ。英語ルールと汎用フォールバックを実装する。
-    /// （完全な CLDR ロケール別ルールは後から追加可能; 英語は Basic 例をカバーする）
+    /// The CLDR plural category for `n`: English rules, and `"other"` for every other locale.
+    ///
+    /// Enough for the Basic Catalog examples, but a locale with more categories (Russian, Arabic, Polish)
+    /// silently picks the wrong form.
     private func pluralCategory(for n: Double) -> String {
         if locale.identifier.hasPrefix("en") {
             return n == 1 ? "one" : "other"

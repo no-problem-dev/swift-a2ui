@@ -1,16 +1,17 @@
 import StructuredDataCore
 import A2UICore
 
-/// カタログの `Known` ノード型に A2UI が定める unknown コンポーネント処理を追加するラッパー。
+/// Wraps a catalog's `Known` node type with the unknown-component handling A2UI mandates.
 ///
-/// レンダラーが異なる対応を取るべき 2 つのケースを型レベルで分離する:
+/// It separates, at the type level, the two failures a renderer must treat differently:
 ///
-/// - **カタログミス**（`component` 名が `Known.componentNames` に存在しない）: エージェントがこのクライアントに
-///   存在しないコンポーネントをリクエストした。A2UI renderer guide に従いグレースフルデグラデーション
-///   （プレースホルダー表示/スキップ、クラッシュなし）が必要。名前・生データを保持する `.unknown` ケースで表現する。
-/// - **構造的障害**（名前は既知だがプロパティが不正）: 正規のバリデーションエラー。
-///   `Known(from:)` は `throw` を許可し、デコードパイプラインがエラーをエージェントへのフィードバックとして伝搬する
-///   （仕様の prompt→generate→validate ループ）。
+/// - **Catalog miss** (the `component` name is not in `Known.componentNames`): the agent asked for a
+///   component this client does not have. The A2UI renderer guide requires graceful degradation — show a
+///   placeholder or skip it, never crash. That case is `.unknown`, which keeps the name and the raw
+///   payload so the placeholder can say what was missing.
+/// - **Structural failure** (the name is known but its properties are malformed): a genuine validation
+///   error. `Known(from:)` is allowed to throw, and the decode pipeline propagates the error back to the
+///   agent as feedback (the spec's prompt → generate → validate loop).
 public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
     case known(Known)
     case unknown(name: String, id: ComponentId, raw: StructuredValue)
@@ -29,8 +30,10 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         }
     }
 
-    /// v1.0: このコンポーネントが明示したカタログ ID（`ComponentCommon.catalogId`）。
-    /// 省略時は `nil` で、サーフェス既定の `catalogId` にフォールバックする。
+    /// The catalog id this component states for itself (v1.0 `ComponentCommon.catalogId`).
+    ///
+    /// `nil` when the component omits it, which hands the decision to the surface default `catalogId`.
+    /// Read through `resolveCatalog(surfaceDefault:)` rather than acting on this value directly.
     public var declaredCatalogId: String? {
         switch self {
         case .known(let node): return node.catalogId
@@ -38,9 +41,12 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         }
     }
 
-    /// 寛容デコード: 既知の名前でもプロパティ不正の場合に `throw` せず `.unknown` プレースホルダーに降格する。
-    /// ライブメッセージプロセッサで使用し、1 つの不正コンポーネントがサーフェス全体の描画を妨げないようにする。
-    /// 問題箇所は "Not Supported" マーカーとして表示され診断可能なまま残る。
+    /// Decodes leniently: a known name with malformed properties is demoted to `.unknown` instead of
+    /// throwing.
+    ///
+    /// Use this in the live message processor, where one bad component must not stop the whole surface
+    /// from rendering; the bad spot stays visible, and diagnosable, as a "Not Supported" marker. Use the
+    /// throwing `init(from:)` where a malformed component should become feedback to the agent instead.
     public static func lenientDecode(_ value: StructuredValue) -> CatalogNode<Known> {
         if let node = try? value.decode(CatalogNode<Known>.self) {
             return node
@@ -51,7 +57,8 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
 
     private struct Probe: Decodable { let component: String?; let id: String? }
 
-    /// コンポーネントインスタンスの id（どちらのケースも保持）。unknown コンポーネントもワイヤー上に id を持つ。
+    /// The instance id, kept in both cases — an unknown component still carries its id on the wire, so it
+    /// stays addressable in the flat id map and by later updates.
     public var id: ComponentId {
         switch self {
         case .known(let node): return node.id
@@ -59,7 +66,9 @@ public enum CatalogNode<Known: ComponentNode>: Decodable, Sendable, Equatable {
         }
     }
 
-    /// ワイヤー上の `component` ディスクリミネータ（unknown の場合は名前をそのまま保持）。
+    /// The `component` discriminator as it arrived on the wire.
+    ///
+    /// For `.unknown` it is the agent's name verbatim, so a placeholder can name what was requested.
     public var componentName: String {
         switch self {
         case .known(let node): return node.componentName

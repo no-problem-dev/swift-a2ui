@@ -1,12 +1,13 @@
 import StructuredDataCore
-/// JSON Pointer `path` が指すサーフェスデータモデルの位置に `value` を書き込む（A2UI v1.0）。
+/// Writes `value` into a surface's data model at the JSON Pointer `path`, which re-resolves every
+/// binding that reads through it (A2UI v1.0).
 ///
-/// v1.0 で `value` は**必須**になった。キーを削除するときは `value` を明示的に `.null` にする
-/// （省略はスキーマ検証エラー）。`path` の省略／`"/"` はデータモデル全体を指す。
+/// `value` is required: to remove a key send an explicit `.null`, because omitting the field fails
+/// schema validation. An omitted `path`, or `"/"`, addresses the whole data model.
 public struct UpdateDataModel: Codable, Sendable, Equatable {
     public let surfaceId: String
     public let path: String?
-    /// 書き込む値。`.null` は「`path` のキーを削除する」を意味する。
+    /// The value to write. `.null` deletes the key at `path` rather than storing a null there.
     public let value: StructuredValue
 
     public init(

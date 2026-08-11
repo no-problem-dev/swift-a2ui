@@ -1,35 +1,39 @@
 import Foundation
 
-/// 2 段構成（外側 `generate_a2ui` / 内側 `render_a2ui`）のワイヤ定数。
+/// Wire constants for the two-stage setup: the outer `generate_a2ui` and the inner
+/// `render_a2ui`.
 ///
-/// ミラー元: `@ag-ui/a2ui-toolkit` の `index.ts`。ツール名・引数名は公式と
-/// バイト一致させる（プロンプト・履歴・エンベロープをまたぐ契約なので、
-/// 表記の揺れはそのまま相互運用の破綻になる）。
+/// Mirrors `index.ts` in `@ag-ui/a2ui-toolkit`. Tool and argument names are byte-identical to
+/// upstream — they form a contract that spans the prompt, the history and the envelope, so any
+/// spelling drift becomes an interoperability break.
 public enum A2UISubagentConstants {
-    /// メインのプランナーに見せる外側ツール名。
+    /// Name of the outer tool, the one the main planner sees and calls.
     public static let generateToolName = "generate_a2ui"
-    /// 副エージェントに強制する内側ツール名。
+    /// Name of the inner tool the sub-agent is forced onto via `toolChoice`.
     public static let renderToolName = "render_a2ui"
-    /// エンベロープのオペレーション配列キー。
+    /// Key holding the operations array in the tool-result envelope; the same key AG-UI
+    /// activity content uses, so the two stay decodable by each other.
     public static let operationsKey = "a2ui_operations"
-    /// surfaceId の接頭辞。実際の ID は `newSurfaceId()` が発行する。
+    /// Prefix every issued surface ID carries. The full ID comes from `newSurfaceId()`.
     public static let surfaceIdPrefix = "surface"
-    /// リトライ打ち切り時のエラーコード。
+    /// Code embedded in the tool-error text once the retry budget is spent, so a caller can
+    /// tell "gave up after retries" from any other failure.
     public static let recoveryExhaustedCode = "a2ui_recovery_exhausted"
 
-    /// このターンのサーフェス ID を発行する。
+    /// Issues the surface ID for this turn.
     ///
-    /// 仕様は `surfaceId` がレンダラの生存期間で一意であることを要求する（既存 ID への
-    /// 削除なしの再作成はエラー）。アペンドオンリーでは毎ターン新しいサーフェスを作るので、
-    /// ホストが UUID で発行してモデルには選ばせない。
+    /// The spec requires `surfaceId` to be unique for the renderer's lifetime — recreating an
+    /// existing ID without deleting it first is an error. Append-only rendering starts a new
+    /// surface every turn, so the host mints a UUID instead of letting the model pick one.
     public static func newSurfaceId() -> String {
         "\(surfaceIdPrefix)-\(UUID().uuidString.lowercased())"
     }
 
-    /// 外側ツールの説明（メインのプランナー向け）。
+    /// Description of the outer tool, as shown to the main planner.
     ///
-    /// 更新はできない（アペンドオンリー）。過去のサーフェスを書き換える言い回しを載せると
-    /// モデルがそれを試みるので、「新しく描く」ことだけを説明する。
+    /// There is no update path — rendering is append-only. Wording that hints at rewriting a
+    /// past surface makes the model attempt exactly that, so this only ever describes drawing
+    /// a new one.
     public static let generateToolDescription =
         "Render a new dynamic A2UI surface based on the conversation. "
             + "A secondary LLM designs the UI components and data. "
@@ -39,7 +43,8 @@ public enum A2UISubagentConstants {
             + "rendered surfaces are never modified. To show revised content, render a new "
             + "surface carrying the updated information."
 
-    /// 外側ツールの引数説明。
+    /// Per-argument text for the outer tool's JSON Schema, kept here so the planner-facing
+    /// wording lives next to the tool description it has to agree with.
     public enum GenerateArgDescriptions {
         public static let intent =
             "Optional natural-language description of what to render "

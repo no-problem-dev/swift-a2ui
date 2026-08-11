@@ -1,20 +1,24 @@
 import StructuredDataCore
 import A2UICore
 
-/// カタログ関数の仕様をタイプセーフに記述する型（仕様 §7 functions ブロック）。
+/// A type-safe description of one catalog function, rendered into the `functions` block of the
+/// catalog document (spec §7).
 public struct FunctionSchema: Sendable, Equatable {
     public let name: String
     public let description: String?
     public let arguments: [PropertySchema]
-    /// `arguments` を上書きする生の `args` オブジェクト（設定時）。公式カタログの非定型な
-    /// 引数形状（`anyOf`、`additionalProperties`、`$ref`+description 等）を正確に再現するために使用する。
+    /// A raw `args` object that replaces `arguments` when set. Several official functions have
+    /// argument shapes the property list cannot express — `anyOf`, `additionalProperties`, a `$ref`
+    /// carrying its own `description` — and those must be reproduced exactly.
     public let argsObject: StructuredValue?
-    /// 戻り値型の定数文字列（例: "string" / "number" / "boolean" / "void" など）。
+    /// Constant naming what the function yields: `"string"`, `"number"`, `"boolean"`, `"void"`.
     ///
-    /// v1.0 ではワイヤ上の `FunctionCall` から外れ、カタログ側の静的メタデータになった。
+    /// In v1.0 this is static catalog metadata; it no longer rides on the wire inside
+    /// `FunctionCall`.
     public let returnType: String
-    /// v1.0: この関数を呼び出せる場所（`rendererOnly` / `agentOnly` / `rendererOrAgent`）。
-    /// 省略時は `rendererOnly` 扱い。実行時にカタログを引いて境界を検証する。
+    /// Where the function may be called from — `rendererOnly`, `agentOnly`, or `rendererOrAgent`
+    /// (v1.0). `nil` is read as `rendererOnly`, and the boundary is enforced at run time by looking
+    /// the function up in the catalog.
     public let callableFrom: String?
 
     public init(

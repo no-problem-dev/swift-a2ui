@@ -4,52 +4,58 @@ import LLMClient
 import LLMTool
 import StructuredDataCore
 
-/// 外側ツール — メインのプランナーが呼ぶ `generate_a2ui`。
+/// The outer tool the main planner calls — `generate_a2ui`.
 ///
-/// ミラー元: `@ag-ui/a2ui-toolkit` の `generate_a2ui`。
+/// Mirrors `generate_a2ui` in `@ag-ui/a2ui-toolkit`.
 ///
-/// 引数は `intent` だけで、**A2UI JSON を含まない**。メインは「UI を作れ」という意図しか
-/// 表明できず、実際の JSON 生成は副エージェント（`RenderA2UITool` を強制呼び出しする
-/// LLM リクエスト）が担う。これによりメインのシステムプロンプトから A2UI スキーマを外せ、
-/// テキストへの JSON 流出も原理的に消える。
+/// Its only argument is `intent`, and it carries **no A2UI JSON**. The main model can express
+/// nothing beyond "render some UI"; the JSON comes from the sub-agent, an LLM request forced
+/// to call `RenderA2UITool`. That keeps the A2UI schema out of the main system prompt and
+/// removes the path by which the JSON leaks into assistant text.
 ///
-/// ## アペンドオンリー
+/// ## Append-only
 ///
-/// このツールは **`createSurface` しか生成しない**。1 ターン = 新しい 1 サーフェスで、
-/// 過去のサーフェスは書き換えない（会話ログのように積み上がる）。v1.0 の `createSurface` は
-/// `components` / `dataModel` を同梱できるので、画面 1 枚が 1 メッセージで完結する。
+/// This tool emits **`createSurface` and nothing else**. One turn is one new surface; earlier
+/// surfaces are never rewritten, they stack up the way a conversation log does. In v1.0
+/// `createSurface` can carry `components` and `dataModel` together, so a whole screen fits in
+/// a single message.
 ///
-/// A2UI にも AG-UI にも「この操作だけ許可する」という交渉の仕組みは無い。公式実装と同じく
-/// **ツールの形そのもの**で縛る — 副エージェントに渡す `render_a2ui` の引数に操作の別が無く、
-/// このツールが組み立てるのも `createSurface` 一択なので、更新や削除は表現できない。
-/// 1 枚のキャンバスを更新し続ける用途が要るなら、別のツールとして足す。
+/// Neither A2UI nor AG-UI has a way to negotiate "only these operations are allowed", so — as
+/// upstream does — the restriction is carried by the **shape of the tool**: the `render_a2ui`
+/// arguments handed to the sub-agent have no operation discriminator, and this tool only ever
+/// builds `createSurface`, leaving update and delete inexpressible. A use case that keeps
+/// updating one canvas needs a separate tool.
 ///
-/// `catalogId` と `surfaceId` はホストの所有物で、モデルは選べない。特に `surfaceId` は
-/// 仕様上レンダラの生存期間で一意でなければならず（既存 id への再作成はエラー）、
-/// モデル出力に任せると衝突しうるため毎回ホストが発行する。
+/// `catalogId` and `surfaceId` belong to the host; the model does not choose them. `surfaceId`
+/// especially must be unique for the renderer's lifetime under the spec (recreating an
+/// existing id is an error), and model-chosen ids collide, so the host issues a fresh one
+/// every turn.
 public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
-    /// 副エージェントの呼び出し方をホストから注入する。
+    /// Host-supplied way of calling the sub-agent.
     ///
     /// - Parameters:
-    ///   - prompt: 組み立て済みのシステムプロンプト。
-    ///   - attempt: 1 始まりの試行回数（ログ・観測用）。
-    ///   - transcript: 実行時点の会話（進行中の `generate_a2ui` 呼び出しは除去済み）。
-    ///     副エージェントの LLM 呼び出しにそのまま渡す — 同一 run 内で取得したツール結果
-    ///     （検索結果等）が見えないと、モデルはデータを捏造する。
-    /// - Returns: `render_a2ui` の引数。ツール呼び出しが得られなければ `nil`。
+    ///   - prompt: The assembled system prompt.
+    ///   - attempt: One-based attempt number, for logging and observability.
+    ///   - transcript: The conversation as of this call, with the in-flight `generate_a2ui`
+    ///     call already stripped. Pass it straight into the sub-agent's LLM request — without
+    ///     the tool results gathered earlier in the same run (search hits and the like), the
+    ///     model invents the data it renders.
+    /// - Returns: The `render_a2ui` arguments, or `nil` when no tool call came back.
     public typealias Invoke = @Sendable (
         _ prompt: String,
         _ attempt: Int,
         _ transcript: [LLMMessage]
     ) async throws -> RenderA2UIArguments?
 
-    /// 生成されたメッセージ列を検証する（ホストのカタログ・allowlist を適用する）。
+    /// Checks generated messages against the host's catalog and allowlist, returning one
+    /// human-readable string per problem and an empty array when the messages are valid.
+    /// The strings go straight back into the sub-agent's prompt, so write them for a reader.
     public typealias Validate = @Sendable ([AgentMessage]) -> [String]
 
-    /// このターンのサーフェス ID を発行する。既定は UUID。
+    /// Issues the surface ID for this turn; a UUID by default.
     ///
-    /// 仕様がレンダラ生存期間での一意性を要求するため、モデルではなくホストが決める。
-    /// テストが決定的な ID を使えるよう差し替え可能にしてある。
+    /// The spec demands uniqueness for the renderer's lifetime, so the host decides rather
+    /// than the model. It is injectable so tests can pin a deterministic ID.
     public typealias MakeSurfaceId = @Sendable () -> String
 
     public let toolName: String
@@ -80,8 +86,8 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
 
     public var toolDescription: String { A2UISubagentConstants.generateToolDescription }
 
-    /// アペンドオンリーなので、対象サーフェスも変更内容も引数に無い。
-    /// モデルが表明できるのは「何を描きたいか」だけ。
+    /// Because rendering is append-only, no target surface and no diff appear here — all the
+    /// model can state is what it wants drawn, and even that is optional.
     public var inputSchema: JSONSchema {
         .object(
             properties: [
@@ -91,21 +97,22 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
         )
     }
 
-    /// トランスクリプトなしの実行（`Tool` 要件）。
+    /// Runs without a transcript, as `Tool` requires.
     ///
-    /// ループランタイムが `TranscriptAwareTool` に対応していれば呼ばれない。
-    /// 会話文脈なしでは副エージェントがデータを捏造しやすいため、空トランスクリプトで委譲する。
+    /// A loop runtime that honours `TranscriptAwareTool` never reaches this. Delegating with
+    /// an empty transcript leaves the sub-agent with no conversation to ground itself in,
+    /// which is exactly the condition under which it invents data.
     public func execute(with argumentsData: Data) async throws -> ToolResult {
         try await execute(with: argumentsData, transcript: [])
     }
 
     public func execute(with argumentsData: Data, transcript: [LLMMessage]) async throws -> ToolResult {
-        // 進行中の generate_a2ui 呼び出しを剥がす（Strands 方式の条件付き除去）。
-        // 対応する結果のない toolUse はプロバイダに拒否され、副エージェントは
-        // このツールを持っていない。
+        // Strip the in-flight generate_a2ui call, the way Strands does it conditionally.
+        // A toolUse with no matching result is rejected by the provider, and the sub-agent
+        // is not given this tool in the first place.
         let conversation = Self.strippingInFlightCall(from: transcript, toolName: toolName)
 
-        // このターンのサーフェス。毎回新規で、過去のサーフェスには触れない。
+        // This turn's surface: always new, never touching an earlier one.
         let surfaceId = makeSurfaceId()
 
         let result = try await runner.run(
@@ -125,17 +132,18 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
             )
         }
 
-        // 公式のエンベロープ形（`wrapAsOperationsEnvelope`）と同じキーで返す。
-        // 生の operations がそのままツール結果として履歴に残る。
+        // Return under the same key as upstream's `wrapAsOperationsEnvelope`.
+        // The raw operations stay in the history as this tool's result.
         return .json(try JSONEncoder().encode(OperationsEnvelope(a2ui_operations: result.messages)))
     }
 
-    /// 進行中（結果未着）の自ツール呼び出しを含む末尾メッセージを剥がす。
+    /// Drops the trailing message when it holds this tool's own call, still awaiting a result.
     ///
-    /// ミラー元: Strands アダプタの `stripInFlightToolCall`。LangGraph の無条件
-    /// `slice(0, -1)` ではなく、「末尾が assistant で、かつ自ツール名の toolUse を含む」
-    /// ときだけ剥がす — ループ構造次第で末尾がツールコールとは限らず、無条件除去は
-    /// ユーザー発話を落とすリスクがあるため。
+    /// Mirrors `stripInFlightToolCall` in the Strands adapter. Unlike LangGraph's
+    /// unconditional `slice(0, -1)`, it strips only when the last message is from the
+    /// assistant *and* contains a toolUse under this tool's name — depending on the loop
+    /// structure the tail is not always a tool call, and removing it blindly can throw away a
+    /// user turn.
     static func strippingInFlightCall(from transcript: [LLMMessage], toolName: String) -> [LLMMessage] {
         guard let last = transcript.last,
               last.role == .assistant,
@@ -145,13 +153,14 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
         return Array(transcript.dropLast())
     }
 
-    /// `render_a2ui` の引数を A2UI メッセージへ変換する。
+    /// Converts `render_a2ui` arguments into A2UI messages.
     ///
-    /// v1.0 の `createSurface` は `components` / `dataModel` を同梱できるので、**常に 1 通**。
-    /// `updateComponents` / `updateDataModel` は生成しない — それがアペンドオンリーの実体で、
-    /// 「createSurface だけを許可する」がツールの形で保証される。
+    /// Always **exactly one** message: in v1.0 `createSurface` carries `components` and
+    /// `dataModel` itself. `updateComponents` and `updateDataModel` are never produced — that
+    /// is what append-only amounts to in practice, and the tool's shape is what guarantees it.
     ///
-    /// `catalogId` も `surfaceId` もホストが決める（モデル出力の `surfaceId` は使わない）。
+    /// Both `catalogId` and `surfaceId` come from the host; the `surfaceId` in the model's own
+    /// output is discarded.
     static func messages(
         from args: RenderA2UIArguments,
         catalogId: String,
@@ -169,7 +178,10 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
 
 }
 
-/// 公式 `wrapAsOperationsEnvelope` と同じエンベロープ形。
+/// The envelope shape upstream's `wrapAsOperationsEnvelope` produces.
+///
+/// The property name is the wire key, so renaming it to Swift casing silently breaks every
+/// consumer that reads `a2ui_operations` — including `A2UIOperationsExtractor`.
 struct OperationsEnvelope: Codable {
     let a2ui_operations: [AgentMessage]
 }

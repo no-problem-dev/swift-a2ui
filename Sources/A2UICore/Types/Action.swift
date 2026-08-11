@@ -1,4 +1,8 @@
-/// UI アクション: ホストへ名前付きイベントを送るか、サーバ側関数を呼び出すかのいずれか。
+/// What a component does when the user activates it: send a named event to the host, or call a
+/// function from the active catalog.
+///
+/// An `event` reaches the agent as a `UserAction`; a `functionCall` is resolved and run by the
+/// renderer, so only names the active catalog knows will do anything.
 public enum Action: Sendable, Equatable {
     case event(EventAction)
     case functionCall(FunctionCall)

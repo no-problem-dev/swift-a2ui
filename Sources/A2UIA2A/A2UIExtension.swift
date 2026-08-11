@@ -1,25 +1,31 @@
 import A2ACore
 import A2UICore
 
-/// A2A プロトコルへの A2UI 拡張（Python SDK の `a2ui/a2a/extension.py` のミラー）。
+/// The A2UI extension to the A2A protocol — mirrors the Python SDK's `a2ui/a2a/extension.py`.
 ///
-/// A2UI を出力するエージェントは `AgentCard.capabilities.extensions` に宣言する。
-/// オーケストレータはその宣言からカタログ対応を検出し、LLM プロンプトに依存しない。
+/// An agent that emits A2UI declares it in `AgentCard.capabilities.extensions`. An orchestrator
+/// reads catalog support out of that declaration, so nothing about it has to reach the LLM prompt.
 public enum A2UIExtension {
-    /// 名前空間識別子。フェッチ可能な URL ではない（設計上 404 になる、XML 名前空間と同様）。
-    /// 文字列マッチングのみで使用する。公式拡張仕様にそのまま定義されている。
+    /// Namespace identifier, not a fetchable URL — it 404s by design, like an XML namespace.
+    /// Use it for string matching only. Defined verbatim by the official extension spec.
     public static let baseURI = "https://a2ui.org/a2a-extension/a2ui"
 
-    /// バージョン付き拡張 URI（例: `https://a2ui.org/a2a-extension/a2ui/v1.0`）。
-    /// 公式フォーマットは `{base}/v{version}`; `A2UIVersion` の定数は `v` プレフィックスを持つ。
+    /// Versioned extension URI, for example `https://a2ui.org/a2a-extension/a2ui/v1.0`.
+    /// The official format is `{base}/v{version}`; the `A2UIVersion` constants already carry
+    /// the `v`, so nothing here adds one.
     public static let uri = "\(baseURI)/\(A2UIVersion.current)"
 
-    /// 公式 `AGENT_EXTENSION_SUPPORTED_CATALOG_IDS_KEY`。
+    /// Params key listing the catalogs an agent supports; the official
+    /// `AGENT_EXTENSION_SUPPORTED_CATALOG_IDS_KEY`.
     public static let supportedCatalogIdsKey = "supportedCatalogIds"
-    /// 公式 `AGENT_EXTENSION_ACCEPTS_INLINE_CATALOGS_KEY`。
+    /// Params key flagging that an agent takes inline catalogs; the official
+    /// `AGENT_EXTENSION_ACCEPTS_INLINE_CATALOGS_KEY`.
     public static let acceptsInlineCatalogsKey = "acceptsInlineCatalogs"
 
-    /// カード宣言を構築する（`get_a2ui_agent_extension` のミラー）。
+    /// Builds the declaration to put on an `AgentCard` — mirrors `get_a2ui_agent_extension`.
+    ///
+    /// Only the flags that are actually set appear in `params`, and `params` itself is left `nil`
+    /// when neither is.
     public static func agentExtension(
         supportedCatalogIds: [String] = [],
         acceptsInlineCatalogs: Bool = false
@@ -38,9 +44,10 @@ public enum A2UIExtension {
         )
     }
 
-    /// リモートエージェントのカードから解析した A2UI 宣言。
+    /// An A2UI declaration parsed off a remote agent's card.
     public struct Declaration: Sendable, Equatable {
-        /// URI のバージョンセグメント（例: `"v1.0"`）。
+        /// Version segment of the declared URI, for example `"v1.0"`. Any version the card names
+        /// is parsed, so compare it against `A2UIVersion.current` before assuming compatibility.
         public let version: String
         public let supportedCatalogIds: [String]
         public let acceptsInlineCatalogs: Bool
@@ -52,8 +59,11 @@ public enum A2UIExtension {
         }
     }
 
-    /// カード上のすべての A2UI 宣言をカード順で返す（オーケストレータの
-    /// `capabilities.extensions` に対する `A2UI_EXTENSION_BASE_URI` プレフィックス探索のミラー）。
+    /// Returns every A2UI declaration on the card, in card order — mirrors the orchestrator's
+    /// `A2UI_EXTENSION_BASE_URI` prefix scan over `capabilities.extensions`.
+    ///
+    /// A card may declare several versions; missing params decode to an empty ID list and
+    /// `false`, which is indistinguishable from an agent that declared them that way.
     public static func declarations(in card: AgentCard) -> [Declaration] {
         card.capabilities.extensions.compactMap { ext in
             guard ext.uri.hasPrefix(baseURI + "/") else { return nil }
@@ -66,7 +76,8 @@ public enum A2UIExtension {
         }
     }
 
-    /// カードにこのライブラリの A2UI バージョンに一致する宣言があれば返す。
+    /// Returns the declaration matching this library's A2UI version, or `nil` when the card
+    /// declares only other versions — which is the check to make before sending A2UI to an agent.
     public static func currentDeclaration(in card: AgentCard) -> Declaration? {
         declarations(in: card).first { $0.version == A2UIVersion.current }
     }

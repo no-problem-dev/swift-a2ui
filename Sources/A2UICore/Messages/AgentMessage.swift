@@ -1,15 +1,17 @@
-/// サーバ → クライアント方向の全メッセージをまとめる enum（A2UI v1.0）。
+/// Everything an agent can say to a client, in one decodable envelope (A2UI v1.0).
 ///
-/// `version` フィールドはデコード時に検証するが、Postel 則に従い欠落は許容（現行バージョンと仮定）。
-/// バージョンが存在しかつ現行と異なる場合のみエラーを投げる。
+/// Decoding follows Postel's law on `version`: a missing field is assumed to be the current
+/// version, because these payloads are written by a model and dropping a whole turn over a
+/// misplaced key costs a full regeneration. A version that is present and different is still
+/// rejected — that is a real incompatibility, not a formatting slip.
 public enum AgentMessage: Sendable, Equatable {
     case createSurface(CreateSurface)
     case updateComponents(UpdateComponents)
     case updateDataModel(UpdateDataModel)
     case deleteSurface(DeleteSurface)
-    /// v1.0: サーバがクライアント上の関数を呼び出す。
+    /// Asks the client to run one of its own functions and, if requested, report the result back.
     case callFunction(CallFunctionMessage)
-    /// v1.0: サーバが応答要求付きのクライアントアクションに答える。
+    /// Answers a client action that was sent with `wantResponse: true`.
     case actionResponse(ActionResponseMessage)
 }
 
@@ -83,9 +85,12 @@ extension AgentMessage: Codable {
 }
 
 extension AgentMessage {
-    /// 公式 `agent_to_renderer.json` の `$defs` 名（例: `"CreateSurfaceMessage"`）。
-    /// `A2UIPromptBuilder(allowedMessages:)` による pruning と生成後バリデーションで
-    /// 共通して使う識別子セットであり、プロンプト側の絞り込みと検証が同一の定義を参照することを保証する。
+    /// The `$defs` name this case carries in `agent_to_renderer.json` (for example
+    /// `"CreateSurfaceMessage"`).
+    ///
+    /// `A2UIPromptBuilder(allowedMessages:)` prunes the schema by these names and post-generation
+    /// validation checks against the same set, so what a prompt offers the model and what the
+    /// validator accepts cannot drift apart.
     public var schemaMessageName: String {
         switch self {
         case .createSurface: "CreateSurfaceMessage"

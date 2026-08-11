@@ -2,31 +2,34 @@ import StructuredDataCore
 import A2UICore
 import AGUICore
 
-/// A2UI サーフェスの生成ライフサイクル(ペイント前の進捗通知)。
-/// paint と同じ messageId に `replace: true` で流れ、最終的にペイントが置換する。
+/// Progress of an A2UI surface while it is being generated, sent before the paint arrives.
+/// It streams on the same messageId as the paint with `replace: true`, and the paint eventually
+/// replaces it.
 public struct A2UISurfaceLifecycle: Codable, Sendable, Equatable {
-    /// 既知の status 値。
+    /// The status values this package knows; `status` may carry others.
     public enum Kind: String, Sendable {
         case building
         case retrying
         case failed
     }
 
-    /// wire 上の status 文字列。未知の値も受理する(前方互換)。
+    /// The status string as it appears on the wire. Unknown values are accepted too, for forward
+    /// compatibility.
     public var status: String
-    /// building: 生成済みトークン数の推定。
+    /// building: estimated number of tokens generated so far.
     public var progressTokens: Int?
-    /// retrying: 現在の試行回数。
+    /// retrying: the attempt currently under way.
     public var attempt: Int?
-    /// retrying / failed: 最大試行回数。
+    /// retrying / failed: the maximum number of attempts.
     public var maxAttempts: Int?
-    /// retrying: 検証エラー一覧。
+    /// retrying: the validation errors that forced the retry.
     public var errors: [A2UIGenerationIssue]?
-    /// failed: 失敗理由。
+    /// failed: why generation failed.
     public var error: String?
-    /// failed: 試行記録(形は実装依存のため生値のまま)。
+    /// failed: the record of the attempts, kept as a raw value because its shape is
+    /// implementation-defined.
     public var attempts: StructuredValue?
-    /// サーバー設定によるデバッグ表示ヒント("hidden" / "collapsed" / "verbose")。
+    /// Debug display hint from the server configuration ("hidden" / "collapsed" / "verbose").
     public var debugExposure: String?
 
     public var kind: Kind? { Kind(rawValue: status) }
@@ -64,7 +67,7 @@ public struct A2UISurfaceLifecycle: Codable, Sendable, Equatable {
     }
 }
 
-/// A2UI 生成の検証エラー(`{code, path, message}`)。
+/// A validation error raised while generating A2UI (`{code, path, message}`).
 public struct A2UIGenerationIssue: Codable, Sendable, Equatable {
     public var code: String
     public var path: String?
@@ -77,14 +80,15 @@ public struct A2UIGenerationIssue: Codable, Sendable, Equatable {
     }
 }
 
-/// `ACTIVITY_SNAPSHOT`(`activityType: "a2ui-surface"`)の content の 2 形態。
+/// The two content shapes an `ACTIVITY_SNAPSHOT` with `activityType: "a2ui-surface"` can carry.
 ///
-/// 判別規範(公式 recovery-gate テスト準拠):
-/// paint = `a2ui_operations` が配列 / lifecycle = `status` が文字列。
+/// Discrimination rule, matching the upstream recovery-gate tests:
+/// paint = `a2ui_operations` is an array / lifecycle = `status` is a string.
 public enum A2UIActivityContent: Sendable, Equatable {
-    /// surface 本体。累積自己完結な A2UI 操作列(1 スナップショットで復元可能)。
+    /// The surface itself: a cumulative, self-contained operation sequence, so a single snapshot
+    /// restores the whole surface.
     case paint([AgentMessage])
-    /// ペイント前のライフサイクル通知。
+    /// A lifecycle notification sent before the paint.
     case lifecycle(A2UISurfaceLifecycle)
 
     public init(snapshot: ActivitySnapshotEvent) throws {
@@ -113,14 +117,14 @@ public enum A2UIActivityContent: Sendable, Equatable {
 }
 
 extension ActivitySnapshotEvent {
-    /// サーバー側: paint スナップショットを構築する。
+    /// Server side: builds a paint snapshot.
     ///
-    /// 禁則: **中身の無いサーフェス**は emit できない — レンダラが未到着の root を
-    /// 解決しようとして落ちるため。
+    /// A **surface with no contents** must not be emitted, because the renderer would try to
+    /// resolve a root that never arrives and crash; such a snapshot is rejected here.
     ///
-    /// v1.0 では `createSurface` 自身が `components` を持てるので、同梱されていれば
-    /// それで満たされる（アペンドオンリーの 1 メッセージ形）。v0.9 のように別途
-    /// `updateComponents` を送る形でも満たされる。どちらでもないときだけ弾く。
+    /// In v1.0 `createSurface` can carry its own `components`, which satisfies the requirement
+    /// (the append-only, single-message shape). Sending a separate `updateComponents`, as in
+    /// v0.9, satisfies it as well. Only a snapshot that does neither is rejected.
     public static func a2uiPaint(
         messageId: String,
         operations: [AgentMessage]
@@ -153,7 +157,7 @@ extension ActivitySnapshotEvent {
         )
     }
 
-    /// サーバー側: ライフサイクルスナップショットを構築する。
+    /// Server side: builds a lifecycle snapshot for the same messageId the paint will replace.
     public static func a2uiLifecycle(
         messageId: String,
         _ lifecycle: A2UISurfaceLifecycle

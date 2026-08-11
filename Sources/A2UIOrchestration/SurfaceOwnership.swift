@@ -2,29 +2,42 @@ import A2ACore
 import A2UICore
 import A2UIA2A
 
-/// どのエージェントがどのサーフェスを所有するかを管理する会話スコープ台帳。
-/// 決定論的 userAction ルーティングとデータモデルストリッピングの両方の基盤
-/// （公式サンプルの `SubagentRouteManager` に相当。公式はステートレスなアクセサペアを ADK セッション状態上に
-/// 持つが、こちらはホストセッションが所有する値型の台帳）。
+/// A conversation-scoped ledger of which agent owns which surface.
 ///
-/// 書き込み 1 つ、読み取り 2 つ:
-/// - サブエージェントのレスポンスがサーフェスを生成した際に書き込む（`record(surfacesCreatedIn:by:)`）
-/// - LLM 呼び出しなしに userAction を所有者へルーティングする際に読む（`owner(ofUserActionIn:)`）
-/// - クライアントデータモデルを対象エージェントが見てよいスコープに絞る際に読む（`outboundMetadata`）
+/// It backs two things at once: routing a `userAction` to its owner without an LLM call, and
+/// stripping the client data model down to what an agent is allowed to see. The official sample's
+/// `SubagentRouteManager` holds the same state as a pair of stateless accessors over ADK session
+/// state; this is a value-type ledger the host session owns and persists itself.
+///
+/// One write, two reads:
+/// - Write when a subagent's response creates surfaces (`record(surfacesCreatedIn:by:)`).
+/// - Read to route a `userAction` to its owner (`owner(ofUserActionIn:)`).
+/// - Read to narrow the client data model to what the target agent may see (`outboundMetadata`).
+///
+/// Ownership is scoped to one conversation. Reusing a ledger across conversations would let a
+/// surface id from an earlier exchange decide where a later message is routed and what data travels
+/// with it.
 public struct SurfaceOwnership: Sendable, Equatable {
     private var owners: [String: String] = [:]
 
     public init() {}
 
+    /// The agent that most recently claimed `surfaceId`, or `nil` if none has.
     public func owner(of surfaceId: String) -> String? {
         owners[surfaceId]
     }
 
-    /// 後着優先で上書きする。公式 `set_route_to_subagent_name` の上書きセマンティクスに一致する。
+    /// Claims `surfaceId` for `agent`, replacing whatever owner it had.
+    ///
+    /// Last write wins, matching the overwrite semantics of the official
+    /// `set_route_to_subagent_name`. A second agent creating the same surface id therefore takes
+    /// over both routing and data model access for it.
     public mutating func record(owner agent: String, of surfaceId: String) {
         owners[surfaceId] = agent
     }
 
+    /// Every surface currently claimed by `agent` — the exact set that survives data model
+    /// stripping in `outboundMetadata(_:capabilities:for:)`.
     public func surfaceIds(ownedBy agent: String) -> Set<String> {
         Set(owners.filter { $0.value == agent }.keys)
     }
@@ -33,11 +46,15 @@ public struct SurfaceOwnership: Sendable, Equatable {
 // MARK: - Recording (mirror of the official agent_executor's event observation)
 
 extension SurfaceOwnership {
-    /// `parts` 内で生成されたすべてのサーフェスの所有者として `agent` を記録する。
+    /// Records `agent` as the owner of every surface created in `parts`.
     ///
-    /// 公式サンプルは各アウトバウンドサブエージェントイベントで `beginRendering` を観測する。
-    /// v1.0 のサーフェス生成メッセージは `createSurface`。サブエージェントから受け取った
-    /// パートのバッチごとに、サブエージェントの名前（公式の `event.author`）を `agent` として呼び出す。
+    /// The official sample observes `beginRendering` on each outbound subagent event; in v1.0 the
+    /// surface-creating message is `createSurface`. Call this once per batch of parts received from
+    /// a subagent, passing that subagent's name (the official `event.author`) as `agent`.
+    ///
+    /// Parts that do not decode as an A2UI agent message are skipped without error, so a surface
+    /// carried in a part this cannot read stays unowned — its `userAction` falls back to LLM
+    /// routing, and its data is stripped from every outbound message.
     public mutating func record(surfacesCreatedIn parts: [Part], by agent: String) {
         for part in parts {
             guard case .createSurface(let creation)? = try? part.a2uiAgentMessage() else { continue }
@@ -49,11 +66,13 @@ extension SurfaceOwnership {
 // MARK: - Deterministic routing (mirror of the official before_model_callback)
 
 extension SurfaceOwnership {
-    /// メッセージを LLM 呼び出しなしにルーティングするエージェント名。不明なサーフェスや
-    /// 読み取れないアクションの場合は `nil` を返し LLM ルーティングにフォールバックする。
+    /// The agent this message can be routed to without an LLM call, or `nil` when the surface is
+    /// unknown or the action cannot be read.
     ///
-    /// 公式 `programmtically_route_user_action_to_subagent` と同様、末尾パーツのみを対象とする。
-    /// 決定論的ルーティングは最適化であり、正確性のゲートではない。
+    /// `nil` means "fall back to LLM routing", not "drop the message": deterministic routing is an
+    /// optimization, never a correctness gate, so a wrong answer here costs a round trip and not a
+    /// misdelivery. Like the official `programmtically_route_user_action_to_subagent`, only the last
+    /// part is examined — an earlier `userAction` in the same batch is ignored.
     public func owner(ofUserActionIn parts: [Part]) -> String? {
         guard let action = parts.last?.a2uiUserAction else { return nil }
         return owner(of: action.surfaceId)
@@ -63,13 +82,20 @@ extension SurfaceOwnership {
 // MARK: - Outbound metadata (mirror of the official A2UIMetadataInterceptor)
 
 extension SurfaceOwnership {
-    /// `agent` に送信するメッセージメタデータを準備する: クライアントケイパビリティを埋め込み、
-    /// クライアントデータモデルをそのエージェントが所有するサーフェスに絞る
-    /// （公式の "Data Model Stripping to prevent data leakage" — エージェントは他のエージェントの
-    /// サーフェスデータを参照できない）。
+    /// Prepares the metadata sent to `agent`: embeds the client capabilities, and narrows the client
+    /// data model to the surfaces that agent owns.
     ///
-    /// データモデルが存在すれば常にストリッピングを適用する（サーフェスセットが空の場合も含む）。
-    /// 公式インターセプターの動作に一致する。
+    /// The narrowing is a security boundary, not a size optimization. It is what stops one agent
+    /// from reading another agent's surface data — the official "Data Model Stripping to prevent
+    /// data leakage". Send agent-bound metadata through this function and not around it; a message
+    /// assembled by hand carries every surface in the conversation to whoever receives it.
+    ///
+    /// Stripping runs whenever a data model is present, including when the agent owns no surfaces
+    /// at all, so an agent with an empty set receives an empty data model rather than the unfiltered
+    /// one. That matches the official interceptor.
+    ///
+    /// - Returns: `nil` when the resulting metadata is empty, so the caller can leave
+    ///   `Message.metadata` unset rather than sending an empty object.
     public func outboundMetadata(
         _ metadata: A2AMetadata?,
         capabilities: A2UIRendererCapabilities?,

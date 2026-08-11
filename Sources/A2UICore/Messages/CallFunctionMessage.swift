@@ -1,11 +1,14 @@
 import StructuredDataCore
-/// エージェント → レンダラの関数呼び出しリクエスト（A2UI v1.0）。
+/// An agent asking the renderer to run a catalog function on its behalf (A2UI v1.0).
 ///
-/// `functionCallId` は対応する `FunctionResponse`（または `error`）にそのまま複写する必要がある。
-/// 呼び出せるかどうかはカタログの `FunctionDefinition.callableFrom`（`agentOnly` /
-/// `rendererOrAgent`）で決まり、**ワイヤーには載らない** — レンダラが実行時にカタログを引いて
-/// 検証し、`rendererOnly` や未登録の関数は `INVALID_FUNCTION_CALL` で拒否する。
-/// ワイヤー上ではこれらのフィールドは `version` と同じメッセージ最上位に並ぶ。
+/// Copy `functionCallId` verbatim into the resulting `FunctionResponse` (or `error`); it is the
+/// only thing that pairs a reply with its call.
+///
+/// Permission does not travel on the wire. The renderer looks the name up in the active catalog and
+/// reads `FunctionDefinition.callableFrom` (`agentOnly` / `rendererOrAgent`), rejecting
+/// `rendererOnly` and unregistered names with `INVALID_FUNCTION_CALL` — see `FunctionBoundary`.
+///
+/// These fields are siblings of `version` at the top level of the message, not nested under a key.
 public struct CallFunctionMessage: Codable, Sendable, Equatable {
     public let functionCallId: CallId
     public let wantResponse: Bool?
@@ -18,10 +21,11 @@ public struct CallFunctionMessage: Codable, Sendable, Equatable {
     }
 }
 
-/// `wantResponse: true` を設定したクライアントアクションへのサーバ応答メッセージ（A2UI v1.0）。
+/// The agent's reply to a client action that asked for one with `wantResponse: true` (A2UI v1.0).
 ///
-/// `actionId` は発信元の `action` と対応付ける。クライアントはアクションの `responsePath`
-/// （存在する場合）に値をローカルデータモデルへ書き込む。ワイヤー上では `version` と同じ最上位に並ぶ。
+/// `actionId` must match the id the originating action carried. When that action also carried a
+/// `responsePath`, the client writes the returned value into its own data model at that pointer.
+/// These fields are siblings of `version` at the top level of the message.
 public struct ActionResponseMessage: Codable, Sendable, Equatable {
     public let actionId: String
     public let actionResponse: ActionResponse
@@ -32,7 +36,10 @@ public struct ActionResponseMessage: Codable, Sendable, Equatable {
     }
 }
 
-/// `ActionResponseMessage` のペイロード: 戻り値（`value`）またはエラー（`error`）。
+/// The payload of an `ActionResponseMessage`: either the returned `value` or an `error` explaining
+/// why the agent could not produce one.
+///
+/// Decoding keys off the presence of `error`, so a payload carrying both reads as the error.
 public enum ActionResponse: Sendable, Equatable {
     case value(StructuredValue)
     case error(code: String, message: String)

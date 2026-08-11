@@ -1,5 +1,13 @@
 import StructuredDataCore
-/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表されるブール値。
+/// A boolean a component reads for something it can switch: a checkbox state, a `CheckRule`
+/// condition, an enablement flag.
+///
+/// Same three shapes as the rest of the dynamic family — `literal` fixed in the message, `binding`
+/// re-read from the data model, `functionCall` computed by the catalog. A bound path that is
+/// missing, or holds something that is not a boolean, coerces to `false`, so a mistyped path shows
+/// up as "off" rather than as an error.
+///
+/// Conforms to `ExpressibleByBooleanLiteral`, so `true` builds `.literal(true)`.
 public enum DynamicBoolean: Sendable, Equatable {
     case literal(Bool)
     case binding(DataBinding)

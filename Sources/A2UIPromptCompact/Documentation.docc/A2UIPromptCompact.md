@@ -1,18 +1,23 @@
 # ``A2UIPromptCompact``
 
-共通型の重複記述を圧縮してシステムプロンプトのトークン数を削減するコンパクトビルダー。
+A prompt builder for apps whose catalog exposes no client functions: it strips the `FunctionCall` types out of the schema so the model stops reaching for a call form the app cannot honour.
+
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`A2UIPromptCompact` は `A2UIPrompt` を補完するモジュール。LLM のコンテキストウィンドウが限られた状況や、多くのコンポーネントを使うときにプロンプトのトークン数が膨らむ問題を解消する。
+Omitting `functions` from a catalog is not enough to stop a model from emitting a function call. The `Dynamic*` types in the shared `common_types.json` still offer a `FunctionCall` branch, the model reads the branch in the schema block, and it writes one. ``CommonTypesCompactor`` removes the possibility rather than discouraging it: it deletes the `FunctionCall` and `DynamicValue` definitions and the branches inside each `Dynamic*` type's `oneOf` that reference them. Reachability pruning in `A2UIPrompt` then removes whatever those deletions left unreachable, so the saving compounds beyond the two definitions actually named.
 
-`CommonTypesCompactor` は `DynamicString`・`DynamicBoolean`・`DataBinding` などの共通型を一度だけ定義する短縮表現に変換し、各コンポーネントスキーマから重複する型定義を除去する。`A2UIPromptCompactBuilder` は `A2UIPromptBuilder` と同じ API を持ちながら、この圧縮処理を内部で適用する。同じコンポーネントセットでも圧縮版はフル版より大幅に短いプロンプトを生成し、コンテキスト消費を抑えながら同等の情報を LLM に伝えられる。
+``A2UIPromptCompactBuilder`` wraps `A2UIPromptBuilder` with that compacted schema already in place, and mirrors its public API — same `buildSystemPrompt` signature, same `schemaBlock()`, same component and message allowlists — so the two are interchangeable at the call site. The compaction itself is done once per process and shared, since it re-parses and re-serializes the bundled schema. The `builder` property is an escape hatch for APIs that take an `A2UIPromptBuilder` directly.
+
+This is an unofficial optimization, and it is only correct for a catalog that declares `functions: []`. Parts of the A2UI specification assume a catalog that carries functions; hand this builder a catalog that declares some and the prompt will describe a schema in which the values needed to invoke them no longer exist. If the bundled schema cannot be parsed, compaction returns it unchanged — the prompt degrades to the full version rather than to an empty schema block, but nothing reports that it happened.
 
 ```swift
 import A2UIPromptCompact
 import A2UICatalog
+import A2UITyped
 
-// 圧縮版ビルダーでシステムプロンプトを生成する
+// Build a system prompt with the compact builder
 let builder = A2UIPromptCompactBuilder(
     allowedComponents: BasicComponent.componentNames,
     allowedMessages: nil
@@ -27,10 +32,10 @@ let compactPrompt = builder.buildSystemPrompt(
 
 ## Topics
 
-### 圧縮ビルダー
+### Building a prompt
 
 - ``A2UIPromptCompactBuilder``
 
-### 共通型圧縮
+### Reshaping the common types
 
 - ``CommonTypesCompactor``

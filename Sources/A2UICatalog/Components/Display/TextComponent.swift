@@ -1,6 +1,10 @@
 import A2UICore
 
-/// テキスト表示コンポーネント。Markdown の基本書式をサポートする。
+/// Displays a run of text, honoring simple Markdown but not HTML, images, or links.
+///
+/// `text` is a `DynamicString`, so it may be a literal, a data binding, or a `formatString` call —
+/// A2UI has no string concatenation, so any interpolation goes through that function. `variant`
+/// chooses only between `caption` and `body`; headings are written as Markdown.
 public struct TextComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Text"
 

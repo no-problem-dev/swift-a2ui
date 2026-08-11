@@ -1,5 +1,10 @@
 import StructuredDataCore
-/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される文字列配列。
+/// Several strings where the other dynamic types carry one — a picker's selection, a set of chosen
+/// options.
+///
+/// A `binding` expects the bound path to hold an array of strings; elements of any other type are
+/// skipped, and a path that matches nothing reads as an empty list. There is no
+/// `ExpressibleByArrayLiteral` conformance, so write `.literal(["a", "b"])` in full.
 public enum DynamicStringList: Sendable, Equatable {
     case literal([String])
     case binding(DataBinding)

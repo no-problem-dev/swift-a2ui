@@ -1,9 +1,14 @@
-/// 全 A2UI システムプロンプトに挿入するデフォルトのワークフロールール群。
+/// Prompt-ready rule blocks that tell a model how to emit a valid A2UI response.
 ///
-/// JSON を包むタグ・`components` 配列の順序制約など、LLM が有効な A2UI レスポンスを
-/// 生成するための指示。テキストは Python SDK の `DEFAULT_WORKFLOW_RULES` 定数と完全一致。
+/// The rules cover the tags that wrap the JSON and the ordering constraint on the `components`
+/// array — constraints a JSON schema cannot express on its own. Pick one delivery rule
+/// (`default` or `toolCall`) and append whichever of the topic rules apply to your catalog.
 public enum A2UIWorkflowRules {
-    /// Python SDK の `DEFAULT_WORKFLOW_RULES` 文字列と完全一致するデフォルトルールセット。
+    /// The delivery rules for A2UI JSON written into the model's text response.
+    ///
+    /// Matches the Python SDK's `DEFAULT_WORKFLOW_RULES` string verbatim, so a prompt built
+    /// here reproduces the official one. Use `toolCall` instead when the model sends UI
+    /// through the tool, otherwise the model is told to do both.
     public static let `default` = """
     The generated response MUST follow these rules:
     - The response can contain one or more A2UI JSON blocks.
@@ -16,14 +21,17 @@ public enum A2UIWorkflowRules {
         This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.
     """
 
-    /// **ツールコール**生成パターン向けのワークフロールール（公式 `send_a2ui_json_to_client`
-    /// ツール、Python SDK の `SendA2uiToClientToolset` に対応）。
+    /// The delivery rules for the **tool-call** pattern.
     ///
-    /// `default` のタグ包み条件をツールコール条件に置き換え、順序・バリデーション制約は同じ。
+    /// Written for the official `send_a2ui_json_to_client` tool, the counterpart of the Python
+    /// SDK's `SendA2uiToClientToolset`. Replaces the tag-wrapping clause of `default` with one
+    /// forbidding A2UI JSON in the text response — text that contains it reaches the user as
+    /// raw JSON. The ordering and validation constraints are unchanged.
     ///
-    /// エラー時は「同一ループ内で自己修正」を指示する。ツールエラーはモデルへ結果として返り、
-    /// ターンは終わらない（`TurnEndingTool` の判定が成功時のみ成立する）ため、実際の回復機構は
-    /// 再生成であって謝罪ではない。
+    /// On error the rules tell the model to repair the payload inside the same turn. That
+    /// works because a tool error comes back to the model as a result and does not end the
+    /// turn — `TurnEndingTool` ends it only on success — so the recovery path that actually
+    /// produces UI is a retry, not an apology.
     public static let toolCall = """
     The generated response MUST follow these rules:
     - You MUST send UI to the client by calling the `send_a2ui_json_to_client` tool with the `a2ui_json` argument set to the A2UI JSON payload.
@@ -38,11 +46,12 @@ public enum A2UIWorkflowRules {
     - If the tool returns an error, read the message, fix the payload, and call the tool again in the SAME turn. Do not apologize instead of retrying.
     """
 
-    /// データバインディングのスコープルール（仕様 §"Path resolution & scope"、v1.0）。
+    /// Data-binding scope rules, transcribed from spec §"Path resolution & scope" (v1.0).
     ///
-    /// JSON スキーマはテンプレート `ChildList` の形状は表現できるがスコープのセマンティクスは
-    /// 表現できないため、モデルがテンプレート内で絶対パスを使用し未解決になることがある。
-    /// 仕様の規範的な記述をプロンプト用の散文として移植する。
+    /// A JSON schema can express the shape of a template `ChildList` but not its scope
+    /// semantics, so without this prose the model writes absolute paths inside a template and
+    /// the bindings resolve to nothing. Append it whenever the catalog can produce
+    /// template-driven children.
     public static let scopeRules = """
     Data binding scope rules:
     - Paths starting with '/' are ABSOLUTE: they always resolve from the root of the data model, even inside a template.
@@ -51,12 +60,13 @@ public enum A2UIWorkflowRules {
     - To bind the array element itself (e.g. iterating an array of strings), use {"path": "."}.
     """
 
-    /// **basic catalog** コンポーネント向けの必須プロパティリマインダー。
+    /// A required-property reminder for the **basic catalog** components.
     ///
-    /// Google Python SDK が basic catalog に付属させる自然言語ヒントのミラー。
-    /// 必須プロパティはスキーマの `required` 配列に既に記載されているが、LLM は
-    /// 明示的な散文リマインダーの方がより確実に従う。basic catalog のドメイン知識として
-    /// 各アプリでなくこのライブラリに置く。
+    /// Mirrors the natural-language hint the Google Python SDK ships alongside the basic
+    /// catalog. The same requirements already appear in the schema's `required` arrays, but a
+    /// model follows an explicit prose reminder far more reliably — especially for properties
+    /// bound to data or written inside a template, which it otherwise omits. This lives in the
+    /// library rather than in each app because it is knowledge about the basic catalog.
     public static let basicCatalogRules = """
     Instructions specific to the basic catalog:
     **REQUIRED PROPERTIES:** You MUST include ALL required properties for every component, even if they are inside a template or will be bound to data.
@@ -66,7 +76,11 @@ public enum A2UIWorkflowRules {
     - For 'TextField', 'CheckBox', etc., you MUST provide 'label'.
     """
 
-    /// `Text` コンポーネント内の数式 LaTeX デリミタに関するルール。
+    /// The rule for LaTeX math delimiters inside a `Text` component.
+    ///
+    /// Append it when the agent can produce formulas. It also pins the `variant` restriction:
+    /// only `body` or an omitted variant renders the math, everything else shows the
+    /// delimiters as literal text.
     public static let textMathRules = """
     - Math formulas MUST be LaTeX wrapped in `$...$` (inline) or `$$...$$` (display) inside a 'Text' component whose 'variant' is 'body' or omitted; other variants show them as raw text.
     """

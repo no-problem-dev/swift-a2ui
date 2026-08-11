@@ -1,32 +1,36 @@
 # ``A2UITypedRenderer``
 
-`A2UICatalog` 上の型安全な SwiftUI レンダラー — `AnyView` を一切使わずにコンポーネントツリーを描画する。
+A type-safe SwiftUI renderer for `A2UICatalog` that draws a component tree without a single `AnyView`.
+
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`A2UITypedRenderer` は `A2UITyped` のジェネリックカタログ型の上に、ゼロ型消去の SwiftUI レンダラーを構築する。`AnyView` を排除したジェネリックな `NodeView<Catalog>` が再帰的にコンポーネントツリーを走査し、各ノードを対応する SwiftUI ビューに変換する。
+`A2UITypedRenderer` builds a zero-erasure SwiftUI renderer on top of the generic catalog types from `A2UITyped`. A generic `NodeView<Catalog>` walks the component tree recursively and turns each node into the view its catalog says it should be. The price of that is genericity: `Catalog` is a type parameter on almost everything here, and it is viral through anything that renders a child.
 
-`RenderableCatalog` プロトコルは `A2UICatalog` に加えて `render` 要件を追加する。カタログ型がこのプロトコルに準拠することで、`A2UISurfaceView<Catalog>` がそのカタログのコンポーネントを自動的にディスパッチして描画できる。`RenderContext<Catalog>` はレンダリング中に必要な状態（データモデル・イベントハンドラ・テーマ）を保持する。
+A catalog opts in by conforming to ``RenderableCatalog``, whose one requirement is `view(for:in:)` — a single `@ViewBuilder switch` over the node sum type. There is no string matching and no `default` case, so adding a component to a catalog fails to compile until it is drawn. ``RenderContext`` is the second argument to that function: it carries the data scope, the color palette, the URL opener, and the methods for resolving bindings, evaluating `checks`, and rendering children. Resolve values through the context rather than reading the data model directly — the resolvers are what establish the SwiftUI dependency that makes a binding update the view.
 
-`TypedMessageProcessor<Catalog>` は LLM から届く `AgentMessage` を受け取り、`TypedSurface<Catalog>` の状態を更新する。`TypedSurface<Catalog>` は `@Observable` として SwiftUI に公開されるサーフェスの実体。`BasicComponentView<Catalog>` は `BasicEmbeddingNode` が埋め込まれた標準コンポーネントすべての SwiftUI 描画を担う。
+``TypedSurface`` is one surface: a flat id-to-node map plus its data model, mirroring the A2UI wire format where a parent names its children by id string. It is `@Observable` and applies the two partial updates, `updateComponents` and `updateDataModel`. ``TypedMessageProcessor`` sits above it, applying a stream of `AgentMessage` values to a keyed set of surfaces and handing user interactions back to the host as `UserAction`.
+
+``A2UISurfaceView`` is the entry point for rendering a whole surface, including the busy state and the placeholder shown before the root component arrives. ``BasicComponentView`` draws the standard components for any catalog that embeds `BasicEmbeddingNode`, which is how a custom catalog delegates its fallback case. Media components open an in-app viewer on tap by default; call `a2uiMediaViewer(false)` to suppress that where a fullscreen cover is unwelcome.
 
 ```swift
 import SwiftUI
 import A2UITypedRenderer
 import A2UITyped
 
-// BasicCatalog ベースのサーフェスを管理・描画する
+// Hold and render a surface built on BasicCatalog.
 struct ContentView: View {
-    // TypedSurface は @Observable なので @State で保持する
+    // TypedSurface is @Observable, so @State is the right home for it.
     @State private var surface = TypedSurface<BasicCatalog>(nodes: [])
 
     var body: some View {
-        // A2UISurfaceView はラベルなしの第1引数でサーフェスを受け取る
+        // A2UISurfaceView takes the surface as an unlabeled first argument.
         A2UISurfaceView(surface)
     }
 }
 
-// サーバーメッセージを適用する（TypedMessageProcessor を使う場合）
+// Apply server messages through the processor.
 @MainActor
 func apply(_ messages: [AgentMessage], to processor: TypedMessageProcessor<BasicCatalog>) {
     processor.process(messages)
@@ -35,18 +39,18 @@ func apply(_ messages: [AgentMessage], to processor: TypedMessageProcessor<Basic
 
 ## Topics
 
-### エントリポイントビュー
+### Rendering a surface
 
 - ``A2UISurfaceView``
 - ``NodeView``
 - ``BasicComponentView``
 
-### レンダリングコンテキスト
+### Making a catalog renderable
 
 - ``RenderableCatalog``
 - ``RenderContext``
 
-### サーフェス状態管理
+### Surface state
 
 - ``TypedSurface``
 - ``TypedMessageProcessor``

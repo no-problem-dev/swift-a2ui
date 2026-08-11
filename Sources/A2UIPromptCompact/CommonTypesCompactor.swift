@@ -3,22 +3,27 @@ import StructuredDataCore
 import A2UICore
 import Foundation
 
-/// `common_types.json` から FunctionCall 関連の `$defs` を物理的に剥がすユーティリティ。
+/// Removes the FunctionCall-related `$defs` from `common_types.json`.
 ///
-/// **非公式最適化**: A2UI spec は catalog に `functions` を持たない構成を明示禁止していないが、
-/// 推奨もしていない。catalog 側で `functions: []` を採用しているアプリ専用の最適化として、
-/// LLM に「function 形式は使えない」と確信させるため `FunctionCall` / `DynamicValue` の型定義と、
-/// 各 Dynamic* 型の `oneOf` 内の FunctionCall 分岐を取り除く。
+/// **Unofficial optimization.** The A2UI specification neither forbids nor recommends a catalog
+/// without `functions`. For an app that declares `functions: []`, deleting the `FunctionCall`
+/// and `DynamicValue` definitions — and the FunctionCall branch inside each `Dynamic*` type's
+/// `oneOf` — is what convinces the model that the call form is unavailable. Merely omitting the
+/// functions from the catalog is not enough: a model that still sees the type in the schema will
+/// emit it.
 ///
-/// 結果として:
-/// - `FunctionCall`, `DynamicValue` の `$def` が消える
-/// - `DynamicString`, `DynamicNumber`, `DynamicBoolean`, `DynamicStringList` の `oneOf` から
-///   FunctionCall への参照を含む allOf 要素が消える
-/// - 続けて `SchemaPruner.pruneCommonTypes` で芋づる式に到達不能な定義が削れる
+/// What comes out:
+/// - The `$def`s for `FunctionCall` and `DynamicValue` are gone.
+/// - The `allOf` entries referencing FunctionCall are gone from the `oneOf` of `DynamicString`,
+///   `DynamicNumber`, `DynamicBoolean`, and `DynamicStringList`.
+/// - A subsequent `SchemaPruner.pruneCommonTypes` then drops whatever became unreachable.
 public enum CommonTypesCompactor {
 
-    /// FunctionCall サポートを取り除いた common_types を返す。
-    /// 入力が parse できない場合は元の文字列をそのまま返す（安全側）。
+    /// Returns the common_types schema with FunctionCall support removed.
+    ///
+    /// Input that does not parse comes back unchanged, so a malformed schema degrades to the
+    /// full prompt rather than to an empty schema block — but it also means a silent no-op is
+    /// indistinguishable from a catalog that had nothing to remove.
     public static func compact(_ commonTypesJSON: String) -> String {
         guard let data = commonTypesJSON.data(using: .utf8),
               let value = try? JSONParser().parse(data),
@@ -26,12 +31,12 @@ public enum CommonTypesCompactor {
             return commonTypesJSON
         }
 
-        // 1. $defs から FunctionCall / DynamicValue を削除
+        // 1. Delete FunctionCall and DynamicValue from $defs.
         if case .object(var defs)? = root["$defs"] {
             defs.removeValue(forKey: "FunctionCall")
             defs.removeValue(forKey: "DynamicValue")
 
-            // 2. 各 $defs の oneOf 内から FunctionCall 参照を含む要素を除去
+            // 2. Drop the entries that reference FunctionCall from every $defs entry's oneOf.
             for key in defs.keys {
                 if let updated = stripFunctionCallReferences(in: defs[key]!) {
                     defs[key] = updated
@@ -43,11 +48,16 @@ public enum CommonTypesCompactor {
         return serialize(.object(root)) ?? commonTypesJSON
     }
 
-    /// StructuredValue 値の中から FunctionCall への参照を持つ allOf / $ref 要素を再帰的に除去する。
+    /// Recursively removes the `oneOf` entries that reference FunctionCall, whether directly or
+    /// through an `allOf`.
+    ///
+    /// Returns `nil` for scalars, which callers read as "nothing to replace here". A type whose
+    /// every branch referenced FunctionCall loses its `oneOf` key entirely rather than keeping
+    /// an empty array, since an empty `oneOf` validates nothing.
     private static func stripFunctionCallReferences(in value: StructuredValue) -> StructuredValue? {
         switch value {
         case .object(var dict):
-            // "oneOf": [...] の中身を走査して FunctionCall 参照を含む要素を除去
+            // Walk "oneOf": [...] and drop the entries that reference FunctionCall.
             if case .array(let arr)? = dict["oneOf"] {
                 let filtered = arr.filter { !containsFunctionCallReference($0) }
                 if filtered.isEmpty {
@@ -56,7 +66,7 @@ public enum CommonTypesCompactor {
                     dict["oneOf"] = .array(filtered)
                 }
             }
-            // 入れ子の dict 内も再帰
+            // Recurse into nested dictionaries.
             for (key, child) in dict {
                 if let updated = stripFunctionCallReferences(in: child) {
                     dict[key] = updated
@@ -72,7 +82,10 @@ public enum CommonTypesCompactor {
         }
     }
 
-    /// 与えられた値が FunctionCall への `$ref` を直接 / `allOf` 内に含むかを判定。
+    /// Reports whether a value references FunctionCall, as a direct `$ref` or inside an `allOf`.
+    ///
+    /// Only those two shapes count; a reference buried deeper is not detected, which matches
+    /// how the published common_types writes its `Dynamic*` branches.
     private static func containsFunctionCallReference(_ value: StructuredValue) -> Bool {
         switch value {
         case .object(let dict):

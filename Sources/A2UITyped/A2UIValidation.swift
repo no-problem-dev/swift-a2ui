@@ -2,25 +2,31 @@ import StructuredDataCore
 import A2UICore
 import A2UISurface
 
-/// A2UI メッセージをレンダリング前にカタログ検証するユーティリティ。
-/// 公式 Python `A2uiValidator.validate()` の Swift 対応実装。
-/// 検証結果は人間可読なエラーのリスト（空 = 有効）で返され、
-/// ホストがモデルへの再プロンプトを判断するために使用する（仕様の prompt → generate → validate ループ）。
+/// Checks a turn of A2UI messages against a catalog before anything is rendered.
 ///
-/// サーフェスごとの検証内容:
-/// - **出力なし**: `createSurface` も `updateComponents` も生成されていない
-/// - **コンポーネント整合性**: ID 重複、`root` 欠如、循環参照、深度超過
-/// - **カタログミス**: このカタログに存在しない `component` 名（"Not Supported" フォールバックで表示）
-/// - **構造的障害**: 既知コンポーネントのプロパティデコード失敗（例: `action` なし `Button`）
+/// The Swift counterpart of the official Python `A2uiValidator.validate()`. Results come back as
+/// human-readable error strings (an empty list means the output is valid) that the host uses to decide
+/// whether to re-prompt the model — the spec's prompt → generate → validate loop.
+///
+/// Checked per surface:
+/// - **No output**: neither `createSurface` nor `updateComponents` was produced.
+/// - **Component integrity**: duplicate ids, a missing `root`, circular references, excess depth.
+/// - **Catalog miss**: a `component` name this catalog does not have (it renders as the "Not Supported"
+///   fallback).
+/// - **Structural failure**: a known component whose properties fail to decode, such as a `Button` with
+///   no `action`.
 public enum A2UIValidation {
 
-    /// ターン内のメッセージに対する検証問題を収集する。空リストは出力が有効であることを意味する。
-    /// コンポーネントは `surfaceId` ごとに `createSurface`（v1.0 インラインコンポーネント）と
-    /// `updateComponents` を跨いで集計してから検証する。
+    /// Collects the validation problems in one turn's messages; an empty list means the output is valid.
     ///
-    /// `allowedComponents` / `allowedMessages` は `A2UIPromptBuilder` の pruning セットに対応する:
-    /// ホストがプロンプト側スキーマをサブセットに絞り込んだ場合、同じセットをここで渡すことで
-    /// モデルが実際に提示されていないコンポーネント/メッセージを拒否できる（`nil` = カタログ以外の制限なし）。
+    /// Components are gathered per `surfaceId` across both `createSurface` (v1.0 inline components) and
+    /// `updateComponents` before any check runs, so a tree assembled from several messages is judged as a
+    /// whole rather than message by message.
+    ///
+    /// `allowedComponents` / `allowedMessages` mirror the pruning sets of `A2UIPromptBuilder`: when the
+    /// host narrowed the prompt-side schema to a subset, pass the same sets here so that components and
+    /// message types the model was never shown are rejected by name instead of surfacing later as a
+    /// downstream symptom. `nil` imposes no restriction beyond the catalog itself.
     public static func issues<Catalog: A2UICatalog>(
         in messages: [AgentMessage],
         for catalog: Catalog.Type,

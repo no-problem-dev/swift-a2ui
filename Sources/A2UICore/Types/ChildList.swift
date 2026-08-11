@@ -1,4 +1,10 @@
-/// コンテナコンポーネントの子一覧: 明示的な ID 列またはテンプレート展開のいずれか。
+/// How a container names its children: a fixed list of component ids, or one template component
+/// instantiated once per element of a bound collection.
+///
+/// The two are told apart by JSON shape, not by a discriminator — `ids` is an array of strings,
+/// `template` an object with `componentId` and `path`. Inside a template instance the data scope
+/// moves to the element, so bindings there are written relative to it and the built-in `@index`
+/// resolves (spec §collection scopes).
 public enum ChildList: Sendable, Equatable {
     case ids([String])
     case template(componentId: String, path: String)

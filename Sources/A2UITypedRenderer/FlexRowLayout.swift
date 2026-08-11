@@ -1,10 +1,13 @@
 import SwiftUI
 import A2UICatalog
 
-/// flex 配分の純粋計算。サイズ決定は weight(flex-grow)が司り、justify は余白の配置だけを司る
-/// (CSS flexbox と同じ意味論)。合計が提案幅を超える場合は比例縮小(flex-shrink 相当)するため、
-/// 子がどれだけ長文でも Row が提案幅を超えてサーフェス全体を押し広げることはない。
-/// UI 非依存で、単体でテストする。
+/// Pure arithmetic for flex distribution: `weight` (flex-grow) decides size, `justify` only places
+/// the leftover space — the same split of duties as CSS flexbox.
+///
+/// When the children's ideal widths add up to more than the proposal, they are scaled down
+/// proportionally (the flex-shrink equivalent), so no amount of long text in a child can push the
+/// row past its proposed width and stretch the whole surface. Free of UIKit/SwiftUI so it can be
+/// tested on its own.
 enum FlexDistribution {
     struct Slot: Equatable {
         var x: CGFloat
@@ -74,12 +77,16 @@ enum FlexDistribution {
     }
 }
 
-/// 子の weight を Layout へ運ぶ。nil = weight 宣言なし(intrinsic 幅)。
+/// Carries a child's weight through to the layout. `nil` means the child declared no weight and
+/// keeps its intrinsic width.
 enum FlexWeightKey: LayoutValueKey {
     static let defaultValue: Double? = nil
 }
 
-/// `Row` の本実装。子の ideal 幅は「提案幅を上限に」計測するため、長文 Text は折り返しで応える。
+/// The real implementation behind `Row`.
+///
+/// Each child's ideal width is measured against the row's own proposed width as the ceiling, so a
+/// long `Text` answers with a wrapped height rather than a single very wide line.
 struct FlexRowLayout: Layout {
     let justify: LayoutJustify?
     let align: LayoutAlign?

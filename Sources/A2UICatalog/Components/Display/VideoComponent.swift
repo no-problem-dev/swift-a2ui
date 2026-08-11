@@ -1,6 +1,9 @@
 import A2UICore
 
-/// 動画再生コンポーネント。指定した URL の動画を表示する。
+/// Plays the video at `url`, showing `posterUrl` until playback starts.
+///
+/// Both are `DynamicString`s and can be bound to the data model. The catalog declares no playback
+/// properties, so a model cannot ask for autoplay, looping, or muting; the renderer decides.
 public struct VideoComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Video"
 

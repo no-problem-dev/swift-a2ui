@@ -1,21 +1,21 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// `Image` / `Video` / `AudioPlayer` コンポーネントのタップで
-    /// アプリ内メディアビューアを起動するか（デフォルト有効）。
+    /// Whether tapping an `Image`, `Video`, or `AudioPlayer` opens the in-app media viewer.
+    /// Enabled by default.
     ///
-    /// ホストが独自のプレビュー導線を持つ場合や、fullScreenCover を
-    /// 許容できない埋め込み文脈では `a2uiMediaViewer(false)` で無効化できる。
-    /// スキーマ（公式 a2ui カタログ）には一切関与しないクライアント側 UX。
+    /// Turn it off with `a2uiMediaViewer(false)` when the host already has its own preview route,
+    /// or when the surface is embedded somewhere a `fullScreenCover` is unacceptable. This is
+    /// purely client-side behavior: the a2ui catalog schema says nothing about it.
     @Entry public var a2uiMediaViewerEnabled: Bool = true
 }
 
 extension View {
-    /// A2UI レンダラのメディアビューア起動を制御する
+    /// Controls whether the A2UI renderer opens its media viewer on tap, for this subtree.
     ///
     /// ```swift
     /// A2UISurfaceView(surface)
-    ///     .a2uiMediaViewer(false) // タップでのビューア起動を無効化
+    ///     .a2uiMediaViewer(false) // tapping media no longer opens the viewer
     /// ```
     public func a2uiMediaViewer(_ enabled: Bool) -> some View {
         environment(\.a2uiMediaViewerEnabled, enabled)

@@ -2,17 +2,20 @@ import StructuredDataCore
 import A2UICore
 import Foundation
 
-/// 単一サーフェスのアプリケーションデータを保持するリアクティブストア。
+/// A reactive store holding the application data of a single surface.
 ///
-/// `renderer_guide.md` §3 の `DataModel` 契約を実装する:
-/// - JSON Pointer の `get` / `set`（絶対パス + A2UI 相対パス）と中間コンテナの自動生成。
-/// - `subscribe(path:)`: 現在値を同期的に一度発火した後、関連する変更のたびに再発火。
-///   キャンセルは `A2UISubscription` で行う。
-/// - **Bubble & Cascade 通知**: `path` への書き込みは `path` 自身・すべての祖先（bubble）・
-///   すべての子孫（cascade）のサブスクライバーへ通知する。
+/// Implements the `DataModel` contract of `renderer_guide.md` §3:
+/// - JSON Pointer `get` / `set` over absolute and A2UI-relative paths, creating intermediate
+///   containers on the way.
+/// - `subscribe(path:)` fires once synchronously with the current value, then again on every
+///   relevant change. Cancel through `A2UISubscription`.
+/// - **Bubble & cascade notification**: a write to `path` notifies the subscribers of `path`
+///   itself, of every ancestor (bubble), and of every descendant (cascade). Writing `/user/name`
+///   therefore wakes a subscriber on `/user`, and replacing `/user` wholesale wakes a subscriber
+///   on `/user/name`.
 ///
-/// 参照型（`@Observable` ではない）。SwiftUI は直接購読しない。
-/// Binder 層がパスサブスクリプションを `@Observable` の `ResolvedProps` に変換する。
+/// A reference type, and deliberately not `@Observable`: SwiftUI never subscribes to it directly.
+/// The binder layer converts path subscriptions into `@Observable` `ResolvedProps`.
 public final class DataModel: @unchecked Sendable {
 
     private var root: StructuredValue
@@ -24,7 +27,9 @@ public final class DataModel: @unchecked Sendable {
         self.root = initial
     }
 
-    /// データモデル全体のスナップショット。
+    /// The whole model as one value, copied under the lock.
+    ///
+    /// The copy does not track later writes, so read it again rather than holding on to it.
     public var snapshot: StructuredValue {
         lock.lock(); defer { lock.unlock() }
         return root
@@ -32,8 +37,11 @@ public final class DataModel: @unchecked Sendable {
 
     // MARK: - Read
 
-    /// パスを現在値に解決する。絶対パス（`/a/b`）と相対パス（`a/b`）の両方をサポート。
-    /// パスが解決できない場合は nil を返す（呼び出し元は `undefined` として扱う）。
+    /// Resolves a path to its current value, accepting both absolute (`/a/b`) and relative (`a/b`)
+    /// forms.
+    ///
+    /// Returns `nil` when the path does not resolve; callers treat that as `undefined`. A path that
+    /// is absent and a path whose intermediate node has the wrong type both come back as `nil`.
     public func get(_ path: String, scope: String = "") -> StructuredValue? {
         lock.lock(); defer { lock.unlock() }
         return JSONPointer.resolve(path: path, scope: scope, in: root)
@@ -41,11 +49,15 @@ public final class DataModel: @unchecked Sendable {
 
     // MARK: - Write
 
-    /// `path` の値を設定（`value == nil` の場合は削除）し、影響するサブスクライバーへ通知する。
+    /// Writes the value at `path`, or deletes it when `value` is `nil`, then notifies every
+    /// affected subscriber.
     ///
-    /// - `value == nil` の場合: オブジェクトのキーを削除 / 配列のインデックスを空にする
-    ///   （仕様の Undefined Handling ルールに準拠）。
-    /// - 中間コンテナは自動生成される。数値の次セグメントは Array を生成する。
+    /// - Passing `nil` follows the spec's Undefined Handling rules: the object key is removed, and
+    ///   an array slot is emptied.
+    /// - Intermediate containers are created on demand, and the shape of each one is decided by the
+    ///   *next* segment: a numeric segment creates an Array, anything else an Object.
+    /// - Callbacks run after the lock is released, so a subscriber may call back into the model.
+    ///   Each callback receives the value read at notification time, not necessarily the newest one.
     public func set(_ path: String, _ value: StructuredValue?, scope: String = "") {
         lock.lock()
         let absolute = JSONPointer.absolutePath(path, scope: scope)
@@ -68,8 +80,13 @@ public final class DataModel: @unchecked Sendable {
 
     // MARK: - Subscribe
 
-    /// `path` への変更をサブスクライブする。コールバックは現在値で**同期的に一度**発火し、
-    /// その後この path に影響する書き込みのたびに再発火する（bubble & cascade）。
+    /// Subscribes to changes at `path`, firing the callback **once synchronously** with the current
+    /// value before returning.
+    ///
+    /// After that it fires on every write that affects the path under bubble & cascade: writes to
+    /// the path itself, to any ancestor, and to any descendant. Because of the synchronous first
+    /// call, the callback runs before the returned handle exists — do not capture the handle inside
+    /// it. Retain the handle: dropping it cancels the subscription.
     @discardableResult
     public func subscribe(
         _ path: String,

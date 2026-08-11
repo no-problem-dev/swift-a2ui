@@ -1,7 +1,10 @@
 import A2UICore
 
-/// リストコンポーネント。子コンポーネントを縦または横方向に並べる。
-/// テンプレート子リストによるデータドリブンなリスト生成もサポートする。
+/// Lays its children out in one direction, vertically unless `direction` says otherwise.
+///
+/// The data-driven case is what this component is for: `children` can be a template that expands
+/// one component over an array in the data model, so the agent declares the row once instead of
+/// emitting a component per item. `align` positions items across the direction of travel.
 public struct ListComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "List"
 

@@ -1,25 +1,32 @@
 import A2UICore
 
-/// LLM 向けスキーマを Swift で記述するコンポーネント（または関数）のプロトコル。
+/// A component that carries its own model-facing schema.
 ///
-/// 準拠することで Swift 型がスキーマの唯一の真実の源になる。手書きの `catalog.json` は不要。
-/// `SchemaRenderer` がすべての準拠型のスキーマを収集してカタログドキュメントを生成する。
+/// Conforming makes the Swift type the single source of truth for the schema, so no `catalog.json`
+/// is written by hand. `BasicCatalogSchema` gathers the schemas of the conforming types and
+/// `SchemaRenderer` renders them into the catalog document.
 public protocol CatalogSchemaDescribing {
-    /// この型のタイプセーフなスキーマ。
+    /// This component's properties, defaults, and prose in the form the renderer emits. Every
+    /// `description` inside it reaches the model verbatim.
     static var componentSchema: ComponentSchema { get }
 }
 
-/// `String` 型の raw value を持ち、ケースをスキーマ `enum` リストに提供する型のプロトコル。
-/// コンポーネントプロパティの enum（例: `TextVariant`）を準拠させることでスキーマにケースを公開する。
+/// A `String`-backed enum whose cases become a schema `enum` list.
+///
+/// Conform a property enum such as `TextVariant` and its cases reach the model straight from
+/// Swift, with no enum strings hand-listed in any JSON.
 public protocol SchemaEnumerable: CaseIterable, RawRepresentable where RawValue == String {}
 
 public extension SchemaEnumerable {
-    /// 宣言順のケース raw 文字列。`PropertyType.enumeration` で使用する。
+    /// Raw case strings in declaration order, which is the order they appear in the generated
+    /// schema. A call site passes an explicit list instead when the official catalog orders that
+    /// property's cases differently.
     static var schemaCases: [String] { allCases.map(\.rawValue) }
 }
 
 public extension PropertyType {
-    /// `SchemaEnumerable` 準拠型から `.enumeration` を構築する。手書きケース文字列は不要。
+    /// Builds an `.enumeration` from a `SchemaEnumerable` type, so the values offered to the model
+    /// stay in step with the enum that decodes its reply.
     static func enumeration<E: SchemaEnumerable>(_ type: E.Type) -> PropertyType {
         .enumeration(E.schemaCases)
     }

@@ -3,21 +3,33 @@ import StructuredDataCore
 import Foundation
 import A2UICore
 
-/// **ツール引数** として渡された A2UI ペイロードの厳格なパーサ — 公式 Python
-/// `payload_fixer.parse_and_fix()` の Swift 対応。
+/// Strict parser for an A2UI payload that arrived as a **tool argument** — the Swift counterpart
+/// of the official Python `payload_fixer.parse_and_fix()`.
 ///
-/// 前処理は `JSONSanitizer` に一本化する（スマートクォート正規化・コードフェンス除去・
-/// コメント除去・末尾カンマ除去）。モデルはツール引数の中にも ```json フェンスや
-/// `// comment` を混ぜてくるため、タグ経路（`A2UIBlockParser`）と同じ耐性をここでも持たせる。
-/// その上で `A2UIBlockParser` の寛容な要素単位復旧とは異なり **厳格モード**: デコード不可能な
-/// ペイロードはスローし、エラーをモデルへのツールエラーとして返すことで自己修正を促す。
+/// Preprocessing goes through `JSONSanitizer` alone: smart quotes normalized, code fences
+/// stripped, comments removed, trailing commas dropped. Models mix ```json fences and
+/// `// comment` lines into tool arguments as well, so this path gets the same tolerance as the
+/// tag path (`A2UIBlockParser`).
+///
+/// Past that it is **strict**, unlike the per-element salvage `A2UIBlockParser` performs: a
+/// payload that will not decode throws instead of yielding a partial result. Hand the error back
+/// to the model as a tool error and it can correct itself on the next turn.
 public enum A2UIPayloadFixer {
 
     public struct ParseError: Error, CustomStringConvertible {
         public let description: String
     }
 
-    /// LLM から渡された生 JSON 文字列を検証・自動修正し、デコードされたメッセージを返す。
+    /// Validates and repairs the raw JSON string a model produced, then decodes it.
+    ///
+    /// Four attempts are made in order: sanitized input, sanitized with trailing commas removed,
+    /// with invalid backslash escapes doubled, and both repairs together. A payload holding a
+    /// single message object is accepted and wrapped in a one-element array.
+    ///
+    /// - Parameter payload: The raw tool-argument string.
+    /// - Returns: Every decoded message, in payload order.
+    /// - Throws: `ParseError` when no attempt decodes. Its `description` is written to be read by
+    ///   the model, and names the LaTeX escaping mistake that causes most failures.
     public static func parseAndFix(_ payload: String) throws -> [AgentMessage] {
         let normalized = JSONSanitizer.sanitize(payload)
         if let messages = decodeStrict(normalized) {
@@ -41,7 +53,8 @@ public enum A2UIPayloadFixer {
 
     // MARK: - Private
 
-    /// `[AgentMessage]` としてデコードし、単一オブジェクトを配列でラップする（Python `_parse` 相当）。
+    /// Decodes as `[AgentMessage]`, falling back to a single object wrapped in an array (the
+    /// equivalent of Python `_parse`). `nil` on any failure, so the caller can try one more repair.
     private static func decodeStrict(_ json: String) -> [AgentMessage]? {
         let data = Data(json.utf8)
         guard let root = try? JSONParser().parse(data) else { return nil }
@@ -58,8 +71,9 @@ public enum A2UIPayloadFixer {
         json.replacingOccurrences(of: #",(?=\s*[\]}])"#, with: "", options: .regularExpression)
     }
 
-    /// 有効な JSON エスケープ（`\" \\ \/ \b \f \n \r \t \u`）で始まらないバックスラッシュを二重化する。
-    /// シングルバックスラッシュで書かれた LaTeX（`\infty` → `\\infty`）を修復する。有効なエスケープはそのまま残す。
+    /// Doubles every backslash that does not begin a valid JSON escape (`\" \\ \/ \b \f \n \r \t \u`).
+    /// Repairs LaTeX written with single backslashes (`\infty` → `\\infty`) and leaves valid
+    /// escapes untouched.
     private static func repairInvalidEscapes(_ json: String) -> String {
         json.replacingOccurrences(of: #"\\(?!["\\/bfnrtu])"#, with: #"\\\\"#, options: .regularExpression)
     }

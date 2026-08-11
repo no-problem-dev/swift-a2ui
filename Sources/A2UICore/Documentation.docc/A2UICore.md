@@ -1,29 +1,29 @@
 # ``A2UICore``
 
-A2UI プロトコルの共有メッセージ型・コンポーネントプロトコル・動的値型を定義するコア基盤モジュール。
+The A2UI wire format as Swift value types: every message that passes between an agent and a client, plus the dynamic values a component is built from.
 
-> **非公式。** A2UI プロトコルの作者とは何の関係もなく、承認も受けていない。仕様に準拠することはこのプロジェクトの目標ではない。
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`A2UICore` は `swift-a2ui` パッケージ全体の土台。LLM エージェントとクライアント間で交わされるすべてのメッセージ型を所有し、他のすべての A2UI モジュールがこのモジュールに依存する。ビジネスロジック・SwiftUI・LLM クライアントへの依存は一切持たず、任意のアーキテクチャ層でインポートできる。
+`A2UICore` is the floor the rest of `swift-a2ui` stands on. It owns the message types and nothing else — no SwiftUI, no LLM client, no business logic — so it can be imported from any layer of an application, including one that only wants to encode a message and hand it to its own transport.
 
-プロトコルは `AgentMessage` と `RendererMessage` の 2 方向で整理される。エージェント（サーバー）はサーフェスの作成（`CreateSurface`）・コンポーネントの更新（`UpdateComponents`）・データモデルの更新（`UpdateDataModel`）・サーフェスの削除（`DeleteSurface`）をクライアントに送信する。クライアントはユーザー操作（`UserAction`）・関数レスポンス（`FunctionResponse`）・エラー（`RendererError`）をエージェントに返す。
+Traffic runs in two directions and each has its own envelope. ``AgentMessage`` covers what an agent sends: create a surface, update its components, update its data model, delete it, call a function on the client, answer an action. ``RendererMessage`` covers what comes back: a user action, a function result, an error. The two are asymmetric on purpose — decoding an ``AgentMessage`` tolerates a missing `version` because a language model wrote it and losing the whole turn over a misplaced key costs a full regeneration, while a ``RendererMessage`` is written by code and must carry one.
 
-コンポーネントの定義は `A2UIComponentProtocol` を介して型安全に表現される。プロパティは `DynamicString`・`DynamicBoolean`・`DynamicNumber`・`DynamicValue` などの動的型で保持され、`DataBinding` を使ってデータモデルのパスにバインドできる。
+Components stay untyped here. ``UpdateComponents`` carries `StructuredValue`, and turning that into a concrete `Button` or `Row` is the catalog's job, which is what keeps this module catalog-agnostic. What the module does define is how a component's properties can be expressed: ``DynamicString``, ``DynamicBoolean``, ``DynamicNumber``, ``DynamicStringList``, and ``DynamicValue`` each hold either a literal, a ``DataBinding`` into the surface's data model, or a ``FunctionCall``.
 
-パッケージは以下のモジュール群で構成される。**パース系**では `A2UIParser` が LLM ストリームからメッセージを抽出する。**レンダリング系**では `A2UISurface` がコンポーネントツリーとデータモデルを保持し、`A2UITypedRenderer` が SwiftUI ビューをゼロ型消去で描画する。**エージェント系**では `A2UIAgent` がプレゼンターエージェントの自己記述を提供し、`A2UIAgentTool` がツールコール生成パターンを、`A2UIA2A` が A2A プロトコルとのコーディングを、`A2UIOrchestration` がマルチエージェント編成のオーケストレーションポリシーを担う。**プロンプト系**では `A2UIPrompt` がシステムプロンプト生成を、`A2UIPromptCompact` がトークン削減最適化を担う。**型付け**では `A2UITyped` がコンパイル時型安全なカタログノードを提供し、**カタログ**では `A2UICatalog` がコンポーネント定義とスキーマ記述を、**実行**では `A2UIRuntime` がテンプレート展開と関数評価を担う。
+The one thing a new reader tends to look for and not find is permission metadata on the wire. A ``FunctionCall`` carries no `callableFrom` and no `returnType`: both live on the catalog's function definition, so a renderer must look the name up itself before running anything an agent asked for. ``FunctionBoundary`` implements that check and produces the `INVALID_FUNCTION_CALL` error the specification requires.
 
 ```swift
 import A2UICore
 
-// エージェントがクライアントへ送る最初のメッセージ
+// The first message an agent sends to a client
 let create = AgentMessage.createSurface(CreateSurface(
     surfaceId: "main",
     catalogId: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 ))
 
-// クライアントからエージェントへ届くユーザー操作
+// A user action arriving from the client
 let action = RendererMessage.action(UserAction(
     name: "submit",
     surfaceId: "main",
@@ -35,52 +35,56 @@ let action = RendererMessage.action(UserAction(
 
 ## Topics
 
-### メッセージ（サーバー → クライアント）
+### Messages the agent sends
 
 - ``AgentMessage``
 - ``CreateSurface``
 - ``UpdateComponents``
 - ``UpdateDataModel``
 - ``DeleteSurface``
+- ``CallFunctionMessage``
+- ``ActionResponseMessage``
+- ``ActionResponse``
+- ``CallId``
 
-### メッセージ（クライアント → サーバー）
+### Messages the client sends back
 
 - ``RendererMessage``
 - ``UserAction``
 - ``FunctionResponse``
-- ``CallFunctionMessage``
-- ``ActionResponseMessage``
-- ``ActionResponse``
 - ``RendererError``
 
-### コンポーネントプロトコル
+### Components
 
 - ``A2UIComponentProtocol``
+- ``ComponentId``
+- ``AccessibilityAttributes``
+- ``CheckRule``
 
-### 動的値型
+### Dynamic values
 
 - ``DynamicString``
 - ``DynamicBoolean``
 - ``DynamicNumber``
-- ``DynamicValue``
 - ``DynamicStringList``
+- ``DynamicValue``
 - ``DataBinding``
 - ``ChildList``
 
-### アクション・関数
+### Actions and functions
 
 - ``Action``
 - ``EventAction``
 - ``FunctionCall``
 - ``CallableFrom``
 - ``FunctionReturnType``
-- ``CheckRule``
 
-### アクセシビリティ
+### Conformance rules
 
-- ``AccessibilityAttributes``
+- ``CatalogIdentifier``
+- ``FunctionBoundary``
 
-### バージョン・定数
+### Version and tool constants
 
 - ``A2UIVersion``
 - ``A2UIToolConstants``

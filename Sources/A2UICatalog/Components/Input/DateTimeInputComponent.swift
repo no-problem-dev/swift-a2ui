@@ -1,6 +1,11 @@
 import A2UICore
 
-/// 日時入力コンポーネント。日付・時刻の有効化を個別に制御できる。
+/// Collects a date, a time, or both, as an ISO 8601 string in `value`.
+///
+/// `enableDate` and `enableTime` both default to false, so at least one has to be turned on for
+/// the control to be usable. `value` is required: when nothing is chosen yet, initialize it with
+/// an empty string rather than omitting it. `min` and `max` accept a literal in `date`, `time`, or
+/// `date-time` format, or a binding.
 public struct DateTimeInputComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "DateTimeInput"
 

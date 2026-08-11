@@ -4,12 +4,13 @@ import A2UICatalog
 import A2UICore
 import JSONParsing
 
-/// 公式 Google A2UI 形式で LLM システムプロンプトを組み立てるビルダー。
+/// Assembles an LLM system prompt in the official Google A2UI format.
 ///
-/// Python SDK が生成する 4 セクション（role 説明・ワークフロールール・UI 説明（オプション）・
-/// JSON スキーマブロック（サーバ→クライアント・共通型・カタログ））を組み立てる。
+/// Produces the same four sections the Python SDK emits: the role description, the workflow
+/// rules, an optional UI description, and the JSON schema block (server-to-client, common
+/// types, catalog).
 ///
-/// ### 使用例
+/// ### Example
 /// ```swift
 /// let builder = A2UIPromptBuilder()
 /// let prompt = builder.buildSystemPrompt(
@@ -25,20 +26,27 @@ public struct A2UIPromptBuilder: Sendable {
     private let _commonTypesSchema: String?
     private let _catalogSchema: String?
 
-    /// 残す catalog コンポーネント名（例: `["Text", "Button"]`）。
-    /// `nil` = プルーニング無効、catalog の components を全て残す。
-    /// 公開: `SendA2UIToClientTool` がプロンプトと同じ許可セットで検証する（prompt と enforcement の同期）。
+    /// Catalog component names to keep, for example `["Text", "Button"]`.
+    ///
+    /// `nil` disables pruning and keeps every component the catalog declares. Public so that
+    /// `SendA2UIToClientTool` can validate incoming payloads against the same allowlist the
+    /// prompt was built from — the prompt and the enforcement must not drift apart.
     public let allowedComponents: Set<String>?
 
-    /// 残す agent_to_renderer メッセージ型名（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）。
-    /// `nil` = プルーニング無効、bundled の oneOf を全て残す。
-    /// 公開: `SendA2UIToClientTool` がプロンプトと同じ許可セットで検証する（prompt と enforcement の同期）。
+    /// Agent-to-renderer message type names to keep, for example `["CreateSurfaceMessage"]`.
+    ///
+    /// `nil` disables pruning and keeps every branch of the bundled `oneOf`. Public for the
+    /// same reason as `allowedComponents`: the tool that validates the model's payload reads
+    /// the allowlist from here, so what the prompt advertises is exactly what is accepted.
     public let allowedMessages: Set<String>?
 
     // MARK: - Init
 
-    /// A2UIPrompt にバンドルされたスキーマ（agent_to_renderer.json, common_types.json）と
-    /// A2UICatalog にバンドルされた catalog.json を使用して初期化する。
+    /// Creates a builder backed entirely by bundled resources.
+    ///
+    /// Uses the schemas shipped with A2UIPrompt (`agent_to_renderer.json`, `common_types.json`)
+    /// and the basic catalog shipped with A2UICatalog. Nothing is pruned, so the prompt
+    /// advertises the whole catalog.
     public init() {
         _agentToRendererSchema = nil
         _commonTypesSchema = nil
@@ -47,9 +55,10 @@ public struct A2UIPromptBuilder: Sendable {
         allowedMessages = nil
     }
 
-    /// カスタムスキーマ文字列を使用して初期化し、バンドルリソースをバイパスする。
+    /// Creates a builder from custom schema strings, bypassing the bundled resources.
     ///
-    /// テストや異なる A2UI スペックバージョンを対象にする場合に有用。
+    /// Use this to target a different A2UI spec version, or to pin the schemas a test runs
+    /// against so bundled-resource changes cannot move the expected prompt.
     public init(
         agentToRendererSchema: String,
         commonTypesSchema: String,
@@ -62,8 +71,11 @@ public struct A2UIPromptBuilder: Sendable {
         allowedMessages = nil
     }
 
-    /// カスタム **catalog** スキーマを指定しつつ、バンドルの server-to-client・
-    /// common-types スキーマはそのまま使用して初期化する。
+    /// Creates a builder with a custom **catalog** schema, keeping the bundled
+    /// server-to-client and common-types schemas.
+    ///
+    /// The usual entry point for an app that ships its own component catalog but still speaks
+    /// the standard protocol.
     public init(
         catalogSchema: String,
         allowedComponents: Set<String>? = nil,
@@ -76,18 +88,22 @@ public struct A2UIPromptBuilder: Sendable {
         self.allowedMessages = allowedMessages
     }
 
-    /// 全パラメタを任意で渡せる統合 init。`nil` 指定のフィールドは bundled リソースにフォールバックする。
-    /// 派生 builder (`A2UIPromptCompact` 等) が部分カスタムを渡す用途を想定。
+    /// Creates a builder where every schema is individually optional.
     ///
-    /// 公式 `with_pruning` と同じく、common_types は allowlist の有無に関わらず常に
-    /// catalog / s2c からの到達可能性で絞られる。
+    /// Each `nil` field falls back to the bundled resource, which is what lets a derived
+    /// builder such as `A2UIPromptCompactBuilder` replace one schema and inherit the rest.
+    ///
+    /// As in the official `with_pruning`, `common_types` is always narrowed by reachability
+    /// from the catalog and the agent-to-renderer schema, whether or not an allowlist is given.
     ///
     /// - Parameters:
-    ///   - agentToRendererSchema: agent_to_renderer schema を上書き。`nil` = bundled
-    ///   - commonTypesSchema: common_types schema を上書き。`nil` = bundled
-    ///   - catalogSchema: catalog schema を上書き。`nil` = bundled basic catalog
-    ///   - allowedComponents: catalog `components` を絞る。Python `with_pruning(allowed_components:)` 相当
-    ///   - allowedMessages: agent_to_renderer `oneOf` を絞る。Python `with_pruning(allowed_messages:)` 相当
+    ///   - agentToRendererSchema: Replaces the agent_to_renderer schema; `nil` uses the bundled one.
+    ///   - commonTypesSchema: Replaces the common_types schema; `nil` uses the bundled one.
+    ///   - catalogSchema: Replaces the catalog schema; `nil` uses the bundled basic catalog.
+    ///   - allowedComponents: Narrows the catalog `components`; the equivalent of Python
+    ///     `with_pruning(allowed_components:)`.
+    ///   - allowedMessages: Narrows the agent_to_renderer `oneOf`; the equivalent of Python
+    ///     `with_pruning(allowed_messages:)`.
     public init(
         agentToRendererSchema: String?,
         commonTypesSchema: String?,
@@ -104,12 +120,14 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - Presets
 
-    /// presenter（コンテンツ提示）サブセット構成の builder（公式 `with_pruning` 準拠）。
+    /// Returns a builder configured for the presenter (content-presentation) subset, following
+    /// the official `with_pruning`.
     ///
-    /// カタログを `A2UIExample.presenterComponentNames` の 9 コンポーネント、
-    /// agent_to_renderer を `A2UIExample.presenterMessageNames` の 3 メッセージに絞る。
-    /// 手本（`A2UIExample.presenterSurface`）と同じサブセットで組まれる対 —
-    /// pruning したスキーマと手本が矛盾しないことはテストで固定される。
+    /// Narrows the catalog to the nine components in `A2UIExample.presenterComponentNames` and
+    /// agent_to_renderer to the three messages in `A2UIExample.presenterMessageNames`. Pair it
+    /// with the worked example `A2UIExample.presenterSurface`, which is built from the same
+    /// subset; a test pins the two together so the pruned schema can never contradict the
+    /// example the model imitates.
     public static func presenter() -> A2UIPromptBuilder {
         A2UIPromptBuilder(
             agentToRendererSchema: nil,
@@ -122,33 +140,47 @@ public struct A2UIPromptBuilder: Sendable {
 
     // MARK: - Bundled resources (public)
 
-    /// Bundled `agent_to_renderer.json` を文字列で返す（minify 後）。派生 builder 用のフック。
+    /// Returns the bundled `agent_to_renderer.json`, minified with sorted keys.
+    ///
+    /// A hook for derived builders that need to post-process the schema before feeding it back
+    /// through an initializer. Returns `"{}"` if the resource cannot be read.
     public static func bundledAgentToRendererJSON() -> String {
         loadBundledResource("agent_to_renderer")
     }
 
-    /// Bundled `common_types.json` を文字列で返す（minify 後）。派生 builder 用のフック。
+    /// Returns the bundled `common_types.json`, minified with sorted keys.
+    ///
+    /// The hook `A2UIPromptCompactBuilder` uses: it runs the result through
+    /// `CommonTypesCompactor` and passes the stripped schema back in. Returns `"{}"` if the
+    /// resource cannot be read.
     public static func bundledCommonTypesJSON() -> String {
         loadBundledResource("common_types")
     }
 
     // MARK: - Public API
 
-    /// 公式 A2UI 形式でシステムプロンプト全体を組み立てる。
+    /// Assembles the complete system prompt in the official A2UI format.
     ///
-    /// 各セクションは `\n\n` で連結する。以下の順で組み立てる:
+    /// Sections are joined with `\n\n`, in this order:
     ///
-    /// 1. `role` — 必須。アシスタントのペルソナ説明。
-    /// 2. `## Workflow Description:` — ワークフロールール（デフォルトまたはカスタム）。
-    /// 3. `## UI Description:` — オプション。UI 構造の自由記述。
-    /// 4. JSON スキーマブロック — `includeSchema` が `true` の場合に追記。
+    /// 1. `role` — required; the assistant's persona.
+    /// 2. `## Workflow Description:` — the workflow rules, default or custom.
+    /// 3. `## UI Description:` — optional free-form description of the UI structure.
+    /// 4. The JSON schema block — only when `includeSchema` is `true`.
+    /// 5. `### Examples:` — only when `examples` is non-`nil`.
+    ///
+    /// The examples come last, after the schema, so the model reads the shape it must satisfy
+    /// before the sample that satisfies it.
     ///
     /// - Parameters:
-    ///   - role: LLM のロール / ペルソナ説明。
-    ///   - workflowRules: カスタムワークフロールール。`nil` で `A2UIWorkflowRules.default` を使用。
-    ///   - uiDescription: 期待する UI 構造のオプション説明。
-    ///   - includeSchema: JSON スキーマブロックを追記するか。デフォルトは `true`。
-    /// - Returns: 完全に組み立てられたシステムプロンプト文字列。
+    ///   - role: The role or persona description the LLM adopts.
+    ///   - workflowRules: Custom workflow rules; `nil` uses `A2UIWorkflowRules.default`, which
+    ///     expects UI as tagged JSON in the text response rather than through a tool call.
+    ///   - uiDescription: Optional description of the UI structure to produce.
+    ///   - examples: Optional few-shot block, already marked up by `A2UIExampleFormatter` or
+    ///     taken from `A2UIExample`.
+    ///   - includeSchema: Whether to append the JSON schema block. Defaults to `true`.
+    /// - Returns: The assembled system prompt.
     public func buildSystemPrompt(
         role: String,
         workflowRules: String? = nil,
@@ -176,11 +208,15 @@ public struct A2UIPromptBuilder: Sendable {
         return sections.joined(separator: "\n\n")
     }
 
-    /// プロンプトのスキーマブロック部分のみを組み立てる。
+    /// Assembles only the schema block portion of the prompt.
     ///
-    /// `SchemaBlockFormatter` が整形し、公式の `with_pruning` パイプライン
-    ///（components → messages → common-types 到達可能性、常時実行）を適用した後の
-    /// サーバ → クライアント・共通型・カタログスキーマを含む。
+    /// Contains the server-to-client, common-types, and catalog schemas after the official
+    /// `with_pruning` pipeline has run — components, then messages, then common-types
+    /// reachability, the last of which runs unconditionally — laid out by
+    /// `SchemaBlockFormatter`.
+    ///
+    /// If any of the three schemas fails to parse, pruning is skipped and the schemas are
+    /// emitted as given, so an allowlist has no effect on an unparseable schema.
     public func schemaBlock() -> String {
         var catalogString = resolvedCatalogSchema
         var s2cString = resolvedServerToClientSchema
@@ -250,9 +286,11 @@ public struct A2UIPromptBuilder: Sendable {
         return String(data: data, encoding: .utf8) ?? "{}"
     }
 
-    /// Bundled JSON resources をプロンプト埋め込み用に minify する。
-    /// sortKeys でキー順序を決定的にしプロンプトキャッシュヒット率を安定化させる。
-    /// スラッシュは非エスケープ(JSONSerializer の既定挙動)。
+    /// Minifies a bundled JSON resource for embedding in the prompt.
+    ///
+    /// Sorting the keys makes the output byte-identical across runs, which is what keeps the
+    /// prompt-cache hit rate stable. Slashes stay unescaped (the `JSONSerializer` default),
+    /// so the schema URLs remain readable.
     private static func minifyJSON(_ data: Data) -> String? {
         guard let value = try? JSONParser().parse(data) else { return nil }
         return JSONSerializer(options: .init(sortKeys: true)).string(from: value)

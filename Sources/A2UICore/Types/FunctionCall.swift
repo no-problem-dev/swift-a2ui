@@ -1,21 +1,25 @@
 import StructuredDataCore
-/// 関数の呼び出し元制約（A2UI v1.0 `callableFrom`）。
+/// Who may invoke a function (A2UI v1.0 `callableFrom`).
 ///
-/// v1.0 では**ワイヤ上の `FunctionCall` には載らない** — カタログの `FunctionDefinition` が持つ
-/// 静的メタデータであり、境界チェックは実行時にカタログを引いて行う。
+/// It never travels with a `FunctionCall`: it is static metadata on the catalog's
+/// `FunctionDefinition`, which is why the renderer has to look the name up at call time rather than
+/// trust the message (see `FunctionBoundary`). Omitting it in a catalog means `rendererOnly`.
 public enum CallableFrom: String, Codable, Sendable, Equatable {
     case rendererOnly
     case agentOnly
     case rendererOrAgent
 }
 
-/// レンダラ側関数またはエージェント起動関数の呼び出し仕様（A2UI v1.0）。
+/// A call to a catalog function by name, with its arguments (A2UI v1.0).
 ///
-/// `call` は関数名、`args` は文字列キーの引数マップ。v1.0 で `callableFrom` / `returnType` は
-/// ワイヤ形式から外れ、カタログの `FunctionDefinition` 側の静的メタデータになった。
+/// `call` is the function name and `args` a map keyed by argument name. Neither `callableFrom` nor
+/// `returnType` is part of this type — both are static metadata on the catalog's
+/// `FunctionDefinition` — so a call carries no proof that it is allowed and the receiver must
+/// consult the catalog itself.
 public struct FunctionCall: Codable, Sendable, Equatable {
     public let call: String
-    /// v1.0: この関数のカタログ ID。サーフェス既定の `catalogId` を上書きする。
+    /// Catalog this name is resolved in, overriding the surface default from
+    /// `CreateSurface.catalogId`.
     public let catalogId: String?
     public let args: [String: StructuredValue]?
 
@@ -31,12 +35,17 @@ public struct FunctionCall: Codable, Sendable, Equatable {
 }
 
 extension FunctionCall {
-    /// 組み込み `@index` 関数の名前。`@` プレフィックスはコアのシステム評価用に予約されている。
+    /// Name of the built-in `@index` function. The `@` prefix is reserved for evaluation by the
+    /// core, so a catalog cannot define or override it.
     public static let indexFunctionName = "@index"
 
-    /// テンプレート反復中の 0 始まりの添字を返す組み込み `@index` 呼び出しを作る。
+    /// Builds a call to the built-in `@index`, which yields the zero-based position of the current
+    /// template iteration.
     ///
-    /// - Parameter offset: 添字に加算する値（1 を渡すと 1 始まりになる）。既定は 0。
+    /// It only evaluates while a template is being instantiated; outside one there is no iteration
+    /// to number and the call is an evaluation error.
+    ///
+    /// - Parameter offset: Added to the index — pass `1` to number items from one. Defaults to `0`.
     public static func index(offset: Int? = nil) -> FunctionCall {
         FunctionCall(
             call: indexFunctionName,
@@ -44,6 +53,7 @@ extension FunctionCall {
         )
     }
 
-    /// `@` で始まる名前（コア予約のシステム評価）かどうか。
+    /// `true` for a name beginning with `@`, which the core evaluates itself instead of looking it
+    /// up in the catalog — check this before reporting an unknown function.
     public var isSystemFunction: Bool { call.hasPrefix("@") }
 }

@@ -1,18 +1,20 @@
 import A2UICore
 
-/// Icon の `name` 値（A2UI v1.0）。公式カタログの `oneOf` は 3 分岐:
+/// The value of `Icon.name` (A2UI v1.0), whose official `oneOf` has three branches:
 ///
-/// 1. プリセットアイコン名（文字列 enum）
-/// 2. カスタム SVG `{ "svgPath": <DynamicString> }`
-/// 3. データバインディング `{ "path": "…" }`
+/// 1. A preset icon name (string enum)
+/// 2. A custom SVG, `{ "svgPath": <DynamicString> }`
+/// 3. A data binding, `{ "path": "…" }`
 ///
-/// 公式サンプル（例: 06_music-player の `{"path": "/playIcon"}` → `"pause"`）はバインディング経由で
-/// プリセット名を差し替える。プリセット以外の文字列は `raw` として保持する: 公式 lit レンダラーが
-/// Material Symbols フォントへそのまま転送するため、SF Symbols で表示できなくても往復可能でなければならない。
+/// The official samples swap a preset name through a binding — `06_music-player` binds
+/// `{"path": "/playIcon"}` and writes `"pause"` into it. A string outside the preset set is kept as
+/// `raw` rather than rejected: the official lit renderer forwards it straight to the Material
+/// Symbols font, so it has to survive a round trip even where SF Symbols cannot draw it.
 public enum IconNameValue: Codable, Sendable, Equatable {
     case preset(IconName)
     case binding(DataBinding)
-    /// カスタム SVG パス。v1.0 では `DynamicString` なのでバインディングや関数呼び出しも入りうる。
+    /// A custom SVG path. v1.0 types it as `DynamicString`, so a binding or a function call can
+    /// appear here too.
     case svgPath(DynamicString)
     case raw(String)
 

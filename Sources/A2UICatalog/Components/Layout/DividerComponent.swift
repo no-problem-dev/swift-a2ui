@@ -1,6 +1,9 @@
 import A2UICore
 
-/// 区切り線コンポーネント。水平または垂直の仕切りを表示する。
+/// Draws a rule between siblings, horizontal unless `axis` says otherwise.
+///
+/// It takes no children and exposes no thickness or color; a `horizontal` divider belongs between
+/// the children of a `Column`, a `vertical` one between the children of a `Row`.
 public struct DividerComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Divider"
 

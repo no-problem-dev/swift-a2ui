@@ -1,21 +1,22 @@
 import StructuredDataCore
-/// サーフェスの初期作成を指示するエージェント → レンダラメッセージ（A2UI v1.0）。
+/// Opens a surface on the client — the first message an agent sends for any UI (A2UI v1.0).
 ///
-/// `components` と `dataModel` は初回描画用のオプション項目で、直後の `updateComponents` /
-/// `updateDataModel` と等価に処理される。データモデルを先に適用することで、
-/// ルートコンポーネントが現れた時点でバインディングが解決される。
+/// `components` and `dataModel` are optional and behave exactly like an `updateComponents` /
+/// `updateDataModel` sent immediately afterwards. The data model is applied first, so bindings
+/// already resolve by the time the root component appears and the first paint never flashes empty.
 ///
-/// `surfaceId` はレンダラの生存期間で**グローバルに一意**でなければならない。既存 ID に対して
-/// 削除なしで再作成するのは仕様上のエラー。
+/// `surfaceId` must be globally unique for the lifetime of the renderer. Re-creating a live id
+/// without deleting it first is a spec violation.
 public struct CreateSurface: Codable, Sendable, Equatable {
     public let surfaceId: String
-    /// v1.0: サーフェス既定のカタログ。**任意**。個々のコンポーネント／関数呼び出しが
-    /// `catalogId` を明示しない場合にこれが使われる（→ `ComponentCommon.catalogId`）。
+    /// Default catalog for the surface, used by every component and function call that does not
+    /// name a `catalogId` of its own (see `A2UIComponentProtocol.catalogId`). Optional.
     public let catalogId: String?
     public let sendDataModel: Bool?
-    /// v1.0: オプションの初期コンポーネントリスト（アトミックな初回描画）。`updateComponents.components` と同形式。
+    /// Components for the first paint, in the same shape as `UpdateComponents.components`, so the
+    /// surface and its contents arrive in one message.
     public let components: [StructuredValue]?
-    /// v1.0: オプションの初期ルートデータモデルオブジェクト。
+    /// Root object of the data model, applied before `components` so their bindings resolve.
     public let dataModel: StructuredValue?
 
     public init(

@@ -6,20 +6,20 @@ import A2UICatalog
 import A2UIRuntime
 import A2UITyped
 
-/// `BasicComponent` を網羅する単一の `@ViewBuilder switch` で Basic カタログを SwiftUI へ描画する。
+/// Draws the Basic catalog into SwiftUI through one `@ViewBuilder switch` over `BasicComponent`.
 ///
-/// 文字列照合ゼロ・`AnyView` ゼロ・`default` 逃げゼロ。レイアウトコンポーネント（`Row` /
-/// `Column` / `List`）は `justify` / `align` のみで駆動し、子タイプのスニッフィングをしないため
-/// 旧 "isChipRow が spaceBetween をハイジャックする" バグクラスは再発しない。
+/// No string matching, no `AnyView`, and no `default` escape hatch, so adding a component to the
+/// catalog fails to compile until it is drawn here. The layout components (`Row` / `Column` /
+/// `List`) are driven by `justify` and `align` alone rather than by sniffing what their children
+/// are, which is what keeps a chip heuristic from quietly overriding an explicit `spaceBetween`.
 extension BasicCatalog: RenderableCatalog {
     public static func view(for node: BasicComponent, in ctx: RenderContext<BasicCatalog>) -> some View {
         BasicComponentView(component: node, ctx: ctx)
     }
 }
 
-/// `BasicComponent` を埋め込む任意のカタログ内で `BasicComponent` を描画するビュー —
-/// レンダラーサイドの `CombinedNode` 合成の対応物。合成カタログの `view(for:in:)` は
-/// basic ケースをここへ委譲する:
+/// Draws a `BasicComponent` inside any catalog that embeds one — the renderer-side counterpart of
+/// `CombinedNode` composition. A composed catalog's `view(for:in:)` delegates its basic case here:
 ///
 /// ```swift
 /// extension AppCatalog: RenderableCatalog {
@@ -70,8 +70,8 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
             ListNodeView(component: c, ctx: ctx)
 
         case .card(let c):
-            // スタイル（solid / glass）はホストの `surfaceStyle` 環境で決まる（DS の Card が解決）。
-            // 出現・スクロール時の奥行き演出は CardMotionModifier に集約。
+            // Solid or glass is decided by the host's `surfaceStyle` environment, which the design
+            // system's Card resolves. Insertion and scroll depth live in CardMotionModifier.
             Card(elevation: .level1) { ctx.child(c.child) }
                 .modifier(CardMotionModifier())
 
@@ -133,7 +133,7 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
         }
     }
 
-    /// v1.0 の variant は `caption` / `body` の 2 つだけ。見出しは Markdown 側で表現する。
+    /// v1.0 has only two variants, `caption` and `body`; headings are expressed in Markdown instead.
     private func typography(for variant: TextVariant?) -> Typography {
         switch variant {
         case .caption: .labelSmall
@@ -152,8 +152,11 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
         }
     }
 
-    /// v1.0 は見出し variant を廃止し、見出しは Markdown（`## …`）で表現する前提になった。
-    /// そのため `body` / 無指定では Markdown を解釈する。`caption` は補助テキストなので素のまま出す。
+    /// Whether the text should go through the Markdown renderer.
+    ///
+    /// Since v1.0 dropped the heading variants, a heading arrives as Markdown (`## …`), so `body`
+    /// and the unspecified variant are interpreted as Markdown. `caption` is supporting text and is
+    /// always rendered literally, even when it happens to contain Markdown punctuation.
     private func shouldRenderMarkdown(_ text: String, variant: TextVariant?) -> Bool {
         guard !text.isEmpty else { return false }
         switch variant {
@@ -163,7 +166,8 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
     }
 }
 
-/// テキスト種別検出は BasicCatalog の static のまま（テスト・複数ビューから参照される共有語彙）。
+/// Text-kind detection stays on `BasicCatalog` as statics: shared vocabulary that both the views
+/// and the tests reach for.
 extension BasicCatalog {
     static func containsMarkdownFormatting(_ s: String) -> Bool {
         if s.contains("**") || s.contains("__") || s.contains("`") { return true }
@@ -180,23 +184,29 @@ extension BasicCatalog {
         return false
     }
 
-    /// LLM 出力の数式デリミタ検出。誤検出は MarkdownView 側のパーサが
-    /// 正しく平文扱いするため、ここは緩めで安全（コストは描画経路のみ）。
+    /// Detects math delimiters in LLM output.
+    ///
+    /// Deliberately loose: a false positive only costs a trip through the math render path, since
+    /// the MarkdownView parser falls back to treating the text as plain prose anyway.
     static func containsMathDelimiters(_ s: String) -> Bool {
         if s.contains("$$") || s.contains(#"\("#) || s.contains(#"\["#) { return true }
-        // single-$: 開き直後・閉じ直前が非空白の同一行ペアのみ（通貨除外）
+        // Single `$`: only a same-line pair whose opener and closer are both hugging a non-space
+        // character, which keeps currency amounts out.
         return s.range(of: #"\$\S(?:[^$\n]*\S)?\$"#, options: .regularExpression) != nil
     }
 }
 
-// （mediaLink は MediaNodeView へ置換 — Video/AudioPlayer のアプリ内ビューア化）
+// Video and AudioPlayer render through MediaNodeView so they open in the in-app viewer.
 
 // MARK: - Icon mapping (faithful port of A2UIRenderer.A2UIIcon)
 
 extension BasicComponentView {
-    /// バインディングはデータモデル解決後に再度プリセット照合する（公式 example は
-    /// `{"path": "/playIcon"}` → `"pause"` のようにプリセット名を流す）。SF Symbols に
-    /// 写像できない名前だけがフォールバックに落ちる。
+    /// Maps an icon name to an SF Symbol.
+    ///
+    /// A binding is matched against the preset names *after* it resolves through the data model,
+    /// because the reference examples push preset names down that channel — `{"path": "/playIcon"}`
+    /// resolving to `"pause"`. Only a name with no SF Symbol counterpart falls back to the
+    /// question-mark glyph.
     private func symbol(for value: IconNameValue, in ctx: RenderContext<Catalog>) -> String {
         switch value {
         case .preset(let icon):
@@ -207,7 +217,7 @@ extension BasicComponentView {
             }
             return symbol(for: icon)
         case .svgPath:
-            // カスタム SVG は SF Symbols に写像できない（描画するなら別経路が要る）。
+            // A custom SVG path has no SF Symbol equivalent; drawing it would need its own route.
             return "questionmark.circle"
         case .raw:
             return "questionmark.circle"
@@ -278,15 +288,13 @@ extension BasicComponentView {
 
 // MARK: - Stateful components (need @State, so are View structs)
 
-/// `Row` — weight(flex-grow)と justify を FlexRowLayout で仕様の意味論どおりに解釈する。
-/// 旧 "spaceBetween first child greedy"(2 番目以降を fixedSize)は、長文の weighted Column に
-/// 当たると intrinsic 1 行幅で Row が画面外まで膨張するため廃止した。
-/// カードの出現・スクロール演出。
+/// Gives a card its entrance and its scroll depth.
 ///
-/// - 挿入時: フェード + わずかなスケールで「組み上がる」出現（`A2UISurfaceView` が
-///   `structureVersion` でアニメーション文脈を張るため、ストリーミング挿入で発火する）。
-/// - スクロール時: 画面端に近づくカードを減光・縮小・ブラーして奥行きを表現する
-///   （ホストの ScrollView 内でのみ作用。ScrollView 外では恒等）。
+/// - On insertion: a fade plus a slight scale, so the card assembles rather than appears. It only
+///   animates because `A2UISurfaceView` opens an animation context keyed on `structureVersion`,
+///   which is what a streamed insertion bumps.
+/// - On scroll: a card approaching the edge of the viewport dims, shrinks, and blurs. This needs a
+///   host `ScrollView` to have any effect; outside one it is the identity.
 struct CardMotionModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -300,9 +308,16 @@ struct CardMotionModifier: ViewModifier {
     }
 }
 
-/// 全子が Button のチップ行（weight なし）だけは横スクロールを維持。子の種別検出は
-/// 文字列比較でなく型付きノード（`.known(.button)`）で型安全に行う。子は `ctx.children` で
-/// 解決するため、`{componentId, path}` テンプレートは要素ごとのデータスコープで展開される。
+/// `Row` — reads `weight` (flex-grow) and `justify` through `FlexRowLayout`, in the spec's sense.
+///
+/// The one exception to flex layout is a chip row: every child a `Button` and no `weight` anywhere,
+/// which keeps its horizontal scroll. Child kinds are checked against the typed node
+/// (`.known(.button)`) rather than by comparing component names as strings, and children come from
+/// `ctx.children`, so a `{componentId, path}` template expands with a data scope per element.
+///
+/// Making the first child of a `spaceBetween` row greedy and pinning the rest to `fixedSize` was
+/// tried and abandoned: against a weighted `Column` of long text it measures the intrinsic
+/// single-line width and inflates the row past the edge of the screen.
 struct RowNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.spacingScale) private var spacing
     let component: RowComponent
@@ -326,7 +341,7 @@ struct RowNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEm
 
     var body: some View {
         let weights = weights
-        // weight 宣言は flex レイアウトの意図表明なので、チップスクロールより優先する。
+        // A declared weight states an intent to lay out with flex, so it beats the chip scroll.
         if !weights.contains(where: { $0 != nil }), component.justify == .start || isChipRow {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: component.align.vertical, spacing: spacing.sm) {
@@ -349,7 +364,8 @@ struct RowNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEm
     }
 }
 
-/// `Column` — A2UIRenderer.ColumnView の忠実な移植。テンプレート子は `ctx.children` で展開される。
+/// `Column` — a `VStack` whose alignment comes from `align`; template children expand through
+/// `ctx.children`. Always claims the full proposed width, so a `Row` cannot size it by its content.
 struct ColumnNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.spacingScale) private var spacing
     let component: ColumnComponent
@@ -365,8 +381,8 @@ struct ColumnNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basi
     }
 }
 
-/// `List` — A2UIRenderer.ListView の忠実な移植（縦: 細線セパレータ、横: スクロール）。
-/// テンプレート子は `ctx.children` で展開される。
+/// `List` — vertical draws hairline separators between rows, horizontal becomes a scroll view with
+/// no separators. Template children expand through `ctx.children`.
 struct ListNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -396,7 +412,8 @@ struct ListNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicE
     }
 }
 
-/// `Image` — A2UIRenderer.A2UIImage の忠実な移植（バリアントサイズ + クリップシェイプ）。
+/// `Image` — the `variant` fixes the size box and the clip shape; `avatar` is the one that clips to
+/// a circle. The URL is resolved through the data context, so it may be a binding.
 struct ImageNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     let component: ImageComponent
     let ctx: RenderContext<Catalog>
@@ -418,8 +435,8 @@ struct ImageNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
         }
         .frame(maxWidth: maxWidth, maxHeight: maxHeight)
         .clipShape(RoundedRectangle(cornerRadius: component.variant == .avatar ? radius.full : radius.md))
-        // クライアント側 UX としてタップ → フルスクリーンビューアを標準付与
-        // （スキーマ非接触。iOS 18+ のみ動作、その他環境では恒等）
+        // Tap-to-fullscreen is standard client-side behavior, invisible to the schema. It is live
+        // on iOS 18+ and the identity everywhere else.
         .mediaViewable(
             .image(url ?? URL(string: "https://example.invalid")!),
             enabled: viewerEnabled && url != nil
@@ -427,11 +444,13 @@ struct ImageNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
         .accessibilityLabel(component.imageDescription.map { ctx.resolve($0) } ?? "")
     }
 
-    /// resizable + `.fill` を直接置くと、画像のレイアウトサイズが提案サイズを無視して
-    /// 原寸まで膨らみフレーム外へあふれる（clip は描画にしか効かない）。
-    /// cover はレイアウトを variant の高さで確定した flexible な箱（Color.clear）にし、
-    /// 画像は overlay で描画だけ cover させる。高さ無制限の variant では cover が
-    /// 成立しないため fit に落とす。
+    /// Applies the `fit` mode without letting the image drive the layout.
+    ///
+    /// A bare `resizable()` + `.fill` ignores the proposed size and takes the image's native size as
+    /// its layout size, spilling outside the frame — clipping only affects drawing, not layout. So
+    /// `cover` pins the layout to a flexible `Color.clear` box at the variant's height and lets the
+    /// image fill it as an overlay. A variant with no height cap has nothing to pin, so it falls
+    /// back to `fit`.
     @ViewBuilder
     private func sized(_ image: SwiftUI.Image) -> some View {
         if component.fit == .cover, let coverHeight = maxHeight {
@@ -467,10 +486,11 @@ struct ImageNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
     }
 }
 
-/// `Video` / `AudioPlayer` — タップでアプリ内フルスクリーン再生（iOS）。
+/// `Video` / `AudioPlayer` — a tappable tile that plays fullscreen in-app on iOS.
 ///
-/// iOS では DS スタイルのタップ可能タイルから `mediaViewable` でビューアを起動する。
-/// macOS では従来どおり `Link` で外部に開く（機能退行ゼロ、Parity ゴールデンも同形を維持）。
+/// On iOS the tile opens the viewer through `mediaViewable`. On macOS there is no viewer, so it
+/// stays a `Link` that hands the URL to the system, which is also the shape the parity goldens
+/// expect.
 struct MediaNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     enum Kind {
         case video, audio
@@ -521,7 +541,8 @@ struct MediaNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
     #endif
 }
 
-/// `Tabs` — A2UIRenderer.TabsView の忠実な移植（スクロール可能なアンダーラインタブバー、固定ベースライン）。
+/// `Tabs` — a horizontally scrollable underline tab bar over a fixed baseline. The bar is hidden
+/// for a single tab, and selection is local view state, so it resets if the node is rebuilt.
 struct TabsNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.colorPalette) private var colors
     @Environment(\.spacingScale) private var spacing
@@ -568,7 +589,8 @@ struct TabsNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicE
     }
 }
 
-/// `Modal` — A2UIRenderer.ModalView の忠実な移植（trigger → detents 付きシート）。
+/// `Modal` — the `trigger` child is presented inline and a tap on it raises the `content` child in
+/// a sheet with medium and large detents.
 struct ModalNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: BasicEmbeddingNode {
     @Environment(\.spacingScale) private var spacing
     let component: ModalComponent

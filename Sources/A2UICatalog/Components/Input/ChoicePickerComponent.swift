@@ -1,6 +1,7 @@
 import A2UICore
 
-/// 選択肢コンポーネントの 1 つの選択項目。
+/// One entry of a `ChoicePicker`: the label shown to the user, and the stable string written into
+/// the picker's `value` when it is chosen. The label may be bound; the value is a plain string.
 public struct ChoiceOption: Codable, Sendable, Equatable {
     public let label: DynamicString
     public let value: String
@@ -11,7 +12,11 @@ public struct ChoiceOption: Codable, Sendable, Equatable {
     }
 }
 
-/// 選択肢の一覧から 1 つまたは複数の項目を選択するコンポーネント。
+/// Selects one or more options from a list.
+///
+/// `value` is a list of strings even when `variant` is `mutuallyExclusive`, so the data model has
+/// to hold an array either way. `displayStyle` decides between checkboxes and chips, and
+/// `filterable` adds a search field over the options.
 public struct ChoicePickerComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "ChoicePicker"
 

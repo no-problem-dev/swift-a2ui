@@ -1,5 +1,13 @@
 import StructuredDataCore
-/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される文字列値。
+/// A string a component displays: written into the message (`literal`), read from the data model
+/// (`binding`), or produced by a catalog function (`functionCall`).
+///
+/// Only `binding` ties the component to later `UpdateDataModel` messages — a `literal` is frozen at
+/// the moment the agent wrote it, and an editable input given a literal appears to reject every
+/// keystroke because there is no path to write back to. A bound path that matches nothing reads
+/// as `""`.
+///
+/// Conforms to `ExpressibleByStringLiteral`, so `"Submit"` builds `.literal("Submit")`.
 public enum DynamicString: Sendable, Equatable {
     case literal(String)
     case binding(DataBinding)

@@ -3,17 +3,17 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// `formatString` 関数の補間エンジン（仕様 §`formatString`）。
+/// The interpolation engine behind the `formatString` function (spec §`formatString`).
 ///
-/// テンプレート文字列内の `${expression}` ブロックをスキャンし、リテラル部分と
-/// 埋め込み式の解決値を連結する。仕様 §9.7 の通り、補間はここでのみ行う —
-/// 全文字列に対してグローバルには適用しない。
+/// Scans a template string for `${expression}` blocks and joins the literal parts with each embedded
+/// expression's resolved value. Per spec §9.7 interpolation happens **only** here — it is not applied
+/// globally to every string, so a `${...}` sitting in an ordinary text property stays verbatim.
 ///
-/// `${...}` 内の式文法:
-/// - データパス: `${/absolute/path}` または `${relative/path}`
-/// - 関数呼び出し: `${now()}`、`${formatDate(value:${/d}, format:'yyyy-MM-dd')}`
-/// - リテラル（関数引数として）: クォート文字列、数値、true/false/null
-/// - エスケープマーカー: `\${` → リテラルの `${`
+/// Expression grammar inside `${...}`:
+/// - Data path: `${/absolute/path}` or `${relative/path}`
+/// - Function call: `${now()}`, `${formatDate(value:${/d}, format:'yyyy-MM-dd')}`
+/// - Literal (as a function argument): quoted string, number, `true`/`false`/`null`
+/// - Escape marker: `\${` → a literal `${`
 enum FormatStringEngine {
 
     static func evaluate(
@@ -48,7 +48,10 @@ enum FormatStringEngine {
         return result
     }
 
-    /// 単一の式（パスまたは関数呼び出し）を具体値に評価する。
+    /// Evaluates one expression — a function call, a literal, or a data path — to a concrete value.
+    ///
+    /// Anything that is neither a call nor a literal is read as a data path, so a typo resolves to `nil`
+    /// and renders as an empty span rather than signalling a bad expression.
     static func evaluateExpression(
         _ expr: String,
         in context: DataContext,
@@ -72,7 +75,10 @@ enum FormatStringEngine {
 
     // MARK: - Argument parsing
 
-    /// `name: value, name2: value2` 形式を辞書にパースし、各値を解決する。
+    /// Parses `name: value, name2: value2` into a dictionary, resolving each value as it goes.
+    ///
+    /// A segment with no top-level colon is skipped, so a positional argument disappears instead of
+    /// reaching the function.
     private static func parseArgs(
         _ s: String,
         in context: DataContext,
@@ -134,7 +140,8 @@ enum FormatStringEngine {
         return nil
     }
 
-    /// 文字列をセパレータで分割する。()、{}、クォート内のセパレータは無視する。
+    /// Splits on `sep`, ignoring separators nested inside `()`, `{}`, or quotes — so a comma within a
+    /// nested call's argument list does not split that call in two.
     private static func splitTopLevel(_ s: String, by sep: Character) -> [String] {
         var parts: [String] = []
         var current = ""

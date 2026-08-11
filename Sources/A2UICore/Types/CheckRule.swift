@@ -1,7 +1,8 @@
-/// コンポーネントに付与する入力検証ルール。
+/// A validation rule an input carries, evaluated by the client rather than the agent.
 ///
-/// `condition` が false に評価されると `message` を検証エラーとして表示し、
-/// そのコンポーネントが属する `Button` を無効化する。
+/// While `condition` resolves to false the renderer shows `message` as the component's validation
+/// error and disables the `Button` that would submit it, so the agent never receives a value the
+/// UI already declared invalid. `condition` is re-evaluated on every edit.
 public struct CheckRule: Codable, Sendable, Equatable {
     public let condition: DynamicBoolean
     public let message: String

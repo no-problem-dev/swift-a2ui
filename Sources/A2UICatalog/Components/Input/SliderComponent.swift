@@ -1,6 +1,10 @@
 import A2UICore
 
-/// スライダーコンポーネント。指定した範囲内の数値を連続または離散的に入力する。
+/// Picks a number between `min` and `max` by dragging.
+///
+/// `max` is required and `min` defaults to 0. With `steps` the slider snaps to that many discrete
+/// divisions; without it, it moves continuously. Only `value` is bindable — the bounds are plain
+/// numbers, so a range that depends on data cannot be expressed here.
 public struct SliderComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Slider"
 

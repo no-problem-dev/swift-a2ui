@@ -3,31 +3,32 @@ import A2UICore
 import A2UISurface
 import A2UITyped
 
-/// A2UI `AgentMessage` を型付きサーフェス群に適用するプロセッサ —
-/// `A2UISurface.MessageProcessor` の型付き版で `SurfaceModel` の代わりに
-/// `TypedSurface<Catalog>` を生成する。
+/// Applies A2UI `AgentMessage`s to a set of typed surfaces — the typed counterpart of
+/// `A2UISurface.MessageProcessor`, producing `TypedSurface<Catalog>` instead of `SurfaceModel`.
 ///
-/// ホスト（Studio アプリ等）はエージェントの `<a2ui-json>` を `[AgentMessage]` へパースして
-/// ここへ渡す。`surfaces` は `A2UISurfaceView` でレンダリングする。ユーザーアクションは
-/// `onAction` として `UserAction` に変換されて返り、旧プロセッサとの互換性を保つ。
+/// A host parses the agent's `<a2ui-json>` into `[AgentMessage]` and hands it here; the resulting
+/// `surfaces` are what you pass to `A2UISurfaceView`. User interactions come back out as
+/// `UserAction` values through `onAction`, so the untyped and typed processors are interchangeable
+/// from the host's side.
 @MainActor
 @Observable
 public final class TypedMessageProcessor<Catalog: A2UICatalog> {
     public private(set) var surfaces: [String: TypedSurface<Catalog>] = [:]
 
-    /// 作成順に並んだサーフェス ID。新しいサーフェスが ID ソート順でなく末尾に追加されるよう
-    /// ページング / スタック表示を駆動する。
+    /// Surface ids in creation order, so paging and stacked presentations append a new surface at
+    /// the end instead of dropping it wherever id sorting would put it.
     private var creationOrder: [String] = []
 
-    /// ホストのユーザーアクションシンク（Button イベント等）。`MessageProcessor.onAction` に対応。
+    /// The host's sink for user interactions such as a `Button` event; the counterpart of
+    /// `MessageProcessor.onAction`. Assign it before processing messages or actions are dropped.
     public var onAction: (UserAction) -> Void
 
     public init(onAction: @escaping (UserAction) -> Void = { _ in }) {
         self.onAction = onAction
     }
 
-    /// 作成順のサーフェス配列（`ForEach` / ページング用）。作成記録より前に存在するサーフェスは
-    /// id ソートにフォールバックする（防御的処理。通常は全サーフェスが作成時に記録される）。
+    /// Surfaces in creation order, ready for `ForEach` or a pager. A surface that never made it
+    /// into the creation record is omitted here even though it is still present in `surfaces`.
     public var ordered: [TypedSurface<Catalog>] {
         creationOrder.compactMap { surfaces[$0] }
     }
@@ -81,7 +82,8 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
         creationOrder.removeAll()
     }
 
-    /// 初回確認時にサーフェス id を作成順リストへ追加する。
+    /// Appends a surface id to the creation-order list the first time it is seen, so a surface that
+    /// arrives via `updateComponents` before any `createSurface` still gets an ordering slot.
     private func record(_ id: String) {
         if !creationOrder.contains(id) { creationOrder.append(id) }
     }

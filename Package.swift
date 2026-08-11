@@ -43,7 +43,7 @@ let package = Package(
         .package(url: "https://github.com/no-problem-dev/swift-structured-data.git", from: "2.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-a2a.git", from: "0.7.1"),
         .package(url: "https://github.com/no-problem-dev/swift-agui.git", from: "0.2.0"),
-        // 1.4.0: mediaViewable（メディアビューア）/ SurfaceStyle 環境 / Glass Card / motion トークンを使用
+        // Uses mediaViewable, the SurfaceStyle environment, Glass Card, and the motion tokens.
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "3.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "5.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "3.11.0"),

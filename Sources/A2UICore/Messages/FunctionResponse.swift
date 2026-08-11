@@ -1,7 +1,9 @@
 import StructuredDataCore
-/// クライアント → サーバのサーバ起動関数呼び出し結果（A2UI v1.0）。
+/// The result the client sends back after running a function the agent asked for (A2UI v1.0).
 ///
-/// `functionCallId` と `call` は発信元の `CallFunctionMessage` からそのまま複写する。
+/// Copy `functionCallId` and `call` verbatim from the originating `CallFunctionMessage`: the agent
+/// correlates on them and has no other way to tell two calls in flight apart. Send `error` instead
+/// when the call could not run at all.
 public struct FunctionResponse: Codable, Sendable, Equatable {
     public let functionCallId: CallId
     public let call: String

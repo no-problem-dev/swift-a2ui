@@ -1,5 +1,11 @@
 import StructuredDataCore
-/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表されるスカラー/コレクション値。
+/// The untyped member of the dynamic family: any scalar or array, for places a catalog does not
+/// constrain the type — the entries of `EventAction.context`, for instance.
+///
+/// There is no object case. An object on the wire is read only as a `binding` (it has `path`) or a
+/// `functionCall` (it has `call`); any other object fails to decode, so a nested literal must be
+/// wrapped in `array` or put in the data model and bound. Booleans are tested before numbers, so
+/// `true` never arrives as `1`.
 public enum DynamicValue: Sendable, Equatable {
     case string(String)
     case number(Double)

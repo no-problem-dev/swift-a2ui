@@ -3,20 +3,27 @@ import StructuredDataCore
 import Foundation
 import A2UICore
 
-/// LLM のテキスト出力に埋め込まれた `<a2ui-json>` ブロックをパースする。
+/// Splits a complete LLM text response into plain text and the `<a2ui-json>` blocks embedded in it.
+///
+/// Tolerant on purpose, because model output is often partly malformed: a block whose JSON never
+/// decodes is dropped without a trace, and an open tag with no close tag turns the rest of the
+/// input into plain text. Use `A2UIPayloadFixer` where a failure has to be reported instead.
 public enum A2UIBlockParser {
-    /// A2UI JSON ブロックを区切る開きタグ。
+    /// Opening delimiter of an A2UI JSON block, shared with `A2UIStreamingParser` and
+    /// `A2UITextSalvage` so every path agrees on where a block starts.
     public static let openTag = "<a2ui-json>"
-    /// A2UI JSON ブロックを区切る閉じタグ。
+    /// Closing delimiter of an A2UI JSON block; text after the last one is emitted as a text part.
     public static let closeTag = "</a2ui-json>"
 
-    /// 0 個以上の `<a2ui-json>` ブロックを含むテキストをパースする。
+    /// Parses text holding zero or more `<a2ui-json>` blocks.
     ///
-    /// タグの外側のコンテンツには `.text` パーツを、タグ内のデコード済みコンテンツには
-    /// `.messages` パーツを含む `A2UIResponsePart` の配列を返す。
+    /// Content outside the tags becomes `.text` parts and decoded content inside them becomes
+    /// `.messages` parts, interleaved in source order. Text runs that are only whitespace are
+    /// dropped, and a block that fails to decode contributes no part, so input made entirely of
+    /// undecodable blocks comes back as an empty array rather than an error.
     ///
-    /// - Parameter text: パース対象の生 LLM 出力文字列。
-    /// - Returns: 順序付きのレスポンスパーツ配列。
+    /// - Parameter text: The raw LLM output to parse.
+    /// - Returns: The response parts in the order they appeared.
     public static func parse(_ text: String) -> [A2UIResponsePart] {
         var parts: [A2UIResponsePart] = []
         var remaining = text[...]
@@ -63,14 +70,16 @@ public enum A2UIBlockParser {
 
     // MARK: - Private
 
-    /// JSON 文字列を `AgentMessage` の配列に**寛容な**デコードで変換する。
-    /// 単一の不正形式メッセージがサーフェス全体を破棄しないよう耐障害性を持つ
-    /// （LLM 出力は部分的に不正である場合が多い）。
+    /// Decodes a JSON string into `AgentMessage` values **leniently**, so that one malformed
+    /// message does not throw away the whole surface (LLM output is often partly invalid).
     ///
-    /// 1. 高速パス — `[AgentMessage]` 配列全体をデコード。
-    /// 2. 単一メッセージへのフォールバック。
-    /// 3. 寛容パス — トップレベルの配列を解析し各要素を独立してデコード、
-    ///    有効なメッセージを残して不正なもの（例: `version` が誤り）をスキップ。
+    /// 1. Fast path — decode the whole `[AgentMessage]` array.
+    /// 2. Fall back to a single message.
+    /// 3. Lenient path — parse the top-level array and decode each element on its own, keeping
+    ///    the valid messages and skipping the bad ones (a wrong `version`, for example).
+    ///
+    /// `nil` means nothing at all decoded. Elements skipped by step 3 are not reported, so a
+    /// caller cannot tell a fully valid array from one that lost half its messages.
     static func decodeMessages(from json: String) -> [AgentMessage]? {
         guard let data = json.data(using: .utf8) else { return nil }
 

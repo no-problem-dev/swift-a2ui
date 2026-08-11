@@ -1,6 +1,10 @@
 import A2UICore
 
-/// テキスト入力フィールドコンポーネント。
+/// A labeled input field whose `value` binds to the data model.
+///
+/// `variant` picks the kind of field — `shortText`, `longText`, `number`, or `obscured` — and is
+/// the only control over keyboard and masking. `checks` carry the validation rules with their own
+/// messages; do not add a separate text component to show an error.
 public struct TextFieldComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "TextField"
 

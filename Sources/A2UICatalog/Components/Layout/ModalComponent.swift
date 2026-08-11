@@ -1,6 +1,10 @@
 import A2UICore
 
-/// モーダルコンポーネント。`trigger` をインタラクトするとオーバーレイとして `content` を表示する。
+/// Presents `content` over the surface when `trigger` is interacted with.
+///
+/// Both are IDs of components declared elsewhere on the surface, so the trigger — usually a
+/// `Button` — is an ordinary component the modal borrows rather than owns. There is no open/closed
+/// property: visibility follows the interaction, not the data model.
 public struct ModalComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Modal"
 

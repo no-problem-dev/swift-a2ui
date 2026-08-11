@@ -1,27 +1,35 @@
 import StructuredDataCore
 import A2UICore
 
-/// フラットなコンポーネント辞書を "root" コンポーネントを頂点とするツリーへ解決する。
+/// Turns the flat component dictionary an agent sends into a tree rooted at the component with id
+/// `"root"`.
+///
+/// The agent addresses components by id and refers to children by id, so nothing in the payload is
+/// nested. Resolution walks those references once and is where cycles and runaway depth are caught,
+/// before a renderer can recurse on them.
 public enum ComponentTreeResolver {
 
-    /// ツリー解決時のエラー。
+    /// Reasons resolution stops without a tree.
     public enum TreeError: Error, Sendable, Equatable {
-        /// id "root" を持つコンポーネントが存在しない。
+        /// The dictionary has no component with the id `"root"`.
         case missingRoot
-        /// 指定した id でコンポーネントの循環参照を検出した。
+        /// The component with this id is reachable from itself through its child fields.
         case circularReference(String)
-        /// ツリーの深さが `maxDepth` を超過した。
+        /// The tree is deeper than `maxDepth`; the payload is the depth at which resolution stopped.
         case depthLimitExceeded(Int)
-        /// どのコンポーネントからも参照されない孤立コンポーネントが存在する。
+        /// Ids present in the dictionary that nothing in the tree references.
         case orphanedComponents([String])
     }
 
-    /// `depthLimitExceeded` を throw するツリー深度の上限。
+    /// The depth at which resolution throws `depthLimitExceeded` instead of recursing further.
     public static let maxDepth = 50
 
-    /// フラットなコンポーネント辞書からツリーを構築する。
-    /// id "root" を持つコンポーネントが必須のルートとなる。
-    /// "root" コンポーネントが存在しない場合は `TreeError.missingRoot` を throw する。
+    /// Builds the tree from a flat component dictionary, starting at the component with id `"root"`.
+    ///
+    /// A child id that is not present in the dictionary is skipped without comment, so a payload
+    /// with a broken reference resolves to a smaller tree rather than failing. The three faults that
+    /// do stop resolution are a missing root, a cycle, and a tree deeper than `maxDepth`.
+    /// - Throws: A ``TreeError`` describing which of those three it hit.
     public static func resolve(components: [String: StructuredValue]) throws -> ComponentNode {
         guard let rootComponent = components["root"] else {
             throw TreeError.missingRoot

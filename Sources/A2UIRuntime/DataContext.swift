@@ -2,20 +2,20 @@ import StructuredDataCore
 import A2UICore
 import A2UISurface
 
-/// レンダリング中にデータバインドを解決するための、`DataModel` への一時的なスコープ付きビュー。
+/// A transient, scoped view onto a `DataModel` for resolving data bindings while rendering.
 ///
-/// `renderer_guide.md` §3 のコンテキスト層を実装する。`DataContext` は現在の**評価スコープ**
-/// （JSON Pointer パス）を保持する。相対バインド（`name`）はスコープを起点に解決し、
-/// 絶対バインド（`/company`）はルートから解決する。テンプレートの反復は `nested(_:)` で
-/// 子スコープを生成する。
+/// Implements the context layer of `renderer_guide.md` §3. The context carries the current **evaluation
+/// scope** as a JSON Pointer path: a relative binding (`name`) resolves from that scope, an absolute one
+/// (`/company`) from the root. Template iteration produces child scopes through `nested(_:)`.
 public struct DataContext: Sendable {
     public let dataModel: DataModel
-    /// 現在のスコープパス（例: `/employees/0`）。空文字列はルートスコープを意味する。
+    /// The current scope path, such as `/employees/0`; the empty string is the root scope.
     public let path: String
-    /// テンプレート反復（Collection Scope）の 0 始まりの添字。反復の外では `nil`。
+    /// Zero-based index of the template iteration (collection scope); `nil` outside an iteration.
     ///
-    /// 仕様 v1.0: 組み込み `@index` は**テンプレートのインスタンス化中のみ**評価でき、
-    /// その外で呼ぶと評価エラーになる。その「反復の中かどうか」をこの値が表す。
+    /// Spec v1.0: the built-in `@index` evaluates **only while a template is being instantiated**, and
+    /// calling it anywhere else is an evaluation error. This value is what says whether we are inside an
+    /// iteration.
     public let collectionIndex: Int?
     private let functions: any FunctionResolving
 
@@ -31,11 +31,14 @@ public struct DataContext: Sendable {
         self.functions = functions
     }
 
-    /// 現在のスコープに対して `relativePath` を解決し、その位置にスコープを持つ子コンテキストを生成する。
-    /// テンプレートリストのレンダリングで使用。各アイテムは `nested("/items/<index>")` (絶対インデックスパス) を受け取る。
+    /// Resolves `relativePath` against the current scope and returns a child context scoped there.
     ///
-    /// - Parameter collectionIndex: テンプレート反復として入るときの 0 始まりの添字。
-    ///   省略すると反復スコープではなくなり、`@index` は評価エラーになる。
+    /// Used when rendering a template list: each item receives `nested("/items/<index>")`, the absolute
+    /// indexed path, so relative bindings inside the template land on that element.
+    ///
+    /// - Parameter collectionIndex: The zero-based index when entering as a template iteration. Omit it
+    ///   and the child is an ordinary scope rather than an iteration, which turns `@index` inside it into
+    ///   an evaluation error.
     public func nested(_ relativePath: String, collectionIndex: Int? = nil) -> DataContext {
         let childPath = JSONPointer.absolutePath(relativePath, scope: path)
         return DataContext(
@@ -48,7 +51,10 @@ public struct DataContext: Sendable {
 
     // MARK: - Resolution (snapshot)
 
-    /// `DynamicValue` を現在の具体値に解決する。未定義の場合は nil。
+    /// Resolves a `DynamicValue` to its value at this instant; `nil` when it is undefined.
+    ///
+    /// A snapshot: it does not track later writes. Use `subscribe(_:_:)` where the view has to keep up
+    /// with the data model.
     public func resolve(_ value: DynamicValue) -> StructuredValue? {
         switch value {
         case .string(let s): return .string(s)
@@ -60,7 +66,9 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// `DynamicString` を String に解決する。A2UI 型変換を適用（nil → ""）。
+    /// Resolves a `DynamicString`, applying A2UI coercion: an undefined binding becomes `""`.
+    ///
+    /// An empty label can therefore mean a wrong path rather than empty text; nothing is raised.
     public func resolveString(_ value: DynamicString) -> String {
         switch value {
         case .literal(let s): return s
@@ -69,7 +77,9 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// `DynamicBoolean` を Bool に解決する。A2UI 型変換を適用（nil → false）。
+    /// Resolves a `DynamicBoolean`, applying A2UI coercion: an undefined binding becomes `false`.
+    ///
+    /// A `checks` condition on a path that has not arrived yet therefore reads as a failing check.
     public func resolveBool(_ value: DynamicBoolean) -> Bool {
         switch value {
         case .literal(let b): return b
@@ -78,7 +88,9 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// `DynamicNumber` を Double に解決する。A2UI 型変換を適用（nil → 0）。
+    /// Resolves a `DynamicNumber`, applying A2UI coercion: an undefined binding becomes `0`.
+    ///
+    /// A slider or progress value bound to a missing path lands at `0` rather than reporting anything.
     public func resolveNumber(_ value: DynamicNumber) -> Double {
         switch value {
         case .literal(let n): return n
@@ -89,8 +101,11 @@ public struct DataContext: Sendable {
 
     // MARK: - Subscription (reactive)
 
-    /// `DynamicValue` を購読する。バインドの場合は対象パスをリアクティブに追跡し（初期値は同期発火）、
-    /// リテラル / 関数は値を一度だけ発火する。
+    /// Subscribes to a `DynamicValue`, tracking a bound path and delivering the current value
+    /// synchronously before returning.
+    ///
+    /// Literals and function calls fire once and hand back `.inert`: a function result is not
+    /// re-evaluated when the data its arguments read changes.
     @discardableResult
     public func subscribe(
         _ value: DynamicValue,
@@ -105,7 +120,8 @@ public struct DataContext: Sendable {
         }
     }
 
-    /// `DynamicString` を購読し、変換済みの String 値を届ける。
+    /// Subscribes to a `DynamicString` and delivers already-coerced values, so the callback never sees
+    /// `nil` and a deleted path arrives as `""`.
     @discardableResult
     public func subscribeString(
         _ value: DynamicString,
@@ -122,7 +138,8 @@ public struct DataContext: Sendable {
 
     // MARK: - Write
 
-    /// このスコープ内の（相対または絶対）パスに値を書き込む。双方向バインドで使用。
+    /// Writes a value at a path — relative to this scope, or absolute — the way two-way bindings do when
+    /// the user edits a field.
     public func set(_ relativeOrAbsolutePath: String, _ value: StructuredValue?) {
         dataModel.set(relativeOrAbsolutePath, value, scope: path)
     }

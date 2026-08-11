@@ -9,35 +9,38 @@ import Foundation
 import LLMClient
 import LLMTool
 
-/// presenter（コンテンツ提示）型 A2UI エージェントの自己記述一式。
+/// Everything a presenter-style (content-presenting) A2UI agent says about itself.
 ///
-/// 「役割（system prompt）・道具（tools）・プロトコル宣言（agent extension）・
-/// 委譲説明（description）」を A2UI ドメインの SSOT としてこのパッケージが持ち、
-/// ホストアプリは executor への注入と、言語・モデル選択などのドメイン判断だけを行う。
+/// This package is the single source of truth for the A2UI domain: the role (system prompt), the
+/// tools, the protocol declaration (agent extension) and the delegation blurb (description). A
+/// host app only injects them into its executor and makes the domain choices — language, model.
 ///
-/// カタログ・手本を含む UI の全知識はこのエージェントに閉じる。生成は公式
-/// `send_a2ui_json_to_client` ツール一本（公式 rizzcharts 準拠: スキーマと手本は
-/// ツールが所有し、アタッチ時に system prompt へ同伴）。
+/// All UI knowledge, catalog and worked examples included, stays inside this agent. Generation
+/// goes through the single `send_a2ui_json_to_client` tool; as in the upstream rizzcharts
+/// reference agent, the tool owns the schema and the examples and carries them into the system
+/// prompt when it is attached.
 public enum A2UIPresenterAgent {
     public static let defaultName = "a2ui"
 
-    /// presenter のデフォルト・コンポーネントパレット（コンテンツ提示の 9 種）。
-    /// ホストは `tools(components:)` に任意のサブセットを渡してパレットを変えられる。
+    /// The presenter's default component palette: the nine content-presentation components.
+    /// A host can change the palette by passing any subset to `tools(components:)`.
     public static let defaultComponents = A2UIExample.presenterComponentNames
 
-    /// 要求されたコンポーネント集合を basic catalog に対して正規化する:
-    /// カタログに無い名前は落とし、空になったらデフォルトパレットへフォールバックする。
-    /// 設定の保存値（古いカタログの名前が残り得る）をそのまま渡しても壊れない。
+    /// Normalizes a requested component set against the basic catalog: names the catalog does not
+    /// know are dropped, and an empty result falls back to the default palette.
+    /// A persisted setting can therefore be passed straight through even when it still holds
+    /// names from an older catalog.
     public static func sanitizedComponents(_ requested: Set<String>) -> Set<String> {
         let known = requested.intersection(BasicComponent.componentNames)
         return known.isEmpty ? defaultComponents : known
     }
 
-    /// コンポーネント集合に同伴させる手本サーフェス。手本がスキーマと矛盾しないことが規約:
-    /// - フルカタログ → 全パレットを教える `referenceSurface`
-    /// - presenter パレットを含む → 提示特化の `presenterSurface`
-    /// - presenter パレットすら欠ける → 手本なし（矛盾した手本は無いほうがよい。
-    ///   pruning 済みスキーマブロックだけで生成する）
+    /// The worked-example surface to ship with a component set. The rule is that the example must
+    /// never contradict the schema:
+    /// - the full catalog → `referenceSurface`, which teaches the whole palette
+    /// - a superset of the presenter palette → the presentation-focused `presenterSurface`
+    /// - anything narrower → no example, because a contradictory example is worse than none;
+    ///   generation then runs on the pruned schema block alone
     public static func exampleSurface(for components: Set<String>) -> String? {
         if components == BasicComponent.componentNames {
             return A2UIExample.referenceSurface()
@@ -48,16 +51,16 @@ public enum A2UIPresenterAgent {
         return nil
     }
 
-    /// オーケストレータが委譲判断に使う説明（card / ルーティング用）。
-    /// 「内容は全部渡す・サーフェスは毎ターン更新し続ける」を card 段階で明示する —
-    /// 1 回きりの最終工程として読ませない。
+    /// The description an orchestrator reads when deciding whether to delegate (agent card and
+    /// routing). It states at card level that the caller passes the complete content and that the
+    /// surface keeps being updated every turn, so the agent is not read as a one-shot final step.
     public static let defaultDescription =
         "Renders content as an interactive A2UI surface on the user's screen. Send it the complete "
         + "content to display — it cannot see other agents' replies. Once a surface exists, every "
         + "answer must be sent to it again to update the surface."
 
-    /// presenter の UI 規約（サーフェスのライフサイクルと品質基準）。
-    /// `systemPrompt` の `## UI Description:` セクションに入る。
+    /// The presenter's UI contract: surface lifecycle and the quality bar.
+    /// It becomes the `## UI Description:` section of `systemPrompt`.
     public static let uiDescription = """
     - The surface root fills the host frame: use a full-width container (e.g. Column with "align":"stretch") \
     as the component with id "root", not a Card. Use Card only for sub-sections inside a surface.
@@ -77,17 +80,19 @@ public enum A2UIPresenterAgent {
     "next" suggestions to match the new content.
     """
 
-    /// a2ui ワーカーの system prompt（役割 + UI 規約 + ワークフロー規則）。
+    /// The a2ui worker's system prompt: role, UI contract and workflow rules.
     ///
-    /// presenter サブセットの pruning 済みスキーマと手本サーフェスはツール
-    /// （`SendA2UIToClientTool`）が所有しアタッチ時に同伴するため、ここには指示だけを持つ。
+    /// The pruned schema for the presenter subset and the worked-example surface are owned by the
+    /// tool (`SendA2UIToClientTool`) and travel with it when it is attached, so only the
+    /// instructions live here.
     public static func systemPrompt(language: String = "Japanese") -> SystemPrompt {
         var role = SystemPrompt {
             PromptComponent.role("You are an A2UI agent. Render the content given to you as A2UI surface(s) on the user's screen.")
             PromptComponent.note("All user-facing text you produce must be written in \(language).")
             PromptComponent.outputConstraint("Your final output MUST be an A2UI UI rendered as JSON messages — never reply with plain prose only.")
         }.render()
-        // 公式 rizzcharts の role 末尾文（逐語）: ツール使用を MUST で指示する。
+        // Closing sentence of the role, verbatim from the upstream rizzcharts agent: it makes
+        // tool use a MUST.
         role += "\nYou MUST use the `\(A2UIToolConstants.toolName)` tool with the "
             + "`\(A2UIToolConstants.jsonArgName)` argument set to the A2UI JSON payload to send to the client."
         let instruction = A2UIPromptBuilder.presenter().buildSystemPrompt(
@@ -100,15 +105,15 @@ public enum A2UIPresenterAgent {
         return SystemPrompt(stringLiteral: instruction)
     }
 
-    /// a2ui ワーカーの公式ツール一式（生成は `send_a2ui_json_to_client` 一本）。
-    /// pruning 済みスキーマと手本サーフェスはツールが所有し、アタッチ時に
-    /// system prompt へ同伴する（公式 rizzcharts 準拠）。
+    /// The a2ui worker's tool set — generation goes through `send_a2ui_json_to_client` alone.
+    /// The tool owns the pruned schema and the worked-example surface and carries them into the
+    /// system prompt when it is attached, as in the upstream rizzcharts reference agent.
     ///
-    /// `components` でカタログパレットを差し替えられる（デフォルトは presenter 9 種）。
-    /// 同じ集合がプロンプト側の pruning と出力検証の両方に使われるため、
-    /// モデルに提示していないコンポーネントはツールエラーとなり同一ループ内で自己修正される。
-    /// メッセージは常に presenter の 3 種（createSurface / updateComponents / updateDataModel）
-    /// — 単一サーフェス運用の規約はパレットと独立。
+    /// `components` swaps the catalog palette (the nine presenter components by default). The same
+    /// set drives both the prompt pruning and the output validation, so a component that was never
+    /// shown to the model comes back as a tool error and is self-corrected inside the same loop.
+    /// The messages stay the presenter's three (createSurface / updateComponents /
+    /// updateDataModel) — the single-surface convention is independent of the palette.
     public static func tools(components: Set<String> = defaultComponents) -> [any Tool] {
         let allowed = sanitizedComponents(components)
         let promptBuilder = A2UIPromptBuilder(
@@ -128,14 +133,15 @@ public enum A2UIPresenterAgent {
         ]
     }
 
-    /// card で宣言する A2UI プロトコル拡張（対応カタログの自己申告）。
-    /// カタログネゴシエーションはプロトコル層の責務 — LLM プロンプトには入れない。
+    /// The A2UI protocol extension declared on the agent card: which catalogs this agent supports.
+    /// Catalog negotiation belongs to the protocol layer and never enters the LLM prompt.
     public static func agentExtension() -> AgentExtension {
         A2UIExtension.agentExtension(supportedCatalogIds: [BasicCatalog.catalogId])
     }
 
-    /// ホスト（オーケストレータ）の出力指示に足す、a2ui への委譲必須の制約。
-    /// a2ui がいる編成では毎ターン a2ui への委譲を必須にする — プレーンテキスト即答の裁量は残さない。
+    /// The constraint to append to the host (orchestrator) output instructions so that delegation
+    /// to a2ui is mandatory. Wherever an a2ui worker is in the line-up, every turn has to go
+    /// through it: no discretion is left for answering in plain text.
     public static func hostOutputConstraint(agentName: String = defaultName) -> PromptComponent {
         .outputConstraint(
             "Every turn, including follow-ups, must end by sending the complete answer content to the "

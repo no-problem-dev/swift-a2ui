@@ -54,15 +54,17 @@ Examples:
 - 'EEEE, d MMMM' -> 'Friday, 16 January'
 """
 
-/// Basic カタログを Swift で完全に記述したもの（手書き `catalog.json` は不要）。
+/// The whole basic catalog written in Swift, so that no `catalog.json` is kept by hand.
 ///
-/// 各 basic コンポーネントの `CatalogSchemaDescribing.componentSchema` と基本関数スキーマを集約し、
-/// `SchemaRenderer` で LLM 向けカタログドキュメントをレンダリングする。
+/// Collects each basic component's `CatalogSchemaDescribing.componentSchema` together with the
+/// catalog's function schemas, and hands both to `SchemaRenderer` to produce the document the
+/// model is prompted with.
 public enum BasicCatalogSchema {
 
     public static let catalogId = BasicComponentCatalog.catalogId
 
-    /// すべての basic カタログコンポーネントスキーマ（型から導出）。
+    /// Every component schema of the catalog, derived from the component types. The declaration
+    /// order here is the order the components appear in the rendered document.
     public static let components: [ComponentSchema] = [
         TextComponent.componentSchema,
         ImageComponent.componentSchema,
@@ -84,8 +86,9 @@ public enum BasicCatalogSchema {
         DateTimeInputComponent.componentSchema,
     ]
 
-    /// すべての basic カタログ関数スキーマ（仕様 §7）。各 `description` と引数形状は
-    /// 公式 `catalog.json` からそのまま転記（`GeneratedCatalogFidelityTests` で固定）。
+    /// Every function schema of the catalog (spec §7). Each `description` and argument shape is
+    /// copied verbatim from the official `catalog.json` and pinned by
+    /// `GeneratedCatalogFidelityTests`, so rewording one breaks that test.
     public static let functions: [FunctionSchema] = [
         FunctionSchema(name: "required", description: "Checks that the value is not null, undefined, or empty.",
             argsObject: .object([
@@ -165,7 +168,8 @@ public enum BasicCatalogSchema {
             argsObject: argsObj(props: ["value": fnRefD("DynamicBoolean", "The boolean value to negate.")], required: ["value"]), returnType: "boolean"),
     ]
 
-    /// LLM プロンプト用の最小化 JSON 文字列として basic カタログドキュメントをレンダリングする。
+    /// Renders the basic catalog document as a minified JSON string for a model prompt. The
+    /// design guidelines of `BasicCatalogInstructions` travel inside it, as v1.0 requires.
     public static func render() -> String {
         SchemaRenderer.renderCatalog(
             catalogId: catalogId,

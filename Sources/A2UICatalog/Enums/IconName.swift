@@ -1,6 +1,10 @@
 import A2UICore
 
-/// A2UI が定義するプリセットアイコン名（Material Symbols ベース）。
+/// The preset icon names A2UI defines, drawn from Material Symbols.
+///
+/// These are the only names the generated schema offers the model, and a renderer built on SF
+/// Symbols has to map them itself. A name outside this set is not rejected — it arrives as
+/// `IconNameValue.raw`.
 public enum IconName: String, Codable, Sendable, Equatable, CaseIterable {
     case accountCircle
     case add

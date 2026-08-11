@@ -3,16 +3,18 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// `ChildList` から生成された解決済み子スロット — View 層が再帰するために必要な情報。
+/// One resolved child slot from a `ChildList` — everything the view layer needs in order to recurse.
 ///
-/// `basePath` はこの子インスタンスのデータスコープ。静的リストの場合は親スコープと同一。
-/// テンプレートインスタンスの場合は `/<path>/<index>`（またはオブジェクトなら `/<path>/<key>`）となり、
-/// テンプレート内の相対バインドが正しい配列要素に解決される（仕様 §scope）。
+/// `basePath` is this child instance's data scope. For a static list it equals the parent scope. For a
+/// template instance it is `/<path>/<index>` (or `/<path>/<key>` for an object), which is what makes a
+/// relative binding inside the template resolve against the right element (spec §scope).
 public struct ResolvedChild: Sendable, Hashable {
     public let componentId: String
     public let basePath: String
-    /// テンプレート反復の 0 始まりの添字。静的 `ids` リストでは `nil`。
-    /// 組み込み `@index`（v1.0）はこの値を返す。
+    /// Zero-based index of the template iteration; `nil` for a static `ids` list.
+    ///
+    /// The built-in `@index` (v1.0) returns this value, so leaving it `nil` while rendering a template
+    /// instance makes `@index` inside that child fail to evaluate.
     public let collectionIndex: Int?
 
     public init(componentId: String, basePath: String, collectionIndex: Int? = nil) {
@@ -22,15 +24,19 @@ public struct ResolvedChild: Sendable, Hashable {
     }
 }
 
-/// `ChildList` を具体的な子スロットへ展開し、A2UI のテンプレート / コレクションスコープ規則を適用する。
+/// Expands a `ChildList` into concrete child slots under A2UI's template and collection-scope rules.
 ///
-/// 仕様 §"Collection scopes (relative paths)":
-/// - 静的 `ids` リスト → 各 id は親スコープを維持する。
-/// - `template(componentId, path)` → 親スコープを起点に解決した `path` の配列（またはオブジェクト）を
-///   反復し、要素ごとに子スコープでテンプレートをインスタンス化する。
+/// Spec §"Collection scopes (relative paths)":
+/// - A static `ids` list → every id keeps the parent scope.
+/// - `template(componentId, path)` → iterate the array (or object) found at `path`, resolved from the
+///   parent scope, instantiating the template once per element in that element's own child scope.
 public enum TemplateExpander {
 
-    /// `context` 内で `ChildList` を展開する。`context.path` は親のスコープ。
+    /// Expands a `ChildList` in `context`, whose `path` is the parent scope.
+    ///
+    /// Returns an empty array when the bound collection has not arrived yet, or when the value there is
+    /// neither an array nor an object: progressive rendering, not an error to report. Object keys are
+    /// iterated in sorted order so the rows do not reshuffle between updates.
     public static func expand(_ children: ChildList, in context: DataContext) -> [ResolvedChild] {
         switch children {
         case .ids(let ids):
@@ -66,8 +72,10 @@ public enum TemplateExpander {
         }
     }
 
-    /// 生の `children` プロパティ（`StructuredValue`）を `ChildList` にデコードして展開するユーティリティ。
-    /// 有効な `ChildList` でない場合は nil を返す。
+    /// Decodes a raw `children` property into a `ChildList` and expands it.
+    ///
+    /// - Returns: `nil` when the value is not a valid `ChildList` — distinct from `[]`, which means a
+    ///   valid list that currently yields no children.
     public static func expandRaw(_ childrenProperty: StructuredValue, in context: DataContext) -> [ResolvedChild]? {
         guard let childList = decodeChildList(childrenProperty) else { return nil }
         return expand(childList, in: context)

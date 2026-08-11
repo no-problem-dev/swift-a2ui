@@ -6,39 +6,43 @@ import LLMClient
 import LLMTool
 import StructuredDataCore
 
-/// 副エージェントに強制する内側ツール — `render_a2ui`。
+/// The inner tool the sub-agent is forced to call — `render_a2ui`.
 ///
-/// ミラー元: `@ag-ui/a2ui-toolkit` の `RENDER_A2UI_TOOL_DEF`（typed）と
-/// `ag_ui_adk.a2ui_tool` の Gemini 向け宣言（freeform）。
+/// Mirrors `RENDER_A2UI_TOOL_DEF` in `@ag-ui/a2ui-toolkit` (typed) and the Gemini-facing
+/// declaration in `ag_ui_adk.a2ui_tool` (freeform).
 ///
-/// 副エージェントにはこのツールを**1 つだけ**バインドし `toolChoice: .tool(name)` で
-/// 名指し強制する。テキストで返す選択肢がプロバイダ API のレベルで消えるため、
-/// 「A2UI JSON をテキスト本文に書いてしまう」失敗モードが原理的に起きない。
+/// Bind this as the sub-agent's **only** tool and name it in `toolChoice: .tool(name)`.
+/// Answering with text stops being an option at the provider API level, which is what makes
+/// the "wrote the A2UI JSON into the message body" failure mode impossible rather than rare.
 ///
-/// `catalogId` は引数に**含めない** — カタログはホストの所有物であり、副エージェントが
-/// 登録されていないカタログを名乗れないようにする（公式と同じ設計）。
+/// `catalogId` is deliberately **not** an argument: the catalog belongs to the host, and the
+/// sub-agent must not be able to name one that was never registered.
 ///
-/// カタログ定義はツール引数の JSON Schema には入れず、副エージェントの**プロンプト本文**
-/// （`## Available Components`）に埋め込む。構造検証は `A2UIValidation` 側で行う。
+/// The catalog definition lives in the sub-agent's **prompt** (`## Available Components`),
+/// not in this schema. Structural checking is `A2UIValidation`'s job.
 public struct RenderA2UITool: Tool {
-    /// 引数の宣言形。プロバイダの関数呼び出しの厳格さに応じて選ぶ。
+    /// How the payload arguments are declared. Choose by how strictly the provider fills
+    /// function-call arguments.
     public enum PayloadShape: Sendable, Equatable {
-        /// `components: array<object>` / `data: object` として宣言する（公式共有定義）。
-        /// LangGraph / OpenAI 系はスキーマが緩くてもプロンプトの記述から埋められる。
+        /// Declares `components` as `array<object>` and `data` as `object`, the shared
+        /// upstream definition. LangGraph and OpenAI-style providers fill these from the
+        /// prompt text even though the schema itself is loose.
         case typed
-        /// `components` / `data` を **JSON 文字列**として宣言する（ADK/Gemini 向けの glue）。
+        /// Declares `components` and `data` as **JSON strings** — the glue for ADK/Gemini.
         ///
-        /// Gemini の function-calling は typed な引数を**厳格に**埋めるため、プロパティを
-        /// 持たない `array<object>` には空の `{}` を返し、宣言していないフィールドは
-        /// 一切出力しない（実測: `Key 'component' not found` → 骨組み宣言後は
-        /// `Key 'children'/'text' not found`）。文字列で受ければモデルはプロンプトの
-        /// カタログ定義に従って A2UI JSON を自由記述でき、こちらでパースし直せる。
+        /// Gemini's function calling fills typed arguments **strictly**: an `array<object>`
+        /// with no declared properties comes back as an empty `{}`, and a field that was not
+        /// declared is never emitted at all (observed as `Key 'component' not found`, then
+        /// `Key 'children'/'text' not found` once a skeleton was declared). Taking a string
+        /// lets the model write A2UI JSON freely against the catalog in its prompt, and this
+        /// side parses it back.
         case freeform
     }
 
-    /// ツール名。既定は公式と同じ `render_a2ui`。
+    /// Name the sub-agent is forced onto; defaults to the upstream `render_a2ui`.
     public let toolName: String
-    /// 引数の宣言形。
+    /// Declaration shape in use. Switch to `.freeform` for providers that fill typed
+    /// arguments strictly enough to hollow out an untyped `array<object>`.
     public let payloadShape: PayloadShape
 
     public init(
@@ -91,14 +95,16 @@ public struct RenderA2UITool: Tool {
         }
     }
 
-    /// 副エージェントの呼び出しでは実行されない — 呼び出し側（`A2UISubagentRunner`）が
-    /// ツール呼び出しの引数を直接読み取るため。ツールセットに登録するための形だけを満たす。
+    /// Never runs in the sub-agent flow, and always returns `{}` if it somehow does.
+    ///
+    /// The caller reads the tool call's arguments directly (see `A2UISubagentRunner`); this
+    /// body exists only so the type satisfies `Tool` and can be registered in a tool set.
     public func execute(with argumentsData: Data) async throws -> ToolResult {
         .text("{}")
     }
 }
 
-/// 副エージェントが返した `render_a2ui` の引数。
+/// The `render_a2ui` arguments a sub-agent returned, narrowed from untrusted model output.
 public struct RenderA2UIArguments: Sendable, Equatable {
     public let surfaceId: String
     public let components: [StructuredValue]
@@ -110,15 +116,16 @@ public struct RenderA2UIArguments: Sendable, Equatable {
         self.data = data
     }
 
-    /// ツール呼び出しの生引数（JSON）から取り出す。
+    /// Reads the raw JSON arguments of a tool call.
     ///
-    /// `components` / `data` は**構造化されていても JSON 文字列でも**受け取る
-    /// （`.typed` / `.freeform` の両方の宣言形に対応する）。文字列の場合は
-    /// `JSONSanitizer` 経由で修復してからパースする — Gemini の自由記述 JSON は
-    /// スマートクォート・コードフェンス・末尾カンマを含むことが多い。
+    /// `components` and `data` are accepted **either structured or as a JSON string**, so one
+    /// initializer covers both the `.typed` and `.freeform` declarations. A string is repaired
+    /// through `JSONSanitizer` before parsing — Gemini's free-form JSON routinely carries
+    /// smart quotes, code fences and trailing commas.
     ///
-    /// パースできなかった場合は空として扱い、検証器に弾かせてリトライループに回す
-    /// （壊れたペイロードをコミットしない）。
+    /// What cannot be recovered is treated as absent: `nil` when `components` is unusable, and
+    /// no data model when only `data` is. Nothing broken is committed — the validator rejects
+    /// the attempt and the retry loop takes it from there.
     public init?(argumentsData: Data) {
         guard let root = try? JSONParser().parse(argumentsData) else { return nil }
         let surfaceId = root["surfaceId"].stringValue ?? ""
@@ -131,7 +138,7 @@ public struct RenderA2UIArguments: Sendable, Equatable {
         )
     }
 
-    /// 配列、または配列を表す JSON 文字列を配列として取り出す。
+    /// Reads an array, or a JSON string spelling one, as an array.
     private static func array(from value: StructuredValue) -> [StructuredValue]? {
         if let array = value.arrayValue {
             return array
@@ -144,15 +151,15 @@ public struct RenderA2UIArguments: Sendable, Equatable {
         if let array = parsed.arrayValue {
             return array
         }
-        // 単一オブジェクトは配列にラップする（公式 parse_and_fix と同じ寛容さ）
+        // Wrap a lone object into an array — the same leniency as upstream parse_and_fix.
         if case .object = parsed {
             return [parsed]
         }
         return nil
     }
 
-    /// オブジェクト、またはオブジェクトを表す JSON 文字列をオブジェクトとして取り出す。
-    /// データモデルとして無効なもの（配列・null・スカラー・空 `{}`）は `nil`。
+    /// Reads an object, or a JSON string spelling one, as an object.
+    /// Anything invalid as a data model — array, null, scalar, or an empty `{}` — gives `nil`.
     private static func object(from value: StructuredValue) -> StructuredValue? {
         if case .object(let fields) = value {
             return fields.isEmpty ? nil : value

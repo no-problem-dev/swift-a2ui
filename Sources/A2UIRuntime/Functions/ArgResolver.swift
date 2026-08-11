@@ -3,17 +3,19 @@ import A2UICore
 import A2UISurface
 import Foundation
 
-/// 関数呼び出しの引数（生の `StructuredValue`）を具体値に解決するリゾルバ。
-/// 埋め込まれたデータバインド（`{"path": "..."}`）やネストした関数呼び出し（`{"call": "..."}`）を解釈する。
+/// Resolves the raw `StructuredValue` arguments of a function call down to concrete values.
 ///
-/// `renderer_guide.md` §2 の通り、コンテキスト層は関数の純粋ロジックが実行される前に
-/// 動的な引数を解決する。引数自体が `Dynamic*` 値になりうるため、解決は再帰的に行う。
+/// It interprets embedded data bindings (`{"path": "..."}`) and nested calls (`{"call": "..."}`). Per
+/// `renderer_guide.md` §2 the context layer resolves dynamic arguments before a function's pure logic
+/// runs; because an argument can itself be a `Dynamic*` value, resolution recurses.
 enum ArgResolver {
 
-    /// 指定のコンテキストに対して引数値を解決する。
-    /// - 平スカラー / 配列 / オブジェクトはそのまま通過（ネストしたバインドは再帰解決）。
-    /// - `{"path": "..."}` はデータモデルの値に解決する。
-    /// - `{"call": "..."}` はネストした関数を評価する。
+    /// Resolves one argument value against the given context.
+    ///
+    /// - A plain scalar, array, or object passes through, with nested bindings resolved recursively.
+    /// - `{"path": "..."}` resolves to the data-model value, but only when `path` is the object's sole
+    ///   key; an object that carries anything else alongside it is treated as plain data.
+    /// - `{"call": "..."}` evaluates the nested function.
     static func resolve(_ value: StructuredValue, in context: DataContext, functions: any FunctionResolving) -> StructuredValue? {
         switch value {
         case .object(let dict):
@@ -39,19 +41,22 @@ enum ArgResolver {
         }
     }
 
-    /// 引数を解決して String に変換する。
+    /// Resolves an argument and coerces it to `String`; a missing argument yields `""`, which the
+    /// function cannot tell apart from a binding that resolved to nothing.
     static func string(_ value: StructuredValue?, in context: DataContext, functions: any FunctionResolving) -> String {
         guard let value else { return "" }
         return TypeCoercion.toString(resolve(value, in: context, functions: functions))
     }
 
-    /// 引数を解決して Double に変換する。
+    /// Resolves an argument and coerces it to `Double`; a missing argument and an unparseable one both
+    /// yield `0`, so check for the key first where the difference matters.
     static func number(_ value: StructuredValue?, in context: DataContext, functions: any FunctionResolving) -> Double {
         guard let value else { return 0 }
         return TypeCoercion.toNumber(resolve(value, in: context, functions: functions))
     }
 
-    /// 引数を解決して Bool に変換する。
+    /// Resolves an argument and coerces it to `Bool`; a missing argument yields `false`, and so does any
+    /// array or object (the spec defines coercion only from string and number).
     static func bool(_ value: StructuredValue?, in context: DataContext, functions: any FunctionResolving) -> Bool {
         guard let value else { return false }
         return TypeCoercion.toBool(resolve(value, in: context, functions: functions))

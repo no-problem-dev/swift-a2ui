@@ -1,5 +1,13 @@
 import StructuredDataCore
-/// リテラル、データモデルバインディング、または関数呼び出し結果のいずれかで表される数値。
+/// A numeric property — a slider value, a step, a count — always carried as a `Double`, whatever
+/// the JSON looked like.
+///
+/// `literal` is fixed in the message, `binding` is re-read from the data model, `functionCall` is
+/// computed by the catalog. A bound path that matches nothing coerces to `0`, which most layouts
+/// treat as a deliberate value, so an unpopulated model is indistinguishable from a real zero.
+///
+/// Conforms to `ExpressibleByIntegerLiteral` as well as `ExpressibleByFloatLiteral`: `4` and `4.0`
+/// both build `.literal(4.0)`.
 public enum DynamicNumber: Sendable, Equatable {
     case literal(Double)
     case binding(DataBinding)

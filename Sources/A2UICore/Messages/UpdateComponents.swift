@@ -1,7 +1,9 @@
 import StructuredDataCore
-/// サーフェス上のコンポーネントを差し替え・挿入するメッセージ（A2UI v1.0）。
+/// Inserts components into a surface, replacing any that already carry the same `id` (A2UI v1.0).
 ///
-/// カタログ非依存: 型付きデコードは `A2UICatalog` 側で行う。
+/// Components stay as `StructuredValue` so this type is catalog-agnostic; turning them into
+/// concrete component types is `A2UICatalog`'s job, and an unknown component name therefore fails
+/// there rather than here.
 public struct UpdateComponents: Codable, Sendable, Equatable {
     public let surfaceId: String
     public let components: [StructuredValue]

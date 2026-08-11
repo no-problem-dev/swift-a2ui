@@ -1,13 +1,17 @@
-/// `Action.event` のペイロード: ホストへ送信する名前付きイベント。
+/// The payload of `Action.event`: a named event for the host, plus the values the agent wants sent
+/// along with it.
 ///
-/// `wantResponse: true` を設定すると、クライアントはサーバからの `actionResponse` を待つ。
-/// `responsePath` が指定された場合、応答値をデータモデルのそのパスへ書き込む。
+/// Each entry of `context` is resolved against the component's data scope before it leaves, so the
+/// agent receives values rather than bindings. With `wantResponse` set the client waits for an
+/// `actionResponse` before treating the action as finished, and writes what comes back into its
+/// data model at `responsePath` when one is given.
 public struct EventAction: Codable, Sendable, Equatable {
     public let name: String
     public let context: [String: DynamicValue]?
-    /// v1.0: true の場合、クライアントはサーバから `actionResponse` を期待する。
+    /// `true` if the client should expect an `actionResponse` for this event.
     public let wantResponse: Bool?
-    /// v1.0: クライアントがデータモデルへ応答値を書き込む JSON Pointer パス（オプション）。
+    /// JSON Pointer the client writes the response value to. Optional; without it the response is
+    /// delivered but never lands in the data model.
     public let responsePath: String?
 
     public init(

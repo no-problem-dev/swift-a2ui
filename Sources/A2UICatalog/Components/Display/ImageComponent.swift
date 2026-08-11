@@ -1,6 +1,10 @@
 import A2UICore
 
-/// 画像コンポーネント。指定した URL の画像を表示する。
+/// Displays a remote image, sized by `variant` and scaled inside that box by `fit`.
+///
+/// `url` and the accessibility text are `DynamicString`s, so a template child can bind them to the
+/// item it is rendering. The accessibility text is `imageDescription` in Swift but encodes as
+/// `description` on the wire.
 public struct ImageComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Image"
 

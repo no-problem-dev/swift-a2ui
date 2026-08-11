@@ -1,30 +1,33 @@
 import Foundation
 
-/// すべての A2UI コンポーネントカタログが準拠するプロトコル。
+/// A named set of components a surface can be built from, described to the model by one JSON
+/// Schema document.
 public protocol ComponentCatalog: Sendable {
-    /// このカタログの一意識別子 URI。
+    /// URI a surface or an individual component names to select this catalog; a component carrying
+    /// a different `catalogId` is not resolved here.
     var catalogId: String { get }
 
-    /// カタログの JSON スキーマ文字列を返す。
+    /// The catalog document to embed in the model's prompt, as a JSON string.
     static func catalogSchemaJSON() -> String
 }
 
-/// swift-a2ui に同梱される基本カタログ。
-///
-/// A2UI v1.0 仕様に定義された標準の表示・レイアウト・入力コンポーネントを含む。
+/// The catalog shipped with swift-a2ui: the standard display, layout, and input components defined
+/// by A2UI v1.0.
 public struct BasicComponentCatalog: ComponentCatalog, Sendable {
-    /// カノニカルなカタログ識別子 URI。
+    /// Canonical URI of the basic catalog. A surface that names any other catalog is not served by
+    /// this type.
     public static let catalogId = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 
     public var catalogId: String { Self.catalogId }
 
     public init() {}
 
-    /// カタログスキーマを返す。**Swift コンポーネント型から生成**され、手書き JSON ではない。
+    /// Renders the catalog schema from the Swift component types rather than from a checked-in
+    /// `catalog.json`.
     ///
-    /// Swift 型（コンポーネントプロパティ宣言 + `SchemaEnumerable` 準拠 enum）が唯一の真実の源。
-    /// LLM 向けスキーマはそこから導出されるため、双方がズレることはない。
-    /// （`GeneratedSchemaEquivalence` テストが公式カタログとの一致を検証する。）
+    /// The property declarations and the `SchemaEnumerable` enums are the single source of truth,
+    /// so the schema the model is prompted with cannot drift from the types that decode its reply.
+    /// `GeneratedSchemaEquivalence` checks the result against the official catalog.
     public static func catalogSchemaJSON() -> String {
         BasicCatalogSchema.render()
     }

@@ -1,29 +1,34 @@
 import StructuredDataCore
 import A2UICore
 
-/// `StructuredValue` に対する RFC 6901 JSON Pointer の実装。
+/// RFC 6901 JSON Pointer over `StructuredValue`.
 ///
-/// `"/"` で始まる絶対パス（`/user/name`、`/items/0` など）をサポート。
-/// エスケープシーケンスも処理する: `~1` → `/`、`~0` → `~`。
+/// Handles absolute paths that begin with `"/"` (`/user/name`, `/items/0`), including the escape
+/// sequences `~1` → `/` and `~0` → `~`. A `~` not followed by `0` or `1` is left alone rather than
+/// rejected, so a malformed pointer resolves against the literal text instead of failing.
 public enum JSONPointer {
 
-    /// ベーススコープに対してパスを解決する（A2UI 相対パスをサポート）。
+    /// Resolves a path against a base scope, honoring A2UI's relative-path extension.
     ///
-    /// A2UI は RFC 6901 を拡張している（`renderer_guide.md` §3）:
-    /// `/` で始まらないパスは**相対パス**として `scope`（例: `/users/0`）に対して解決される。
-    /// `/` で始まるパスは**絶対パス**で scope は無視される。
+    /// A2UI extends RFC 6901 (`renderer_guide.md` §3): a path that does *not* start with `/` is
+    /// **relative** and resolves against `scope` (for example `/users/0`), while a path that starts
+    /// with `/` is **absolute** and ignores `scope` entirely. This is what lets a component inside
+    /// a template instance address its own row.
     ///
     /// - Parameters:
-    ///   - path: 絶対パス（`/a/b`）または相対パス（`a/b`）。
-    ///   - scope: 相対解決のベースパス（デフォルトはルート `""`）。
-    ///   - data: ドキュメントルート。
+    ///   - path: An absolute path (`/a/b`) or a relative one (`a/b`).
+    ///   - scope: The base path for relative resolution; `""` is the document root.
+    ///   - data: The document root.
     public static func resolve(path: String, scope: String, in data: StructuredValue) -> StructuredValue? {
         resolve(path: absolutePath(path, scope: scope), in: data)
     }
 
-    /// 相対パスとスコープを組み合わせて絶対パスを生成する。
-    /// 先頭に `/` を持つ絶対パスはそのまま返す。`""` および `"."` はスコープ要素自体を参照する
-    /// （公式 web_core `resolvePath` との互換性 — テンプレート内スカラー配列要素のバインドに使用）。
+    /// Combines a relative path with a scope into an absolute one; a path that already starts with
+    /// `/` is returned unchanged.
+    ///
+    /// Both `""` and `"."` address the scope element *itself*, matching the official web_core
+    /// `resolvePath`. That is how an element of a scalar array is bound inside a template, where
+    /// there is no key to name.
     public static func absolutePath(_ path: String, scope: String) -> String {
         if path.hasPrefix("/") { return path }
         let normalizedScope = scope == "/" ? "" : scope
@@ -32,8 +37,11 @@ public enum JSONPointer {
         return "\(base)/\(path)"
     }
 
-    /// `StructuredValue` 内の JSON Pointer パスを解決する。
-    /// パスが存在しない、または中間ノードの型が不正な場合は nil を返す。
+    /// Resolves a JSON Pointer path inside a `StructuredValue`.
+    ///
+    /// Returns `nil` for an absent path, an out-of-range or non-numeric array index, and a scalar
+    /// node in the middle of the path. The result cannot tell those apart, so a caller that needs
+    /// to distinguish "missing" from "malformed pointer" has to check the path itself.
     public static func resolve(path: String, in data: StructuredValue) -> StructuredValue? {
         let tokens = parseTokens(path)
         var current = data
@@ -54,7 +62,11 @@ public enum JSONPointer {
         return current
     }
 
-    /// JSON Pointer パスに値を設定する。中間オブジェクトは必要に応じて生成される。
+    /// Writes a value at a JSON Pointer path, creating any missing intermediate containers.
+    ///
+    /// An empty path replaces the whole document. Writing past the end of an array pads it with
+    /// `.null` entries so the index becomes addressable; writing a non-numeric segment into an
+    /// existing array discards the array and replaces it with an object.
     public static func set(path: String, value: StructuredValue, in data: inout StructuredValue) {
         let tokens = parseTokens(path)
         guard !tokens.isEmpty else {
@@ -65,7 +77,10 @@ public enum JSONPointer {
         setRecursive(tokens: tokens[...], value: value, in: &data)
     }
 
-    /// 指定した JSON Pointer パスのノードを削除する。パスが存在しない場合はノーオペレーション。
+    /// Removes the node at a JSON Pointer path; a path that does not exist is a no-op.
+    ///
+    /// Only object keys are removed. A pointer whose parent is an array leaves the array untouched
+    /// and reports nothing, so an element cannot be deleted this way.
     public static func remove(path: String, in data: inout StructuredValue) {
         let tokens = parseTokens(path)
         guard !tokens.isEmpty else { return }

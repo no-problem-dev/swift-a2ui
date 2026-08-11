@@ -1,23 +1,31 @@
 import StructuredDataCore
 import A2UICore
 
-/// コンポーネントのトポロジーと ID 一意性を検証する。
+/// Rejects component payloads a renderer cannot safely build: an unwalkable tree, or ids that
+/// collide.
+///
+/// Run this before handing components to ``ComponentTreeResolver`` in production, so a malformed
+/// agent message fails at a named error rather than as a partially built tree.
 public enum ComponentValidator {
 
-    /// バリデーションエラー。
+    /// Reasons a component payload is rejected.
     public enum ValidationError: Error, Sendable, Equatable {
-        /// 同一 id を持つコンポーネントが複数存在する。
+        /// Two or more components in the payload share this id.
         case duplicateId(String)
-        /// id "root" のコンポーネントが存在しない。
+        /// No component has the id `"root"`, so the tree has no entry point.
         case missingRoot
-        /// コンポーネントの循環参照を検出した。
+        /// The component with this id is reachable from itself through its child fields.
         case circularReference(String)
-        /// ツリーの深さが上限を超過した。
+        /// The tree is deeper than `ComponentTreeResolver.maxDepth`.
         case depthLimitExceeded
     }
 
-    /// ツリーリゾルバーを使ってコンポーネントのトポロジーを検証する。
-    /// root 欠如・循環参照・深度超過を検出する。
+    /// Validates topology by resolving the tree and discarding it, keeping only the faults.
+    ///
+    /// Catches a missing root, a cycle, and excessive depth. Components that nothing references,
+    /// and child ids that reference nothing, both pass — this checks that the tree can be walked,
+    /// not that the payload is tidy.
+    /// - Throws: A ``ValidationError`` naming the fault.
     public static func validateTopology(components: [String: StructuredValue]) throws {
         guard components["root"] != nil else {
             throw ValidationError.missingRoot
@@ -34,8 +42,12 @@ public enum ComponentValidator {
         }
     }
 
-    /// フラットな `StructuredValue` 配列内のすべてのコンポーネント ID が一意であることを検証する。
-    /// 各要素は "id" 文字列フィールドを持つオブジェクトであることを前提とする。
+    /// Checks that no component id repeats in a flat `StructuredValue` array.
+    ///
+    /// Each element is expected to be an object with a string `"id"` field. Elements shaped any
+    /// other way — no `"id"`, a non-string `"id"`, not an object at all — are skipped rather than
+    /// rejected, so passing an array of the wrong shape succeeds without checking anything.
+    /// - Throws: `ValidationError.duplicateId` with the first id seen twice.
     public static func validateUniqueIds(components: [StructuredValue]) throws {
         var seen: Set<String> = []
         for component in components {

@@ -2,331 +2,105 @@
 
 # swift-a2ui
 
-A2UI プロトコルの Swift 実装 — LLM エージェントがクライアントにリッチ UI を描画するための型安全なライブラリ群。
+LLM エージェントの答えを、文字の壁ではなくタップできる SwiftUI の画面（カード・フォーム・ボタン）として返し、アプリが実際に描けるコンポーネントの範囲にモデルを縛る。
 
 > **非公式。** A2UI プロトコルの作者とは何の関係もなく、承認も受けていない。仕様に準拠することはこのプロジェクトの目標ではない。
 
 ## 概要
 
-`swift-a2ui` は [A2UI (Agent-to-UI) プロトコル](https://a2ui.org) の非公式な Swift 実装。LLM エージェントが JSON メッセージを通じてクライアント上に宣言的な UI サーフェスを生成・更新・削除し、ユーザーのアクションを受け取ってレスポンスを返す仕組みを、コンパイル時型安全な Swift API として提供する。
+[A2UI](https://a2ui.org) では、エージェントが UI サーフェスを生成・更新・削除する JSON メッセージを送り、
+クライアントがそれを描画してユーザーの操作を返す。このパッケージはその両側を Swift で持つ。
 
-### 主な特徴
+- **パレットは Swift の型。** モデルに渡す JSON Schema をその型から生成するので、
+  「モデルに描いてよいと伝えたもの」と「レンダラーが描き方を知っているもの」がずれない。
+- **プロンプトと検証が同じ allowlist を共有する。** 6 種を許可すればモデルに渡るスキーマも 6 種。
+  それ以外はツールがエラーで突き返し、モデルは同じターン内で自己修正する。
+  ユーザーが未対応コンポーネントのプレースホルダーを見ることがない。
+- **`AnyView` なし・文字列照合なし。** `A2UISurfaceView<Catalog>` はカタログに対してジェネリックなので、
+  独自コンポーネントの追加は型レベルの拡張になり、網羅性はコンパイラが検査する。
+- **モデルの出力は汚れている、という前提で作ってある。** ストリーミングされるテキストは届いた分から
+  逐次パースし、LLM がよく出す壊れ方は捨てずに修復する。
+- **1 つの画面を複数のエージェントで使える。** 所有台帳がユーザー操作をそのサーフェスを描いた
+  エージェントへ差し戻し、あるエージェントのデータモデルを別のエージェントのメッセージから外す。
 
-- **v1.0 のメッセージ型**: `createSurface` / `updateComponents` / `updateDataModel` / `deleteSurface` / `callFunction` / `actionResponse` を Swift の型として持つ
-- **型安全なカタログ**: Swift の型システムを SSOT とした LLM 向けスキーマ生成（JSON ファイルとの乖離をコンパイル時に検出）
-- **AnyView ゼロのジェネリックレンダラー**: カタログを型パラメータとした `A2UISurfaceView<Catalog>` で型消去なしに SwiftUI へ描画
-- **見慣れたモジュール構成**: Python SDK (`a2ui.adk` / `a2ui.a2a`) の設計をそのまま Swift に写したモジュール構成
-- **マルチエージェント対応**: A2A プロトコル統合とサーフェス所有権台帳によるオーケストレーション
+## 使い方
 
----
-
-## モジュール構成
-
-15 のモジュールを役割ごとに 5 グループに分けて説明する。
-
-### グループ 1 — コアプロトコル層
-
-A2UI の有線フォーマット（JSON）を Swift の型として定義する最下層。SwiftUI も LLM クライアントも依存しない。
-
-| モジュール | 役割 |
-|-----------|------|
-| **A2UICore** | `AgentMessage` / `RendererMessage` の enum、`CreateSurface` / `UpdateComponents` / `UpdateDataModel` 等の個別メッセージ型、`UserAction`、`DataBinding`、`DynamicString` / `DynamicBoolean` / `DynamicNumber` などのバインダブル値型 |
-
-**主な型:**
-
-```swift
-// サーバ → クライアント
-public enum AgentMessage: Sendable, Equatable, Codable {
-    case createSurface(CreateSurface)
-    case updateComponents(UpdateComponents)
-    case updateDataModel(UpdateDataModel)
-    case deleteSurface(DeleteSurface)
-    case callFunction(CallFunctionMessage)
-    case actionResponse(ActionResponseMessage)
-}
-
-// クライアント → サーバ
-public enum RendererMessage: Sendable, Equatable, Codable {
-    case action(UserAction)
-    case error(RendererError)
-    case functionResponse(FunctionResponse)
-}
-```
-
----
-
-### グループ 2 — コンポーネントカタログ
-
-LLM が使えるコンポーネントのパレットを型として定義し、その定義から LLM 向け JSON Schema を自動生成する層。
-
-| モジュール | 役割 |
-|-----------|------|
-| **A2UICatalog** | 18 コンポーネントの Swift 型定義、`ComponentCatalog` プロトコル、`ComponentSchema` / `SchemaRenderer` による型駆動スキーマ生成、カテゴリ enum (`display` / `layout` / `input`) |
-
-**内蔵コンポーネント（`BasicComponentCatalog`）:**
-
-| カテゴリ | コンポーネント |
-|---------|--------------|
-| Display | `Text`, `Image`, `Icon`, `Video`, `AudioPlayer` |
-| Layout | `Row`, `Column`, `List`, `Card`, `Tabs`, `Modal`, `Divider` |
-| Input | `Button`, `TextField`, `CheckBox`, `ChoicePicker`, `Slider`, `DateTimeInput` |
-
-スキーマは Swift 型から自動生成されるため、実装とスキーマが乖離することはない:
-
-```swift
-// スキーマ生成
-let schema: String = BasicComponentCatalog.catalogSchemaJSON()
-
-// カタログ ID
-let id: String = BasicComponentCatalog.catalogId
-// → "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
-```
-
----
-
-### グループ 3 — LLM プロンプト・パーサー
-
-エージェントに渡すシステムプロンプトの組み立てと、LLM 出力からの A2UI メッセージ抽出を担う。
-
-| モジュール | 役割 |
-|-----------|------|
-| **A2UIPrompt** | `A2UIPromptBuilder` — システムプロンプトの組み立て（role / workflow rules / UI description / スキーマブロック）。カタログ・メッセージ種別の pruning（allowlist による絞り込み）。`A2UIExample` — 型付きコンポーネントから生成する参照サーフェス例文 |
-| **A2UIPromptCompact** | `A2UIPromptCompactBuilder` — functions を使わないアプリ向けに common_types から FunctionCall 型を除去した軽量版 |
-| **A2UIParser** | `A2UIStreamingParser` — ストリーミング LLM 出力から `<a2ui-json>` ブロックをインクリメンタル抽出。`A2UIPayloadFixer` — LLM が生成する JSON の典型的な崩れを自動補正。`JSONSanitizer` |
-
-**プロンプトの組み立て:**
-
-```swift
-// 標準 builder（カタログ・メッセージ全種）
-let builder = A2UIPromptBuilder()
-let prompt = builder.buildSystemPrompt(
-    role: "You are a helpful assistant that renders UI.",
-    uiDescription: "Show a card with a title and a confirm button."
-)
-
-// presenter プリセット（コンテンツ提示向け 9 コンポーネント + 3 メッセージに絞る）
-let presenterBuilder = A2UIPromptBuilder.presenter()
-
-// カスタム pruning
-let builder = A2UIPromptBuilder(
-    serverToClientSchema: nil,
-    commonTypesSchema: nil,
-    catalogSchema: nil,
-    allowedComponents: ["Text", "Column", "Row", "Button", "Image"],
-    allowedMessages: ["CreateSurfaceMessage", "UpdateComponentsMessage"]
-)
-```
-
-**ストリーミングパーサーの使い方:**
-
-```swift
-let parser = A2UIStreamingParser()
-let processor = TypedMessageProcessor<BasicCatalog>()
-
-for chunk in llmStream {
-    let parts = parser.feed(chunk)
-    for part in parts {
-        if let messages = part.messages {
-            // A2UI AgentMessage 配列を描画系へ適用する
-            processor.process(messages)
-        }
-        if let text = part.text {
-            // プレーンテキスト部分
-            print(text)
-        }
-    }
-}
-let finalParts = parser.finalize()
-```
-
----
-
-### グループ 4 — サーフェス状態 / レンダラー
-
-クライアント上のサーフェス状態管理と SwiftUI 描画を担う。
-
-| モジュール | 役割 |
-|-----------|------|
-| **A2UISurface** | `DataModel` — JSON Pointer による読み書きとリアクティブなパス購読（Bubble & Cascade 通知）。`ComponentValidator`、テンプレート展開 (`ChildList`) |
-| **A2UIRuntime** | `DataContext` — スコープ付きバインディング解決。`TemplateExpander` — `{componentId, path}` テンプレートをコレクションスコープで展開 |
-| **A2UITyped** | `A2UICatalog` プロトコル（`associatedtype Node: ComponentNode`）、`CombinedNode<Primary, Fallback>` による型安全なカタログ合成、`BasicCatalog`（`BasicComponent` を `ComponentNode` として公開）、`A2UIValidation` |
-| **A2UITypedRenderer** | `RenderableCatalog` プロトコル、`A2UISurfaceView<Catalog>` (SwiftUI View)、`NodeView<Catalog>`、`RenderContext<Catalog>`（双方向バインディング / checks 評価 / 子レンダリングの文脈） |
-
-**`A2UISurfaceView` の使い方:**
+エージェントが送ってきたものを描画する。サーフェスは `TypedMessageProcessor` が保持し、
+`A2UISurfaceView` が描く。
 
 ```swift
 import SwiftUI
+import A2UIParser
+import A2UITyped
 import A2UITypedRenderer
 
-// 1. サーフェスを作成（@Observable なので @State に持てる）
-@State var surface = TypedSurface<BasicCatalog>(rootId: "root", nodes: [])
+struct AgentReply: View {
+    @State private var processor = TypedMessageProcessor<BasicCatalog>()
+    private let parser = A2UIStreamingParser()
 
-// 2. サーフェスメッセージを適用するハンドラ
-func apply(_ message: AgentMessage) {
-    switch message {
-    case .updateComponents(let msg):
-        guard let nodes = try? TypedSurface<BasicCatalog>.decodeNodes(
-            fromJSONArray: JSONEncoder().encode(msg.components)
-        ) else { return }
-        surface.applyUpdateComponents(nodes)
-    case .updateDataModel(let msg):
-        surface.applyUpdateDataModel(path: msg.path ?? "", value: msg.value)
-    default:
-        break
+    var body: some View {
+        ForEach(processor.ordered) { surface in
+            A2UISurfaceView(surface)
+        }
+    }
+
+    func receive(_ chunk: String) {
+        for part in parser.feed(chunk) {
+            if let messages = part.messages {
+                processor.process(messages)
+            }
+        }
     }
 }
-
-// 3. SwiftUI に埋め込む
-var body: some View {
-    A2UISurfaceView(surface, busy: isGenerating)
-}
 ```
 
-**カスタムカタログの合成:**
-
-```swift
-// 独自コンポーネントを BasicCatalog に上乗せ
-enum AppCatalog: A2UICatalog {
-    typealias Node = CombinedNode<MyNode, BasicComponent>
-    static let catalogId = "com.example.my-app"
-}
-
-// BasicEmbeddingNode 準拠で BasicCatalog のレンダラーを再利用
-extension MyNode: BasicEmbeddingNode { ... }
-```
-
----
-
-### グループ 5 — エージェント統合 / オーケストレーション
-
-LLM エージェントへの A2UI ツール提供と、マルチエージェント構成を担う。
-
-| モジュール | 役割 |
-|-----------|------|
-| **A2UIAgentTool** | `SendA2UIToClientTool<Catalog>` — LLM が `send_a2ui_json_to_client` ツールを呼ぶパターン。JSON の解析・自動補正・allowlist に対するバリデーションを行い、`validated_a2ui_json` を返す。`A2UIToolResultExtractor` — ツール結果から `[AgentMessage]` を取り出す |
-| **A2UIAgent** | `A2UIPresenterAgent` — presenter（コンテンツ提示）型エージェントの自己記述一式。`systemPrompt()` / `tools()` / `agentExtension()` / `hostOutputConstraint()` を提供。ホストは注入するだけで UI の全知識はこのモジュールに閉じる |
-| **A2UIA2A** | A2A プロトコルとの統合。`Part.a2ui(_:)` で A2UI メッセージを `application/a2ui+json` データパートとして包む。`A2UIExtension` — エージェントカードへの A2UI プロトコル宣言。`A2UIRendererCapabilities` / `A2UIRendererDataModel` / `A2UIMessageMetadata` |
-| **A2UIOrchestration** | `SurfaceOwnership` — サーフェス所有権台帳（どのエージェントがどのサーフェスを持つか）。`owner(ofUserActionIn:)` による確定的な UserAction ルーティング。`outboundMetadata(_:capabilities:for:)` によるデータモデル・ストリッピング（エージェント間のデータ漏洩防止） |
-
-**`A2UIPresenterAgent` の注入例:**
+エージェント側は `A2UIPresenterAgent` がプロンプト・ツール・カード拡張を自分で持つので、
+ホストが選ぶのは言語とパレットだけ。
 
 ```swift
 import A2UIAgent
-import A2ACore
-import LLMClient
 
-// presenter エージェントに必要なものはすべてライブラリ側が持つ
-let agentName = A2UIPresenterAgent.defaultName
-
-// 1. system prompt
-let systemPrompt = A2UIPresenterAgent.systemPrompt(language: "Japanese")
-
-// 2. tools（カタログパレットはカスタマイズ可能）
+let prompt = A2UIPresenterAgent.systemPrompt(language: "Japanese")
 let tools = A2UIPresenterAgent.tools(
-    components: ["Column", "Row", "Text", "Image", "Icon", "List", "Card", "Button", "Divider"]
-)
-
-// 3. A2A card の extensions に宣言
-let agentExtension = A2UIPresenterAgent.agentExtension()
-
-// 4. オーケストレータの system prompt に注入する制約
-let constraint = A2UIPresenterAgent.hostOutputConstraint(agentName: agentName)
-```
-
-**オーケストレーション（`SurfaceOwnership`）:**
-
-```swift
-import A2UIOrchestration
-
-var ownership = SurfaceOwnership()
-
-// サブエージェントの応答を受け取るたびに所有権を記録
-ownership.record(surfacesCreatedIn: responseparts, by: "a2ui")
-
-// UserAction をルーティング（LLM 呼び出し不要）
-if let agent = ownership.owner(ofUserActionIn: incomingParts) {
-    // 対象エージェントへ直接転送
-    await router.send(to: agent, parts: incomingParts)
-}
-
-// 送信前にデータモデルをエージェントの所有サーフェスだけに絞る
-let metadata = try ownership.outboundMetadata(
-    baseMetadata,
-    capabilities: clientCapabilities,
-    for: "a2ui"
+    components: ["Column", "Row", "Text", "Image", "Card", "Button"]
 )
 ```
 
----
+## ドキュメント
+
+[全モジュールの API リファレンス](https://no-problem-dev.github.io/swift-a2ui/documentation/a2uicore/)。
+独自コンポーネントのカタログを組む手順もここにある。
 
 ## インストール
 
-### Swift Package Manager
-
-`Package.swift` の `dependencies` に追加:
+`Package.swift` に追加する。
 
 ```swift
 .package(url: "https://github.com/no-problem-dev/swift-a2ui.git", .upToNextMinor(from: "0.25.0")),
 ```
 
-ターゲットの `dependencies` で必要なモジュールを列挙:
+モジュールごとに library を分けてあるので、使うものだけに依存すればよい。
+メッセージ型は `A2UICore`、描画は `A2UITypedRenderer`、出来合いの presenter エージェントは `A2UIAgent`。
 
 ```swift
-.target(
-    name: "MyApp",
-    dependencies: [
-        // 最小構成（コアのみ）
-        .product(name: "A2UICore", package: "swift-a2ui"),
-
-        // プロンプト組み立て + パーサー
-        .product(name: "A2UIPrompt", package: "swift-a2ui"),
-        .product(name: "A2UIParser", package: "swift-a2ui"),
-
-        // SwiftUI レンダラー（iOS/macOS UI）
-        .product(name: "A2UITypedRenderer", package: "swift-a2ui"),
-
-        // LLM エージェントツール
-        .product(name: "A2UIAgentTool", package: "swift-a2ui"),
-
-        // presenter エージェント自己記述
-        .product(name: "A2UIAgent", package: "swift-a2ui"),
-
-        // A2A 統合 / オーケストレーション
-        .product(name: "A2UIA2A", package: "swift-a2ui"),
-        .product(name: "A2UIOrchestration", package: "swift-a2ui"),
-    ]
-)
+.target(name: "MyApp", dependencies: [
+    .product(name: "A2UICore", package: "swift-a2ui"),
+    .product(name: "A2UITypedRenderer", package: "swift-a2ui"),
+    .product(name: "A2UIAgent", package: "swift-a2ui"),
+])
 ```
 
----
+## 動作要件
 
-## 対応プラットフォーム
+| | |
+|---|---|
+| Swift | 6.2 |
+| プラットフォーム | iOS 17 · macOS 14 |
 
-| プラットフォーム | 最小バージョン |
-|----------------|--------------|
-| macOS | 14.0 (Sonoma) |
-| iOS | 17.0 |
+## コントリビューション
 
-Swift ツールズバージョン: **6.2**
-
----
-
-## 外部依存パッケージ
-
-| パッケージ | 用途 |
-|-----------|------|
-| `no-problem-dev/swift-structured-data` | JSON パース / シリアライズ (`StructuredValue`, `JSONParser`) |
-| `no-problem-dev/swift-a2a` | A2A プロトコルコア (`AgentCard`, `Part`, `StreamResponse`) |
-| `no-problem-dev/swift-design-system` | SwiftUI デザイントークン（カラー / スペーシング / モーション / Glass Card） |
-| `no-problem-dev/swift-markdown-view` | Text コンポーネントの Markdown レンダリング |
-| `no-problem-dev/swift-llm-client` | `Tool` / `TurnEndingTool` プロトコル（`SendA2UIToClientTool` の基底） |
-
----
+バグ報告・プルリクエスト歓迎。[CONTRIBUTING.md](./CONTRIBUTING.md) を参照。
 
 ## ライセンス
 
-[LICENSE](./LICENSE) を参照。
-
----
-
-最終更新: 2026-06-27
+MIT。[LICENSE](./LICENSE) を参照。

@@ -1,14 +1,15 @@
-/// クライアント → サーバのエラー（A2UI v1.0 `error`）。
+/// What the client sends back when it cannot carry out what the agent asked (A2UI v1.0 `error`).
 ///
-/// `VALIDATION_FAILED` エラーはサーフェス（`surfaceId` + `path`）と対応付ける。汎用エラーは
-/// `surfaceId`（サーフェススコープ）か `functionCallId`（失敗したサーバ起動の関数呼び出し）の
-/// いずれか一方を持つ — ワイヤースキーマで強制されるが、Swift 型は両方オプション扱いにしている。
+/// A `VALIDATION_FAILED` error points at the offending spot with `surfaceId` plus `path`. Every
+/// other error carries exactly one of `surfaceId` (surface-scoped) or `functionCallId` (a function
+/// call that failed). The wire schema enforces that either/or; this type does not, so a value with
+/// both set encodes happily and is rejected on the far side.
 public struct RendererError: Codable, Sendable, Equatable {
     public let code: String
     public let message: String
     public let surfaceId: String?
     public let path: String?
-    /// v1.0: 失敗したサーバ起動の関数呼び出しと対応付ける場合に設定する。
+    /// Set this when the error answers a `CallFunctionMessage`, and leave `surfaceId` unset.
     public let functionCallId: CallId?
 
     public init(

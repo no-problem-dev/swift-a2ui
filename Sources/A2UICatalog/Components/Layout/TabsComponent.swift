@@ -1,6 +1,7 @@
 import A2UICore
 
-/// タブの 1 項目。タイトルと子コンポーネント ID を持つ。
+/// One entry of a `Tabs` component: the title drawn on the tab, and the ID of the component
+/// revealed when it is selected.
 public struct TabItem: Codable, Sendable, Equatable {
     public let title: DynamicString
     public let child: ComponentId
@@ -11,7 +12,11 @@ public struct TabItem: Codable, Sendable, Equatable {
     }
 }
 
-/// タブコンポーネント。複数のタブを切り替えて表示する。
+/// Shows one of several children at a time, selected by its tab.
+///
+/// `tabs` must hold at least one entry, and each entry points at a single component by ID — put a
+/// `Column` behind a tab to show more than one thing. Which tab is selected lives in the renderer,
+/// not in the data model.
 public struct TabsComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Tabs"
 

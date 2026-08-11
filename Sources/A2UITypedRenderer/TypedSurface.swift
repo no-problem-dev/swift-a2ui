@@ -5,32 +5,37 @@ import A2UICore
 import A2UISurface
 import A2UITyped
 
-/// 特定の `Catalog` に対応したレンダリング済みサーフェス: フラットな id → ノードマップとデータモデル。
+/// A renderable surface bound to one `Catalog`: a flat id-to-node map plus its data model.
 ///
-/// A2UI のワイヤーモデルをミラーする（コンポーネントは id をキーとするフラットマップで、
-/// 親は id 文字列で子を参照）— ライブストアは `[ComponentId: CatalogNode<Catalog.Node>]`、
-/// 完全型付き・`any` なし。`@Observable` のため SwiftUI は 2 種の A2UI 部分更新で再描画する:
-/// - `updateComponents`: `nodes` を変更（追跡対象）→ 構造を再描画。
-/// - `updateDataModel`: 非 Observable の `DataModel` に書き込み `dataVersion` を加算（追跡対象）。
-///   バインディング読み取りビューは `dataVersion` に依存するため再解決される
-///   （粗い粒度だが正しい。パスごとの購読は将来の最適化）。
+/// Mirrors the A2UI wire model, where components live in a flat map keyed by id and a parent
+/// refers to its children by id string. The live store is `[ComponentId: CatalogNode<Catalog.Node>]`
+/// — fully typed, no `any`. Being `@Observable`, it drives SwiftUI through the two kinds of A2UI
+/// partial update:
+/// - `updateComponents` mutates `nodes`, which is tracked, and redraws the structure.
+/// - `updateDataModel` writes into the non-observable `DataModel` and increments `dataVersion`,
+///   which is tracked instead. Views that read bindings depend on `dataVersion`, so they
+///   re-resolve. The grain is coarse — every binding re-resolves on any write — but correct.
 @MainActor
 @Observable
 public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
-    /// サーフェス識別子（A2UI `surfaceId`）。単一サーフェス使用時は `rootId` に合わせる。
+    /// The A2UI `surfaceId`. Defaults to `rootId` when the initializer is given no id, which is
+    /// the single-surface case.
     public let id: String
     public let catalogId: String
     public let rootId: ComponentId
     public let dataModel: DataModel
-    /// ホストのユーザーイベントシンク（`Button` の `action.event` 等）: `(name, context, sourceComponentId)`。
-    /// デフォルトは no-op。
+    /// The host's sink for user events such as a `Button`'s `action.event`, called with
+    /// `(name, context, sourceComponentId)`. Defaults to a no-op, so events vanish silently
+    /// on a surface constructed without one.
     let onEvent: (String, [String: StructuredValue], ComponentId) -> Void
 
     private var nodes: [ComponentId: CatalogNode<Catalog.Node>]
-    /// データモデルへの書き込みのたびに加算される。バインディング読み取りビューがリアクティビティのために依存する。
+    /// Incremented on every write to the data model. Views that read bindings depend on it, and
+    /// that dependency is the whole of their reactivity.
     private(set) var dataVersion = 0
-    /// `updateComponents` バッチのたびに加算される。`A2UISurfaceView` がこれをアニメーション値にすることで、
-    /// ストリーミングで流れ込むコンポーネントがポップではなくトランジション付きで現れる（カスケード組み上がり）。
+    /// Incremented once per `updateComponents` batch. `A2UISurfaceView` uses it as an animation
+    /// value, which is what makes streamed-in components arrive with a transition instead of
+    /// popping into place.
     private(set) var structureVersion = 0
 
     public init(
@@ -52,26 +57,33 @@ public final class TypedSurface<Catalog: A2UICatalog>: Identifiable {
 
     // MARK: - Partial updates (A2UI processing layer)
 
-    /// `updateComponents` を適用する: id でアップサート。仕様に従い、既存 id に対する新しいノードは
-    /// 丸ごと置き換える（コンポーネント型の変更も可）。辞書のアップサートで実現する。
+    /// Applies `updateComponents` by upserting on id.
+    ///
+    /// As the spec requires, a new node for an existing id replaces it wholesale — including a
+    /// change of component type — rather than merging field by field.
     public func applyUpdateComponents(_ incoming: [CatalogNode<Catalog.Node>]) {
         for node in incoming { nodes[node.id] = node }
         structureVersion += 1
     }
 
-    /// `updateDataModel` を適用する: JSON Pointer パスに値を書き込み、再解決をトリガーする。
+    /// Applies `updateDataModel`: writes the value at the JSON Pointer path and triggers
+    /// re-resolution. An empty path replaces the whole model root.
     public func applyUpdateDataModel(path: String, value: StructuredValue?) {
         dataModel.set(path, value)
         touchData()
     }
 
-    /// データバージョンを加算してバインディング読み取りビューを再解決させる（双方向入力書き込み時に使用）。
+    /// Bumps the data version so views that read bindings re-resolve. Call it after writing to the
+    /// data model behind the surface's back, as the two-way input bindings do.
     func touchData() { dataVersion += 1 }
 
     // MARK: - Decoding
 
-    /// A2UI の `updateComponents.components` 配列（各 `{id, component, ...}`）をノードへデコードする。
-    /// 未知のコンポーネント名はエラーを投げず `.unknown` へ降格する（仕様のグレースフルハンドリング）。
+    /// Decodes an A2UI `updateComponents.components` array, whose elements are
+    /// `{id, component, …}`, into nodes.
+    ///
+    /// A component name the catalog does not know degrades to `.unknown` instead of throwing, which
+    /// is the graceful handling the spec calls for. Malformed JSON still throws.
     public static func decodeNodes(fromJSONArray data: Data) throws -> [CatalogNode<Catalog.Node>] {
         try JSONDecoder().decode([CatalogNode<Catalog.Node>].self, from: data)
     }

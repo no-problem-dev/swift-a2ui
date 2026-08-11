@@ -1,15 +1,16 @@
 import Foundation
 import A2UICore
 
-/// ツール結果からクライアント向け A2UI メッセージを抽出する — Python SDK の
-/// `A2uiPartConverter` ツールレスポンスパスの Swift 対応。
+/// Extracts the client-bound A2UI messages from a tool result — the Swift counterpart of the
+/// Python SDK's `A2uiPartConverter` tool-response path.
 ///
-/// `send_a2ui_json_to_client` の成功結果のみが UI を持つ。エラー結果は破棄し
-/// （クライアントに表示しない — モデルがワークフロー規則に従って謝罪する）、
-/// 他ツールの結果は無視する。
+/// Only a successful `send_a2ui_json_to_client` result carries UI. An error result is dropped
+/// rather than shown to the client — the model apologizes for it under the workflow rules — and
+/// results from other tools are ignored.
 public enum A2UIToolResultExtractor {
 
-    /// 指定のツール結果から A2UI サーバメッセージを抽出して返す。対象外の場合は nil。
+    /// Returns the A2UI agent messages carried by a tool result, or `nil` when the result is not
+    /// a successful `send_a2ui_json_to_client` call or its payload does not decode.
     public static func messages(fromToolResult name: String, output: String, isError: Bool) -> [AgentMessage]? {
         guard name == A2UIToolConstants.toolName, !isError else { return nil }
         struct Payload: Decodable { let validated_a2ui_json: [AgentMessage] }

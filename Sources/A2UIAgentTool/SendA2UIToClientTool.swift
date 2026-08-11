@@ -6,13 +6,17 @@ import A2UITyped
 import LLMClient
 import LLMTool
 
-/// 公式 A2UI ツール呼び出しパターン — Python SDK の `_SendA2uiJsonToClientTool`
-/// （`a2ui.adk.send_a2ui_to_client_toolset`）の Swift 対応。
+/// The A2UI tool-call pattern — the Swift counterpart of the Python SDK's
+/// `_SendA2uiJsonToClientTool` (`a2ui.adk.send_a2ui_to_client_toolset`).
 ///
-/// LLM が A2UI JSON を作成し `a2ui_json` 引数として渡す。このツールは（自動修正付きで）パースし、
-/// `Catalog` に対して検証を行い、検証済みペイロードを `validated_a2ui_json` キーでホストに届ける。
-/// 失敗はツールエラーとして返し、モデルが同一ループ内で自己修正できる。`TurnEndingTool` として、
-/// 成功した呼び出しはターンを追加推論なしで終了させる（ADK `skip_summarization`）。
+/// The LLM composes A2UI JSON and passes it as the `a2ui_json` argument. This tool parses it
+/// (repairing common malformations on the way) and validates it against `Catalog` and the same
+/// allowlists the prompt was pruned by. A successful call returns a JSON result carrying the
+/// validated messages under the `validated_a2ui_json` key, which is what the host delivers to the
+/// client. Anything that fails to parse or validate comes back as a tool error carrying the
+/// reason instead, so the model self-corrects inside the same loop and nothing unvalidated
+/// reaches the renderer. Being a `TurnEndingTool`, a successful call ends the turn with no
+/// further inference (ADK `skip_summarization`).
 public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
 
     private let examples: String?
@@ -25,8 +29,9 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
 
     public var toolName: String { A2UIToolConstants.toolName }
 
-    /// スキーマブロックと手本をツール自身が system prompt に同伴させる
-    /// （公式 `_SendA2uiJsonToClientTool.process_llm_request` 相当）。
+    /// The schema block and the worked examples that the tool itself carries into the system
+    /// prompt when it is attached (the counterpart of the upstream
+    /// `_SendA2uiJsonToClientTool.process_llm_request`).
     public var systemInstruction: String? {
         var sections = [promptBuilder.schemaBlock()]
         if let examples, !examples.isEmpty {
@@ -86,18 +91,19 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
         return .json(try JSONEncoder().encode(ValidatedPayload(validated_a2ui_json: messages)))
     }
 
-    /// `a2ui_json` 引数を正規化された JSON 文字列として取り出す。
+    /// Pulls the `a2ui_json` argument out as a normalized JSON string.
     ///
-    /// 公式契約（Python SDK 準拠）では `a2ui_json` は「A2UI JSON 配列を文字列化したもの」だが、
-    /// 一部のモデル（例: gemini flash-lite 系）は文字列化せず生の JSON 配列／オブジェクトを
-    /// そのまま引数に積む。その場合 `String?` への decode は失敗し「引数欠落」と誤認されるため、
-    /// 生 JSON を再シリアライズして後段パーサが期待する文字列形に揃える。
+    /// The contract (as in the Python SDK) is that `a2ui_json` is a *stringified* A2UI JSON array,
+    /// but some models — gemini flash-lite among them — put the raw JSON array or object in the
+    /// argument instead. Decoding that as `String?` fails and would be misreported to the model as
+    /// a missing argument, so raw JSON is re-serialized into the string form the downstream parser
+    /// expects.
     static func normalizedA2UIJSON(from data: Data) -> String? {
-        // Fast path: 公式契約どおり文字列で渡されたケース。
+        // Fast path: passed as a string, per the contract.
         if let s = (try? JSONDecoder().decode(ToolArgs.self, from: data))?.a2ui_json {
             return s
         }
-        // Tolerant path: 生 JSON（配列／オブジェクト）で渡されたケースを再文字列化する。
+        // Tolerant path: re-stringify a raw JSON array or object.
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let raw = root[A2UIToolConstants.jsonArgName] else {
             return nil

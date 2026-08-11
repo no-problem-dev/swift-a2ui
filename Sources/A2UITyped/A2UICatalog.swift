@@ -1,28 +1,29 @@
 import A2UICore
 
-/// コンシューマーが注入する**カタログ**型プロトコル。レンダラーが描画できるコンポーネントの集合をコンパイル時に確定する。
+/// The **catalog** a consumer injects, fixing at compile time which components a renderer can draw.
 ///
-/// A2UI の拡張モデルは「クライアントが信頼するコンポーネントのカタログを持ち、
-/// エージェントはその中のものだけリクエストできる」という思想。
-/// ライブラリは `BasicCatalog` を同梱する。アプリケーションは `CombinedNode` でこれと
-/// 独自の Design System コンポーネントを組み合わせる
-/// （例: `enum AppCatalog: A2UICatalog { typealias Node = CombinedNode<MyNode, BasicComponent>; ... }`）。
+/// A2UI's extension model is that the client owns a catalog of components it trusts and the agent may
+/// request only what is in it. The library ships `BasicCatalog`; an application combines that with its own
+/// design-system components through `CombinedNode`, as in
+/// `enum AppCatalog: A2UICatalog { typealias Node = CombinedNode<MyNode, BasicComponent>; ... }`.
 ///
-/// レンダラーはこのプロトコルを型パラメータとして受け取る（`A2UIRenderer<some A2UICatalog>`）。
-/// ディスパッチはコンパイル時に全ケースを網羅しながらも、コンシューマーによる型レベルの拡張を受け入れる。
+/// A renderer takes this protocol as a type parameter (`A2UIRenderer<some A2UICatalog>`), so dispatch
+/// stays exhaustive at compile time while remaining open to extension by the consumer.
 public protocol A2UICatalog: Sendable {
-    /// このカタログがレンダリングできるコンポーネントの closed sum 型。
+    /// The closed sum type of components this catalog renders; any `component` name outside it decodes
+    /// as `CatalogNode.unknown`.
     associatedtype Node: ComponentNode
 
-    /// A2UI の `catalogId` と一致するカノニカルな識別子 URI。
+    /// The canonical identifier URI, matching the `catalogId` that components and function calls name on
+    /// the wire.
     static var catalogId: String { get }
 }
 
-/// 2 つのノード型を合成し、`component` 名に基づいて各カタログへルーティングする。
+/// Composes two node types, routing each `component` name to whichever one claims it.
 ///
-/// `Primary` が名前衝突に優先するため、コンシューマーは Basic コンポーネントを自前実装で上書きできる。
-/// ライブラリは `Fallback` に Basic ノードを配置することで網羅性を保持する。
-/// コンシューマーは Basic ノード全体を埋め込むだけでよく、個別ケースを再列挙する必要はない。
+/// `Primary` wins a name collision, so a consumer can override a basic component with its own
+/// implementation. Putting the basic node in `Fallback` is what keeps coverage complete: the consumer
+/// embeds the whole basic node rather than re-enumerating its cases.
 public enum CombinedNode<Primary: ComponentNode, Fallback: ComponentNode>: ComponentNode {
     case primary(Primary)
     case fallback(Fallback)

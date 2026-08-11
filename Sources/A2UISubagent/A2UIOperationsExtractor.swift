@@ -1,19 +1,24 @@
 import A2UICore
 import Foundation
 
-/// ツール結果から A2UI オペレーションを抽出する（2 段構成用）。
+/// Pulls A2UI operations out of a tool result in the two-stage setup.
 ///
-/// `generate_a2ui` の成功結果のみが UI を持つ。エラー結果は破棄する
-/// （クライアントに表示せず、モデルが同一ループ内で自己修正する）。
+/// Only a successful `generate_a2ui` result carries UI. Error results are dropped instead of
+/// being shown to the client — the model sees them and corrects itself inside the same loop.
 public enum A2UIOperationsExtractor {
 
-    /// 指定のツール結果から A2UI メッセージを抽出して返す。対象外の場合は nil。
+    /// Returns the A2UI messages a tool result carries, or `nil` when it carries none.
+    ///
+    /// `nil` covers three cases a caller cannot tell apart: the result came from a different
+    /// tool, the tool errored, or the envelope failed to decode. Treat it as "no UI here"
+    /// rather than as a decode failure worth reporting.
     ///
     /// - Parameters:
-    ///   - name: ツール名。既定の `generate_a2ui` 以外を使う場合は `toolName` で指定する。
-    ///   - output: ツール結果の文字列（`{"a2ui_operations": [...]}` を期待する）。
-    ///   - isError: ツールがエラーを返したか。
-    ///   - toolName: 照合するツール名。
+    ///   - name: Name of the tool that produced this result.
+    ///   - output: The result text; `{"a2ui_operations": [...]}` is expected.
+    ///   - isError: Whether the tool reported an error. An error result always yields `nil`.
+    ///   - toolName: Name to match against. Override it when the host renamed the outer tool
+    ///     away from `generate_a2ui`.
     public static func messages(
         fromToolResult name: String,
         output: String,

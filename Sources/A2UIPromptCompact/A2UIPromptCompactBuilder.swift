@@ -3,33 +3,46 @@ import A2UICore
 import A2UIPrompt
 import Foundation
 
-/// **非公式最適化版** プロンプトビルダー。
+/// An **unofficial** prompt builder for apps whose catalog exposes no `functions`.
 ///
-/// 用途: catalog に `functions` を一切持たないアプリ向けに、`common_types.json` から
-/// `FunctionCall` 関連の型定義を物理的に剥がしてプロンプトを軽量化する。
+/// Removes the `FunctionCall` type definitions from `common_types.json` before the schema block
+/// is assembled. That shortens the prompt and, more importantly, stops the model from emitting
+/// a call form the app has no way to honour.
 ///
-/// - `A2UIPrompt` の `A2UIPromptBuilder` を内部で利用しつつ、bundled common_types を
-///   `CommonTypesCompactor` で加工した版に差し替える
-/// - `pruneCommonTypes` を常に true にして到達不能な `$defs` も連動して削る
-/// - 公開 API は `A2UIPromptBuilder` と互換
+/// - Wraps `A2UIPrompt`'s `A2UIPromptBuilder`, substituting the bundled common_types with the
+///   version `CommonTypesCompactor` produces.
+/// - Reachability pruning of `common_types` then removes the `$defs` that the removal left
+///   unreachable.
+/// - The public API matches `A2UIPromptBuilder`, so the two are interchangeable at the call site.
 ///
-/// **注意**: spec 標準には `functions` を含む catalog が前提の記述があり、本 builder は
-/// catalog 側で `functions: []` を採用していることを前提とした独自最適化である。
+/// **Caution**: parts of the A2UI specification assume a catalog that carries `functions`. This
+/// builder is only correct for a catalog that declares `functions: []`; used with a catalog that
+/// does declare functions, the prompt describes types the catalog still expects.
 public struct A2UIPromptCompactBuilder: Sendable {
 
-    /// 内部で利用している `A2UIPromptBuilder`。`A2UIPromptConfiguration.promptBuilder` などに
-    /// そのまま渡せる脱出ハッチ。
+    /// The wrapped `A2UIPromptBuilder`, exposed as an escape hatch.
+    ///
+    /// Hand it to any API that takes an `A2UIPromptBuilder` directly. It already carries the
+    /// compacted common_types and the allowlists passed to this initializer, so a prompt built
+    /// through it is identical to one built here.
     public let builder: A2UIPromptBuilder
     private var inner: A2UIPromptBuilder { builder }
 
-    /// Bundled の compact common_types を 1 度だけ生成してプロセス内で再利用する。
+    /// The compacted common_types, computed once per process and shared by every instance.
+    ///
+    /// Compaction re-parses and re-serializes the bundled schema, which is too expensive to
+    /// repeat for each builder.
     private static let compactCommonTypes: String =
         CommonTypesCompactor.compact(A2UIPromptBuilder.bundledCommonTypesJSON())
 
+    /// Creates a builder whose common_types has the `FunctionCall` definitions removed.
+    ///
     /// - Parameters:
-    ///   - catalogSchema: カスタム catalog JSON。`nil` で A2UIPrompt の bundled basic catalog を使用
-    ///   - allowedComponents: catalog `components` を絞る（例: `["Text", "Button"]`）
-    ///   - allowedMessages: agent_to_renderer `oneOf` を絞る（例: `["CreateSurfaceMessage", "UpdateComponentsMessage"]`）
+    ///   - catalogSchema: Custom catalog JSON; `nil` uses A2UIPrompt's bundled basic catalog.
+    ///     Whatever is passed should declare `functions: []`.
+    ///   - allowedComponents: Narrows the catalog `components`, for example `["Text", "Button"]`.
+    ///   - allowedMessages: Narrows the agent_to_renderer `oneOf`, for example
+    ///     `["CreateSurfaceMessage", "UpdateComponentsMessage"]`.
     public init(
         catalogSchema: String? = nil,
         allowedComponents: Set<String>? = nil,
@@ -37,15 +50,16 @@ public struct A2UIPromptCompactBuilder: Sendable {
     ) {
         self.builder = A2UIPromptBuilder(
             agentToRendererSchema: nil,                      // bundled
-            commonTypesSchema: Self.compactCommonTypes,     // compact 版
-            catalogSchema: catalogSchema,                   // 渡されたものを優先、nil なら bundled
+            commonTypesSchema: Self.compactCommonTypes,     // compacted
+            catalogSchema: catalogSchema,                   // caller's, or bundled when nil
             allowedComponents: allowedComponents,
             allowedMessages: allowedMessages
-            // common_types の到達可能性 pruning は公式 with_pruning 準拠で常時適用される
+            // Reachability pruning of common_types always runs, per the official with_pruning.
         )
     }
 
-    /// `A2UIPromptBuilder.buildSystemPrompt` と同形。
+    /// Assembles the system prompt exactly as `A2UIPromptBuilder.buildSystemPrompt` does,
+    /// except that its schema block carries the compacted common_types.
     public func buildSystemPrompt(
         role: String,
         workflowRules: String? = nil,
@@ -62,6 +76,9 @@ public struct A2UIPromptCompactBuilder: Sendable {
         )
     }
 
+    /// Returns the schema block alone, with `FunctionCall` already removed from the common types.
+    ///
+    /// Use it when the prompt is assembled elsewhere and only the schema section comes from here.
     public func schemaBlock() -> String {
         inner.schemaBlock()
     }

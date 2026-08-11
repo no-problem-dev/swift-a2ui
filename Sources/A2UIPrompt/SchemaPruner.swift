@@ -2,26 +2,37 @@ import StructuredDataCore
 import A2UICore
 import Foundation
 
-/// LLM プロンプト用に JSON Schema をプルーニングする純関数群。
+/// Pure functions that prune a JSON Schema down to what a prompt actually needs.
 ///
-/// Python 公式 SDK (`agent_sdks/python/src/a2ui/schema/catalog.py`) の
-/// `with_pruning` / `_with_pruned_components` / `_with_pruned_messages` /
-/// `_with_pruned_common_types` / `_collect_refs` / `_prune_defs_by_reachability` の
-/// 逐語移植。挙動は公式 conformance スイート（`agent_sdks/conformance/suites/catalog.yaml`）の
-/// 全 prune ケースをテストで固定している。
+/// A literal port of `with_pruning`, `_with_pruned_components`, `_with_pruned_messages`,
+/// `_with_pruned_common_types`, `_collect_refs`, and `_prune_defs_by_reachability` from the
+/// official Python SDK (`agent_sdks/python/src/a2ui/schema/catalog.py`). Every prune case in
+/// the official conformance suite (`agent_sdks/conformance/suites/catalog.yaml`) is pinned by
+/// a test, so these functions must keep matching the Python side even where its behaviour
+/// looks arbitrary — the odd cases below are deliberate, not oversights.
 ///
-/// LLM が直接 schema 内の URL を辿るわけではないが、未使用の型定義はノイズなので削るとプロンプトが軽くなる。
+/// A model never dereferences the URLs inside the schema, so unused type definitions are pure
+/// noise; removing them is where the token savings come from.
 public enum SchemaPruner {
 
     // MARK: - Public API
 
-    /// 公式 `A2uiCatalog.with_pruning` 相当: カタログ三点セットへ 3 段の pruning を適用する。
+    /// Applies the three pruning stages to a catalog triple; the equivalent of the official
+    /// `A2uiCatalog.with_pruning`.
     ///
-    /// 1. `allowedComponents` 指定時: catalog の `components` と `$defs.anyComponent.oneOf` を絞る
-    /// 2. `allowedMessages` 指定時: agent_to_renderer の oneOf / properties と `$defs` を絞る
-    /// 3. **常時**: pruning 後の catalog + s2c から到達可能な common_types の `$defs` のみ残す
+    /// 1. When `allowedComponents` is given: narrows the catalog's `components` and
+    ///    `$defs.anyComponent.oneOf`.
+    /// 2. When `allowedMessages` is given: narrows agent_to_renderer's `oneOf` or `properties`
+    ///    together with its `$defs`.
+    /// 3. **Always**: keeps only the `common_types` `$defs` reachable from the pruned catalog
+    ///    and agent_to_renderer.
     ///
-    /// 順序が規範: common_types の到達可能性は **絞った後の** catalog / s2c から計算される。
+    /// The order is normative. Common-types reachability is computed from the **already
+    /// narrowed** catalog and agent_to_renderer, so stage 3 cannot be run first or in
+    /// isolation — doing so retains definitions the pruned schemas no longer reference.
+    ///
+    /// A `nil` allowlist skips its stage entirely; an **empty** allowlist is a no-op that
+    /// keeps everything, which is the official behaviour and not a way to prune to nothing.
     public static func withPruning(
         catalog: StructuredValue,
         agentToRenderer: StructuredValue,
@@ -41,11 +52,16 @@ public enum SchemaPruner {
         return (catalog, s2c, common)
     }
 
-    /// 公式 `_with_pruned_components` 相当: catalog の `components` を allowed で絞り、
-    /// `$defs.anyComponent.oneOf` から不許可コンポーネントへの `$ref` を除去する。
+    /// Narrows the catalog's `components` to an allowlist; the equivalent of the official
+    /// `_with_pruned_components`.
     ///
-    /// 公式と同じく空の allowlist は no-op（全量保持）。oneOf 内の `$ref` 以外の項目や
-    /// `#/components/` で始まらない参照は公式同様スキップ（除去）される。
+    /// Also strips the `$ref`s to the excluded components from `$defs.anyComponent.oneOf`, so
+    /// the union type stays consistent with the component definitions that survive.
+    ///
+    /// An empty allowlist is a no-op that keeps everything, as in the official implementation.
+    /// Note what happens to unusual `oneOf` entries: anything that is not a `$ref`, or whose
+    /// reference does not start with `#/components/`, is **dropped** rather than preserved —
+    /// so a catalog that inlines a component schema in `oneOf` loses it here.
     public static func pruneComponents(
         catalog: StructuredValue,
         allowedComponents: Set<String>
@@ -53,12 +69,12 @@ public enum SchemaPruner {
         guard !allowedComponents.isEmpty,
               case .object(var root) = catalog else { return catalog }
 
-        // 1. components をフィルタ
+        // 1. Filter the components themselves.
         if case .object(let components)? = root["components"] {
             root["components"] = .object(OrderedObject(components.filter { allowedComponents.contains($0.key) }))
         }
 
-        // 2. $defs.anyComponent.oneOf から不許可の "#/components/X" 参照を除去
+        // 2. Remove the disallowed "#/components/X" references from $defs.anyComponent.oneOf.
         if case .object(var defs)? = root["$defs"],
            case .object(var anyComponent)? = defs["anyComponent"],
            case .array(let oneOf)? = anyComponent["oneOf"] {
@@ -67,7 +83,7 @@ public enum SchemaPruner {
                 guard case .object(let dict) = item,
                       case .string(let ref)? = dict["$ref"],
                       ref.hasPrefix(prefix) else {
-                    return false  // 公式: 非 $ref / 未知形式はスキップ
+                    return false  // Official behaviour: drop non-$ref and unrecognized entries.
                 }
                 return allowedComponents.contains(String(ref.dropFirst(prefix.count)))
             }
@@ -79,14 +95,19 @@ public enum SchemaPruner {
         return .object(root)
     }
 
-    /// 公式 `_with_pruned_messages` 相当: agent_to_renderer をメッセージ allowlist で絞り込む。
+    /// Narrows agent_to_renderer to a message allowlist; the equivalent of the official
+    /// `_with_pruned_messages`.
     ///
-    /// - v0.9 以降の形式（`oneOf` + `$defs`）: oneOf を `#/$defs/X` の allowed のみ残し、
-    ///   `$defs` を到達可能性 BFS で絞る
-    /// - v0.8 形式（`properties` 直下）: `properties` を到達可能性 BFS で絞る
+    /// Two schema shapes are handled, chosen by what the root object actually contains:
     ///
-    /// 公式と同じく空の allowlist は no-op。oneOf 内の `$ref` 以外や `#/$defs/` で
-    /// 始まらない参照は除去される。
+    /// - `oneOf` plus `$defs` (v0.9 and later): keeps only the allowed `#/$defs/X` branches of
+    ///   `oneOf`, then narrows `$defs` by a reachability walk seeded from those names.
+    /// - `properties` at the root (v0.8): narrows `properties` by the same walk.
+    ///
+    /// An empty allowlist is a no-op, as in the official implementation. Entries in `oneOf`
+    /// that are not a `$ref`, or whose reference does not start with `#/$defs/`, are dropped.
+    /// Names in the allowlist that the schema does not define are ignored rather than
+    /// rejected, so a stale allowlist silently prunes further than intended.
     public static func pruneMessages(
         agentToRenderer: StructuredValue,
         allowedMessages: Set<String>
@@ -95,7 +116,7 @@ public enum SchemaPruner {
               case .object(var root) = agentToRenderer else { return agentToRenderer }
 
         if case .array(let oneOf)? = root["oneOf"] {
-            // v0.9 以降: oneOf を allowed の "#/$defs/X" のみ残す（公式: 非該当はすべて除去）
+            // v0.9 and later: keep only the allowed "#/$defs/X" branches (official: drop the rest).
             let filtered = oneOf.filter { item in
                 guard case .object(let dict) = item,
                       case .string(let ref)? = dict["$ref"],
@@ -115,7 +136,7 @@ public enum SchemaPruner {
                 root["$defs"] = .object(pruned)
             }
         } else if case .object(let properties)? = root["properties"] {
-            // v0.8: properties 直下がメッセージ
+            // v0.8: the messages sit directly under properties.
             let pruned = pruneByReachability(
                 defs: properties,
                 roots: allowedMessages,
@@ -127,15 +148,19 @@ public enum SchemaPruner {
         return .object(root)
     }
 
-    /// `common_types` の `$defs` を、`reachableFrom` の各 schema から参照されているものに絞る。
+    /// Narrows the `$defs` of `common_types` to the definitions the given schemas reference.
     ///
-    /// `$defs` 内部からの相互参照（`#/$defs/X` または `<URL>/common_types.json#/$defs/X`）も
-    /// 推移閉包で辿る。
+    /// Cross-references between `$defs` entries are followed to their transitive closure, in
+    /// both the internal form (`#/$defs/X`) and the absolute form
+    /// (`<URL>/common_types.json#/$defs/X`) that the published schemas use.
     ///
     /// - Parameters:
-    ///   - commonTypes: 元の common_types schema（パース済み）
-    ///   - reachableFrom: 参照元になる schema 配列（catalog と agent_to_renderer を渡すのが典型）
-    /// - Returns: 到達可能な `$defs` だけが残った schema
+    ///   - commonTypes: The parsed common_types schema; returned untouched when it has no
+    ///     `$defs` to narrow.
+    ///   - reachableFrom: The schemas whose `$ref`s seed the walk — the catalog and
+    ///     agent_to_renderer, and they must already be pruned, or definitions that the pruned
+    ///     schemas dropped are kept alive.
+    /// - Returns: The schema with only the reachable `$defs` remaining.
     public static func pruneCommonTypes(
         commonTypes: StructuredValue,
         reachableFrom externalSchemas: [StructuredValue]
@@ -145,7 +170,7 @@ public enum SchemaPruner {
             return commonTypes
         }
 
-        // 1. 外部 schema 群から "common_types.json#/$defs/X" 形式の $ref を全て収集
+        // 1. Collect every "common_types.json#/$defs/X" $ref from the external schemas.
         var rootNames: Set<String> = []
         for schema in externalSchemas {
             for ref in collectRefs(in: schema) {
@@ -155,7 +180,8 @@ public enum SchemaPruner {
             }
         }
 
-        // 2. $defs 内部の相互参照を BFS で推移閉包。`#/$defs/X` と URL 形式の両方を受け付ける
+        // 2. Take the transitive closure of the internal cross-references by BFS, accepting
+        //    both the "#/$defs/X" form and the absolute URL form.
         var visited: Set<String> = []
         var queue: [String] = Array(rootNames)
         while !queue.isEmpty {
@@ -172,7 +198,10 @@ public enum SchemaPruner {
         return .object(root)
     }
 
-    /// JSON 構造の中から全ての `$ref` 値を再帰的に集める。
+    /// Collects every `$ref` value in a JSON structure, at any depth.
+    ///
+    /// The values come back raw, so both the internal (`#/$defs/X`) and absolute URL forms
+    /// appear side by side and the caller decides which prefix it cares about.
     public static func collectRefs(in value: StructuredValue) -> Set<String> {
         var refs: Set<String> = []
         collectRefsInternal(value, into: &refs)
@@ -181,7 +210,12 @@ public enum SchemaPruner {
 
     // MARK: - Internal
 
-    /// 与えられた `$defs` を、`roots` から `internalRefPrefix` 経由で到達可能なエントリのみに絞る。
+    /// Narrows `defs` to the entries reachable from `roots` through refs that begin with
+    /// `internalRefPrefix`.
+    ///
+    /// Only that one prefix is followed, so refs into another document are treated as leaves.
+    /// Names in `roots` with no matching entry are skipped, which is how an allowlist may name
+    /// something the schema does not define without failing.
     static func pruneByReachability(
         defs: OrderedObject,
         roots: Set<String>,

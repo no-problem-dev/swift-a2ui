@@ -1,17 +1,19 @@
 import StructuredDataCore
-/// クライアントが送信するユーザーアクション（A2UI v1.0）。
+/// Reports that the user triggered an `Action.event` on a component — a tap, a submit, a selection
+/// (A2UI v1.0).
 ///
-/// `wantResponse` が `true` の場合、クライアントはサーバからの `actionResponse` を待つ。
-/// その際 `actionId` でアクションを一意に識別する（`wantResponse: true` 時のみ必要）。
+/// `context` carries whatever the event declared, already resolved against the component's data
+/// scope, so the agent reads values rather than bindings. When `wantResponse` is `true` the client
+/// waits for an `actionResponse` and `actionId` is what pairs the two.
 public struct UserAction: Codable, Sendable, Equatable {
     public let name: String
     public let surfaceId: String
     public let sourceComponentId: String
     public let timestamp: String  // ISO 8601
     public let context: [String: StructuredValue]
-    /// v1.0: true の場合、クライアントはサーバから `actionResponse` を期待する。
+    /// `true` while the client is waiting for an `actionResponse` before it considers this done.
     public let wantResponse: Bool?
-    /// v1.0: このアクション呼び出しの一意 ID。`wantResponse: true` の場合のみ必要。
+    /// Unique id for this invocation, required only when `wantResponse` is `true`.
     public let actionId: String?
 
     public init(

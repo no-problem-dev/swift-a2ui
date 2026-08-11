@@ -3,27 +3,28 @@ import StructuredDataCore
 import A2UICore
 import Foundation
 
-/// タイプセーフな `ComponentSchema` を公式 A2UI カタログ JSON-Schema ドキュメントに変換するレンダラー。
+/// Turns type-safe `ComponentSchema` values into the A2UI catalog JSON-Schema document.
 ///
-/// 出力は `catalogs/basic/catalog.json` と意味的に等価。`allOf` + common-types `$ref` 形式、
-/// `component` const ディスクリミネータ、`required` リストはすべて公式仕様に準拠する。
-/// ただし生成元は Swift 型であり、手書きのカタログ JSON は存在しない。
+/// The output is semantically equivalent to `catalogs/basic/catalog.json`: the `allOf` +
+/// common-types `$ref` shape, the `component` const discriminator, and the `required` lists all
+/// follow the specification. Only the source differs — Swift types, with no catalog JSON on disk.
 public enum SchemaRenderer {
 
     private static let commonTypesBase = "https://a2ui.org/specification/v1_0/common_types.json#/$defs/"
 
-    /// `catalog_definition.json` の `protocolVersion`。v1.0 以降を狙うカタログは必須で、
-    /// 省略すると後方互換のため `"0.9"` とみなされる。
+    /// The `protocolVersion` of `catalog_definition.json`. A catalog targeting v1.0 or later MUST
+    /// declare it; leaving it out makes the catalog read as `"0.9"`.
     public static let protocolVersion = "1.0"
 
-    /// 全コンポーネント共通の `weight`（v1.0 で各コンポーネントに直接載るようになった）。
+    /// The `weight` property shared by all components. v1.0 declares it on each component rather
+    /// than behind a shared `$ref`, so the renderer appends this same node to every one.
     private static let weightProperty: StructuredValue = .object([
         "type": .string("number"),
         "description": .string("The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."),
     ])
 
-    /// 指定したカタログ id・コンポーネントスキーマ・関数スキーマからカタログドキュメントをレンダリングする。
-    /// LLM システムプロンプトへの埋め込みに適した最小化 JSON 文字列を返す。
+    /// Renders a catalog document from a catalog id, its component schemas, and its function
+    /// schemas. The result is minified JSON with sorted keys, sized to sit in a system prompt.
     public static func renderCatalog(
         catalogId: String,
         title: String,
@@ -85,11 +86,11 @@ public enum SchemaRenderer {
         ])
     }
 
-    /// `components` マップ(コンポーネント名 → JSON Schema)単体をレンダリングする。
+    /// Renders only the `components` map — component name to JSON Schema.
     ///
-    /// クライアントがカタログ対応を宣言する(A2UIAGUI の schema context の
-    /// `{catalogId, components}`)ときの `components` に使う。カタログドキュメント
-    /// 全体ではなく、`renderCatalog` の `components` ブロックと同じ形。
+    /// Use it where a client advertises the catalog it supports, such as the `{catalogId,
+    /// components}` schema context in A2UIAGUI, instead of sending a whole catalog document. The
+    /// shape is identical to the `components` block `renderCatalog` produces.
     public static func renderComponents(_ components: [ComponentSchema]) -> StructuredValue {
         var componentDefs: OrderedObject = [:]
         for component in components {
@@ -237,17 +238,19 @@ public enum SchemaRenderer {
         .object(["$ref": .string(commonTypesRef(name))])
     }
 
-    /// `common_types.json#/$defs/<name>` の絶対 URI。`.raw` フラグメントを手書きするスキーマから使う。
+    /// The absolute `common_types.json#/$defs/<name>` URI, for hand-written `.raw` fragments that
+    /// need to `$ref` a shared type.
     public static func commonTypesRef(_ name: String) -> String {
         commonTypesBase + name
     }
 
     // MARK: - Identifier validation (v1.0 §Catalog entity naming)
 
-    /// カタログの識別子が UAX #31 に適合しているかを検査し、違反を返す（適合していれば空）。
+    /// Checks every catalog identifier against UAX #31 and returns the ones that fail; an empty
+    /// result means the catalog conforms.
     ///
-    /// 対象はコンポーネント名・関数名・引数/プロパティ名。仕様がこれを **MUST** としているのは
-    /// SDK・パーサー・コードジェネレータをまたいだ互換性のため。
+    /// Component names, function names, and argument and property names are all covered. The spec
+    /// makes this a MUST so identifiers survive SDKs, parsers, and code generators unchanged.
     public static func identifierViolations(
         components: [ComponentSchema],
         functions: [FunctionSchema]

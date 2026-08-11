@@ -4,15 +4,21 @@ import A2UICore
 import A2UICatalog
 import JSONParsing
 
-/// 手書き JSON 文字列の代わりに Swift の型システムからプロンプト手本を生成するユーティリティ。
+/// Builds the prompt's worked examples out of the Swift type system instead of hand-written JSON.
 ///
-/// 手書きの JSON 文字列は `version` の誤り・`children` を持つ `Modal`・余分な `//` コメント・
-/// 存在しないプロパティなど暗黙の不正が紛れ込む。型付きコンポーネントと `AgentMessage` から
-/// 生成してシリアライズすることで、カタログ型との整合性がコンパイル時に保証され、テストでピン留めできる。
+/// Hand-written example JSON goes quietly invalid: a wrong `version`, a `Modal` given
+/// `children`, a stray `//` comment, a property that does not exist. Because the model copies
+/// the example, every one of those defects becomes UI the client cannot render. Generating the
+/// example from typed components and `AgentMessage` values and then serializing it puts the
+/// compiler in charge of agreement with the catalog, and lets a test pin the exact output.
 public enum A2UIExample {
 
-    /// 型付きカタログコンポーネント（例: `TextComponent`）を `UpdateComponents.components` が
-    /// 期待する `StructuredValue` 形式にエンコードする。
+    /// Encodes a typed catalog component such as `TextComponent` into the `StructuredValue`
+    /// form that `UpdateComponents.components` expects.
+    ///
+    /// An encoding failure collapses to an empty object instead of throwing, so a component
+    /// that cannot be encoded shows up as `{}` inside the example rather than stopping prompt
+    /// assembly.
     public static func component(_ component: some Encodable & Sendable) -> StructuredValue {
         guard let data = try? JSONEncoder().encode(component),
               let value = try? JSONParser().parse(data) else {
@@ -21,14 +27,19 @@ public enum A2UIExample {
         return value
     }
 
-    /// 型付きコンポーネント配列から `updateComponents` メッセージを生成するヘルパー。
+    /// Wraps typed components into an `updateComponents` message for the given surface.
+    ///
+    /// The array order is preserved and carries meaning: the root must come first and every
+    /// parent before its children, or a streaming client cannot render incrementally.
     public static func updateComponents(surfaceId: String, _ components: [any (Encodable & Sendable)]) -> AgentMessage {
         .updateComponents(UpdateComponents(surfaceId: surfaceId, components: components.map { component($0) }))
     }
 
-    /// メッセージ配列を生の JSON 配列文字列に変換する。キーはソート済みでスラッシュは非エスケープ —
-    /// プロンプトキャッシュが安定し URL クリーンな決定論的出力になる。
-    /// `<a2ui-json>` タグ等のラッピング規約は呼び出し側が担う。
+    /// Serializes messages to a raw JSON array string with sorted keys and unescaped slashes.
+    ///
+    /// The output is byte-stable across runs, which is what keeps prompt caching effective,
+    /// and the URLs in it stay readable. Wrapping conventions such as the `<a2ui-json>` tags
+    /// are the caller's job; nothing is added here.
     public static func json(_ messages: [AgentMessage]) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -37,18 +48,24 @@ public enum A2UIExample {
 
     // MARK: - Reference example (the canonical prompt example, built from types)
 
-    /// カタログパレット全体をカバーするデータモデル駆動の参照サーフェス。型付きコンポーネントから
-    /// 生成するため常に有効（余分なコメント・`children` を持つ `Modal`・バージョン誤り等が混入しない）。
-    /// `A2UIPromptBuilder.buildSystemPrompt` の `examples:` 引数として渡す。
+    /// A data-model-driven reference surface that exercises the whole catalog palette.
     ///
-    /// ルートは全幅 `Column`（align: stretch）: ホストフレームがサーフェス境界を定め、
-    /// 公式サンプルの規約に準拠する。セッション内でのサーフェス配置（単一 / ページング /
-    /// スタック）はプロトコル外の関心事であり、アプリ側が担う。
+    /// Built from typed components, so it is valid by construction. Pass it as the `examples:`
+    /// argument of `A2UIPromptBuilder.buildSystemPrompt`. Do not pair it with a pruned catalog
+    /// — it uses components an allowlist may have removed; use `presenterSurface` for that.
+    ///
+    /// The root is a full-width `Column` with `align: .stretch` rather than a `Card`: the host
+    /// frame, not a card chrome, defines the surface bounds, which is the convention the
+    /// official samples follow. How surfaces are arranged within a session — one at a time,
+    /// paged, or stacked — lies outside the protocol and stays the app's decision.
     public static func referenceSurface(surfaceId id: String = "main") -> String {
         json(referenceMessages(surfaceId: id))
     }
 
-    /// 型付きメッセージ配列としての参照サーフェス（テストで構造を検証するために公開）。
+    /// The reference surface as typed messages, before serialization.
+    ///
+    /// Public so a test can assert on the structure — component identifiers, ordering, binding
+    /// paths — instead of on the JSON text, which sorting and escaping choices can churn.
     public static func referenceMessages(surfaceId id: String) -> [AgentMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {
@@ -170,27 +187,41 @@ public enum A2UIExample {
 
     // MARK: - Presenter example (content-presentation subset of the catalog)
 
-    /// `presenterMessages` が使ってよいコンポーネント名。コンテンツ提示（presenter）型の
-    /// エージェント向けカタログ・サブセットで、`A2UIPromptBuilder(allowedComponents:)` に
-    /// そのまま渡せる。手本と許可セットの同期はテストで固定される。
+    /// The component names `presenterMessages` is allowed to use.
+    ///
+    /// The catalog subset for content-presentation agents — no input controls, so nothing the
+    /// model produces can ask the user to type. Pass it straight to
+    /// `A2UIPromptBuilder(allowedComponents:)`. A test pins this set against the worked
+    /// example, so the pruned schema and the example the model imitates cannot drift apart.
     public static let presenterComponentNames: Set<String> = [
         "Column", "Row", "Text", "Image", "Icon", "Divider", "List", "Card", "Button",
     ]
 
-    /// presenter サブセットが使う agent_to_renderer メッセージ名。
-    /// `A2UIPromptBuilder(allowedMessages:)` にそのまま渡せる。
+    /// The agent_to_renderer message names the presenter subset uses.
+    ///
+    /// Enough to create a surface, give it components, and fill its data model. The delete,
+    /// call-function, and action-response messages are left out, so a presenter cannot tear
+    /// down a surface or invoke client functions. Pass it straight to
+    /// `A2UIPromptBuilder(allowedMessages:)`, or take `A2UIPromptBuilder.presenter()`, which
+    /// applies it together with the matching component subset.
     public static let presenterMessageNames: Set<String> = [
         "CreateSurfaceMessage", "UpdateComponentsMessage", "UpdateDataModelMessage",
     ]
 
-    /// コンテンツ提示に特化した参照サーフェス。`referenceSurface` がカタログ全パレットを
-    /// 教えるのに対し、こちらは `presenterComponentNames` の 9 種だけで「リッチな提示」を
-    /// 教える — pruning したカタログと手本が矛盾しないための対。
+    /// A reference surface built only from the content-presentation subset.
+    ///
+    /// Where `referenceSurface` teaches the full catalog palette, this one shows that rich
+    /// presentation is reachable with the nine components in `presenterComponentNames` alone.
+    /// It is the counterpart to a catalog pruned to that same subset: pair them, or the model
+    /// sees an example using components the schema no longer offers.
     public static func presenterSurface(surfaceId id: String = "main") -> String {
         json(presenterMessages(surfaceId: id))
     }
 
-    /// 型付きメッセージ配列としての presenter サーフェス（テストで構造を検証するために公開）。
+    /// The presenter surface as typed messages, before serialization.
+    ///
+    /// Public so a test can assert that it stays inside `presenterComponentNames` and
+    /// `presenterMessageNames`, rather than parsing the JSON back out.
     public static func presenterMessages(surfaceId id: String) -> [AgentMessage] {
         func path(_ p: String) -> DynamicString { .binding(DataBinding(path: p)) }
         func openUrl(_ p: String) -> Action {

@@ -1,6 +1,12 @@
 import A2UICore
 
-/// ボタンコンポーネント。タップすると `action` を実行する。
+/// Runs `action` when tapped, either raising an event to the agent or calling a catalog function.
+///
+/// The label is a child component referenced by ID — a `Text` for a labeled button, an `Icon` only
+/// when an icon-only button was asked for. `checks` are the validation rules evaluated before the
+/// action fires; their failure messages belong inside the check, not in a separate text component.
+/// `variant` marks the main call to action (`primary`) or drops the border and background so the
+/// child reads as a link (`borderless`).
 public struct ButtonComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Button"
 

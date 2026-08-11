@@ -1,19 +1,44 @@
 # ``A2UICatalog``
 
-A2UI 標準コンポーネントカタログ — コンポーネント定義・スキーマ記述・バリアント列挙型を提供する。
+The A2UI basic catalog in Swift: the components an agent can build a surface from, the enums that
+constrain their properties, and the machinery that turns both into the schema a model is prompted
+with.
+
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`A2UICatalog` は `A2UICore` の `A2UIComponentProtocol` を実装した具体的なコンポーネント群と、それらのスキーマ記述インフラを定義する。このモジュールをインポートすることで、`ButtonComponent`・`TextComponent`・`TextFieldComponent` などの標準コンポーネントと、`ComponentCatalog` プロトコルを介したカタログ登録機能を利用できる。
+`A2UICatalog` implements the 18 components of the A2UI v1.0 basic catalog on top of `A2UICore`'s
+`A2UIComponentProtocol`. Display components (``TextComponent``, ``ImageComponent``,
+``IconComponent``, ``AudioPlayerComponent``, ``VideoComponent``) only show information. Input
+components (``ButtonComponent``, ``TextFieldComponent``, ``CheckBoxComponent``, ``SliderComponent``,
+``ChoicePickerComponent``, ``DateTimeInputComponent``) take user interaction and can carry
+validation `checks`. Layout components (``RowComponent``, ``ColumnComponent``, ``CardComponent``,
+``ListComponent``, ``TabsComponent``, ``ModalComponent``, ``DividerComponent``) give the tree its
+structure.
 
-コンポーネントは役割別に 3 つに分類される。**表示コンポーネント**（`TextComponent`・`ImageComponent`・`IconComponent`・`AudioPlayerComponent`・`VideoComponent`）は情報を見せるだけの読み取り専用要素。**入力コンポーネント**（`ButtonComponent`・`TextFieldComponent`・`CheckBoxComponent`・`SliderComponent`・`ChoicePickerComponent`・`DateTimeInputComponent`）はユーザーの操作を受け取る。**レイアウトコンポーネント**（`RowComponent`・`ColumnComponent`・`CardComponent`・`ListComponent`・`TabsComponent`・`ModalComponent`・`DividerComponent`）はコンポーネントツリーを構造化する。
+A component never contains another component inline: it names one by ID, and the surface holds the
+flat list. So a `Card` that should show several things points at a `Column`, and a data-driven list
+is a `List` whose `children` is a template expanded over a path in the data model. Values marked
+dynamic — most `String`, number, and boolean properties — accept a literal, a data binding, or a
+catalog function call; A2UI has no string concatenation, so interpolation goes through
+`formatString`.
 
-`BasicCatalogSchema` はすべての標準コンポーネントの JSON スキーマをプログラム的に生成する。`SchemaRenderer` はそのスキーマをプロンプト埋め込み用のテキストに変換し、`A2UIPrompt` モジュールが利用する。
+``BasicComponent`` is the closed enum a decoded surface arrives as. It dispatches on the wire's
+`component` discriminator and throws on a name it does not know, so a surface aimed at another
+catalog fails loudly rather than rendering blank.
+
+The schema the model sees is generated from these Swift types rather than from a checked-in
+`catalog.json`: each component supplies a ``ComponentSchema`` through ``CatalogSchemaDescribing``,
+property enums expose their cases through ``SchemaEnumerable``, and ``SchemaRenderer`` renders the
+catalog document that ``BasicCatalogSchema/render()`` returns. One consequence is worth knowing
+before editing: every `description` string in those schemas is copied verbatim from the official
+catalog and pinned by the fidelity tests, so rewording one breaks the build.
 
 ```swift
 import A2UICatalog
 
-// ボタンコンポーネントを定義する（child に子コンポーネント ID、action にイベントを指定）
+// A button is labeled by a child component referenced by ID, not by an inline string.
 let button = ButtonComponent(
     id: "submit",
     child: "submit-label",
@@ -21,19 +46,19 @@ let button = ButtonComponent(
     variant: .primary
 )
 
-// LLM プロンプト用カタログスキーマを生成する
+// The catalog document to embed in the model's prompt.
 let schema = BasicCatalogSchema.render()
 ```
 
 ## Topics
 
-### カタログプロトコル
+### Catalogs
 
 - ``ComponentCatalog``
 - ``BasicComponentCatalog``
 - ``BasicComponent``
 
-### 表示コンポーネント
+### Display components
 
 - ``TextComponent``
 - ``ImageComponent``
@@ -41,52 +66,53 @@ let schema = BasicCatalogSchema.render()
 - ``AudioPlayerComponent``
 - ``VideoComponent``
 
-### 入力コンポーネント
-
-- ``ButtonComponent``
-- ``TextFieldComponent``
-- ``CheckBoxComponent``
-- ``SliderComponent``
-- ``ChoicePickerComponent``
-- ``ChoiceOption``
-- ``DateTimeInputComponent``
-
-### レイアウトコンポーネント
+### Layout components
 
 - ``RowComponent``
 - ``ColumnComponent``
-- ``CardComponent``
 - ``ListComponent``
+- ``CardComponent``
 - ``TabsComponent``
 - ``TabItem``
 - ``ModalComponent``
 - ``DividerComponent``
 
-### スキーマ記述
+### Input components
 
-- ``CatalogSchemaDescribing``
-- ``SchemaEnumerable``
-- ``BasicCatalogSchema``
-- ``ComponentSchema``
-- ``PropertySchema``
-- ``PropertyType``
-- ``FunctionSchema``
-- ``ComponentCategory``
-- ``SchemaMixin``
-- ``SchemaRenderer``
+- ``ButtonComponent``
+- ``TextFieldComponent``
+- ``CheckBoxComponent``
+- ``ChoicePickerComponent``
+- ``ChoiceOption``
+- ``SliderComponent``
+- ``DateTimeInputComponent``
 
-### バリアント・スタイル列挙型
+### Property values
 
-- ``ButtonVariant``
 - ``TextVariant``
+- ``ButtonVariant``
 - ``TextFieldVariant``
 - ``ImageVariant``
 - ``ImageFit``
 - ``IconName``
 - ``IconNameValue``
 - ``ListDirection``
-- ``LayoutAlign``
 - ``LayoutJustify``
+- ``LayoutAlign``
 - ``ChoicePickerVariant``
 - ``ChoicePickerDisplayStyle``
 - ``DividerAxis``
+
+### Generating the schema
+
+- ``BasicCatalogSchema``
+- ``SchemaRenderer``
+- ``CatalogSchemaDescribing``
+- ``SchemaEnumerable``
+
+### Describing a custom catalog
+
+- ``ComponentSchema``
+- ``PropertySchema``
+- ``PropertyType``
+- ``FunctionSchema``

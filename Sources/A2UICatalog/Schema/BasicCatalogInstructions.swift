@@ -1,8 +1,8 @@
-/// 公式 basic カタログの `instructions`（A2UI v1.0）。
+/// The `instructions` block of the official basic catalog (A2UI v1.0).
 ///
-/// v1.0 で追加された、カタログに直接埋め込む設計ガイドライン。外部の `rules.txt` を置き換える。
-/// `Spec/v1_0/catalogs/basic/catalog.json` から**逐語で**転記しており、
-/// `GeneratedCatalogFidelityTests` が公式との一致を固定する。
+/// v1.0 embeds the design guidelines in the catalog itself, replacing the external `rules.txt`.
+/// The text is copied verbatim from `Spec/v1_0/catalogs/basic/catalog.json` and pinned by
+/// `GeneratedCatalogFidelityTests`, so editing the wording breaks that test.
 enum BasicCatalogInstructions {
     static let text = """
     For layout, use the Row and Column components to organize other components.

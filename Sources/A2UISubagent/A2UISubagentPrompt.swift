@@ -1,17 +1,18 @@
 import A2UICore
 import Foundation
 
-/// 副エージェントのシステムプロンプトを組み立てる。
+/// Assembles the sub-agent's system prompt.
 ///
-/// ミラー元: `@ag-ui/a2ui-toolkit` の `buildSubagentPrompt`。セクション順序が仕様:
-/// 1. 生成ガイドライン（ヘッダなし・素で先頭）
+/// Mirrors `buildSubagentPrompt` in `@ag-ui/a2ui-toolkit`. The section order is part of the
+/// contract:
+/// 1. Generation guidelines (no heading — plain text at the very top)
 /// 2. `## Design Guidelines`
-/// 3. `## Available Components`（カタログスキーマ）
-/// 4. コンポジションガイド（ホスト固有のカタログ知識）
+/// 3. `## Available Components` (the catalog schema)
+/// 4. Composition guide (host-specific catalog knowledge)
 ///
-/// カタログ定義はツール引数の JSON Schema には入れず**ここに文字列として埋め込む**
-/// （公式と同じ判断）。カタログは実行時に決まり、巨大な union はプロバイダのスキーマ
-/// 制約に触れやすく、構造検証は `A2UIValidation` が担うため。
+/// The catalog definition is embedded **here, as text**, not in the tool's JSON Schema — the
+/// same call upstream makes. The catalog is only known at runtime, a huge union runs into
+/// provider schema limits, and `A2UIValidation` is what actually checks the structure.
 public struct A2UISubagentPrompt: Sendable {
     private let guidelines: A2UIGuidelines
     private let catalogSchema: String?
@@ -27,7 +28,10 @@ public struct A2UISubagentPrompt: Sendable {
         self.renderToolName = renderToolName
     }
 
-    /// システムプロンプトを組み立てる。
+    /// Joins the enabled guideline blocks with a blank line between them.
+    ///
+    /// A suppressed or empty block leaves no gap and no heading, so a host can drop a whole
+    /// section without the prompt reading as if something went missing.
     public func render() -> String {
         var parts: [String] = []
 

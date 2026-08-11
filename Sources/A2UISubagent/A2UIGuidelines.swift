@@ -1,19 +1,19 @@
 import Foundation
 
-/// 副エージェントのシステムプロンプトを構成するガイドラインブロック。
+/// One guideline block of the sub-agent's system prompt.
 ///
-/// 各ブロックは 3 状態を取る（公式 TS の `undefined` / `""` / 値 の per-field
-/// フォールバックに対応）。Swift では `String?` で 2 状態しか表現できないため
-/// enum にする。
+/// A block has three states, matching the per-field fallback of `undefined` / `""` / a value
+/// in the upstream TypeScript. `String?` only carries two of them, hence the enum.
 public enum A2UIGuidelineBlock: Sendable, Equatable {
-    /// 組み込みの既定文言を使う。
+    /// Use the built-in text for this block.
     case `default`
-    /// このブロックを出力しない（ホストが明示的に抑止する）。
+    /// Leave the block out of the prompt entirely, heading and all.
     case suppressed
-    /// 独自の文言に差し替える。
+    /// Substitute the host's own text. An empty string suppresses the block just as
+    /// `suppressed` does.
     case custom(String)
 
-    /// 既定値を渡して実際の文字列を解決する。抑止時は `nil`。
+    /// Resolves the block against a default; `nil` when it is suppressed or resolves to empty.
     func resolve(default defaultValue: String) -> String? {
         switch self {
         case .default: defaultValue.isEmpty ? nil : defaultValue
@@ -23,13 +23,15 @@ public enum A2UIGuidelineBlock: Sendable, Equatable {
     }
 }
 
-/// 副エージェントに渡すガイドライン一式。
+/// The full set of guidelines handed to the sub-agent.
 public struct A2UIGuidelines: Sendable, Equatable {
-    /// A2UI プロトコル規則（ID / パス / データバインディング）。
+    /// A2UI protocol rules — IDs, paths, data binding. Rendered first and without a heading.
     public var generation: A2UIGuidelineBlock
-    /// 視覚設計の指針。プロダクト固有のテーマはここを差し替える。
+    /// Visual guidance, rendered under `## Design Guidelines`. Replace this block to impose a
+    /// product theme; the protocol rules in `generation` stay as they are.
     public var design: A2UIGuidelineBlock
-    /// ホスト固有のカタログ知識（カスタムコンポーネントの使い分け等）。既定なし。
+    /// Host-specific catalog knowledge, such as when to reach for a custom component. There is
+    /// no default: `nil` or an empty string leaves the section out.
     public var composition: String?
 
     public init(
@@ -45,13 +47,15 @@ public struct A2UIGuidelines: Sendable, Equatable {
     public static let `default` = A2UIGuidelines()
 }
 
-/// 公式 `DEFAULT_GENERATION_GUIDELINES` / `DEFAULT_DESIGN_GUIDELINES` に対応する既定文言。
+/// Built-in text corresponding to upstream's `DEFAULT_GENERATION_GUIDELINES` and
+/// `DEFAULT_DESIGN_GUIDELINES`.
 ///
-/// 各ルールは検証器（`A2UIValidation`）のエラーと 1 対 1 で対応させる意図で書かれている
-/// — プロンプトで言ったことを検証が必ずチェックし、違反がエラーとしてプロンプトに戻る
-/// 閉じたループを作るため。
+/// Each rule is written to pair one-to-one with an `A2UIValidation` error, closing the loop:
+/// whatever the prompt asserts, the validator checks, and a violation returns to the prompt as
+/// an issue. Editing a rule here without its counterpart in the validator breaks that pairing.
 public enum A2UIDefaultGuidelines {
-    /// ツール名を埋め込んで生成ガイドラインを組み立てる。
+    /// Builds the generation guidelines with the render tool's name interpolated in, so the
+    /// prompt names the same tool the sub-agent is actually bound to.
     public static func generation(renderToolName: String = A2UISubagentConstants.renderToolName) -> String {
         """
         Generate A2UI JSON.
@@ -110,7 +114,8 @@ public enum A2UIDefaultGuidelines {
         """
     }
 
-    /// 視覚設計の既定指針。
+    /// Built-in visual guidance: a `[title, list]` Column root, with heading levels expressed
+    /// as Markdown in the text because `variant` only offers `"caption"` and `"body"`.
     public static let design = """
     Create polished, visually appealing interfaces:
     - Always include a title heading for the surface, outside any List.

@@ -1,24 +1,28 @@
 # ``A2UIRuntime``
 
-テンプレート展開・関数評価・条件チェックを担うサーフェス実行エンジン。
+The evaluation layer of a surface: data scopes, template expansion, function evaluation, and check rules.
+
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`A2UIRuntime` は `A2UISurface` が保持するコンポーネントツリーとデータモデルを元に、テンプレートの展開・組み込み関数の評価・条件規則のチェックを実行する。SwiftUI には依存せず、ロジック層として独立してテストできる。
+`A2UIRuntime` turns the component tree and data model held by `A2UISurface` into the concrete values a view layer draws: it expands templates, resolves bindings, evaluates built-in functions, and runs check rules. It does not depend on SwiftUI, so all of that logic is testable on its own.
 
-`TemplateExpander` はリストコンポーネントなどのデータ駆動繰り返しを、データモデルのコレクションに基づいて実際のノード列に展開する。各展開済みノードは `ResolvedChild` として返され、`componentId` と `basePath` を保持する。
+``DataContext`` is the piece everything else hangs off. It is a scoped view onto a `DataModel`: the scope is a JSON Pointer path, a relative binding (`name`) resolves from it, and an absolute one (`/company`) from the root. Resolution follows the spec's coercion table, which means an undefined binding yields `""`, `false`, or `0` rather than an error — an empty label can be a wrong path, not empty text.
 
-`FunctionResolving` プロトコルは `callFunction` アクション発生時に呼び出す関数の解決インターフェースを定義する。`BasicFunctions` はビルトイン関数の実装を提供する。関数が存在しない場合は `NoFunctionResolver` を差し込むことで無害な no-op にできる。`ChecksEvaluator` は `CheckRule` の配列を評価し、バリデーション結果（エラーメッセージ・有効フラグ）を返す。
+``TemplateExpander`` expands a `ChildList` into ``ResolvedChild`` slots. A static `ids` list keeps the parent scope; a `template(componentId, path)` iterates the collection at `path` and gives each instance the child scope `/<path>/<index>`, which is what makes relative bindings inside the template land on the right element. Each iteration also carries a zero-based `collectionIndex`, and that is the only thing that lets the built-in `@index` evaluate — outside an iteration it is an evaluation error, and the call resolves to nothing.
+
+``FunctionResolving`` is the single hook `DataContext` uses to evaluate a `FunctionCall`, which keeps binding resolution independent of any registry. ``BasicFunctions`` implements the Basic Catalog functions (`formatString`, `required`, `formatDate`, `pluralize`, …); it defaults to the `en_US` locale, so pass your own when the output is user-facing. ``NoFunctionResolver`` is the default when nothing is injected and resolves every call to `nil`. ``ChecksEvaluator`` walks a component's `[CheckRule]` and reports the first failing message, the one the spec expects a `Button` to be disabled by.
 
 ```swift
 import A2UIRuntime
 import A2UISurface
 
-// ビルトイン関数リゾルバーを使ってデータコンテキストを構築する
+// Build a data context backed by the built-in function resolver.
 let resolver = BasicFunctions()
 let context = DataContext(dataModel: DataModel(), functions: resolver)
 
-// ChildList をテンプレート展開する
+// Expand a ChildList into concrete child slots.
 let children = TemplateExpander.expand(listNode, in: context)
 for child in children {
     print(child.componentId, child.basePath)
@@ -27,18 +31,21 @@ for child in children {
 
 ## Topics
 
-### テンプレート展開
+### Data scopes
+
+- ``DataContext``
+
+### Template expansion
 
 - ``TemplateExpander``
 - ``ResolvedChild``
-- ``DataContext``
 
-### 関数評価
+### Function evaluation
 
 - ``FunctionResolving``
 - ``BasicFunctions``
 - ``NoFunctionResolver``
 
-### 条件チェック
+### Client-side checks
 
 - ``ChecksEvaluator``

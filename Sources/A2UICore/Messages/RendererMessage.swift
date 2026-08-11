@@ -1,10 +1,12 @@
-/// クライアント → サーバ方向の全メッセージをまとめる enum（A2UI v1.0）。
+/// Everything a client can say back to the agent, in one decodable envelope (A2UI v1.0).
 ///
-/// `version` フィールドはデコード時に検証し、`A2UIVersion.current` と異なる場合はエラーを投げる。
+/// Unlike `AgentMessage`, decoding requires `version` and throws when it is absent or differs from
+/// `A2UIVersion.current`: this side of the conversation is written by code, so a missing field is a
+/// defect rather than a model slip worth tolerating.
 public enum RendererMessage: Sendable, Equatable {
     case action(UserAction)
     case error(RendererError)
-    /// v1.0: クライアントがサーバ起動の関数呼び出し結果を返す。
+    /// Returns the result of a function the agent asked the client to run.
     case functionResponse(FunctionResponse)
 }
 

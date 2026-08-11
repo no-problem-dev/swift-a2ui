@@ -1,6 +1,8 @@
-/// コンポーネントのアクセシビリティ情報。
+/// What a component tells assistive technology about itself.
 ///
-/// JSON キー名の衝突を避けるため、`description` は `accessibilityDescription` にマッピングする。
+/// The wire key is `description`, but the property is named `accessibilityDescription` so it does
+/// not shadow the `description` every Swift value already has. The initializer still takes
+/// `description:`, so only the property read differs from the JSON.
 public struct AccessibilityAttributes: Codable, Sendable, Equatable {
     public let label: DynamicString?
     public let accessibilityDescription: DynamicString?

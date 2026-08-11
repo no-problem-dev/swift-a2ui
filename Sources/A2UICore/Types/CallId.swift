@@ -1,4 +1,5 @@
-/// サーバ起動の関数呼び出しを一意に識別する ID（A2UI v1.0 `CallId`）。
+/// Pairs one agent-initiated function call with the reply it produces (A2UI v1.0 `CallId`).
 ///
-/// `CallFunctionMessage` から対応する `functionResponse` または `error` へそのまま複写する。
+/// It is a bare `String`, so nothing stops a reply from carrying the wrong one: copy it verbatim
+/// out of the `CallFunctionMessage` into the matching `functionResponse` or `error`.
 public typealias CallId = String

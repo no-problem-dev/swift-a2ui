@@ -2,11 +2,12 @@ import StructuredDataCore
 import A2ACore
 import A2UICore
 
-/// クライアントがレンダリングできる情報: 対応カタログ ID とオプションのインラインカタログ。
-/// カタログネゴシエーションが LLM プロンプトに入らないよう `Message.metadata` で伝達する。
+/// What the client can render: the catalog IDs it supports, plus optional inline catalogs.
+///
+/// Travels in `Message.metadata` so that catalog negotiation never has to enter the LLM prompt.
 public struct A2UIRendererCapabilities: Codable, Sendable, Equatable {
     public var supportedCatalogIds: [String]
-    /// インラインカタログを受け入れるエージェント向けのカタログ定義一式（生カタログ JSON）。
+    /// Raw catalog JSON, worth sending only to agents whose card declares `acceptsInlineCatalogs`.
     public var inlineCatalogs: [StructuredValue]?
 
     public init(supportedCatalogIds: [String] = [], inlineCatalogs: [StructuredValue]? = nil) {
@@ -15,11 +16,13 @@ public struct A2UIRendererCapabilities: Codable, Sendable, Equatable {
     }
 }
 
-/// サーフェスごとのクライアント側データモデルのスナップショット。オーケストレータは
-/// 対象エージェントが所有するサーフェスのみを転送する（公式サンプルの "Data Model Stripping"）。
+/// A snapshot of the client-side data model, keyed by surface.
+///
+/// An orchestrator forwards only the surfaces the target agent owns — "Data Model Stripping" in
+/// the official samples.
 public struct A2UIRendererDataModel: Codable, Sendable, Equatable {
-    /// プロトコルバージョン。v1.0 の `renderer_data_model.json` は `surfaces` と並ぶ平坦な項目
-    /// として持つ（capabilities のようにバージョンキーで包まない）。
+    /// Protocol version. In v1.0 `renderer_data_model.json` keeps it flat, as a sibling of
+    /// `surfaces`, rather than wrapping the payload in a version key the way capabilities do.
     public var version: String
     public var surfaces: [String: StructuredValue]
 
@@ -28,27 +31,34 @@ public struct A2UIRendererDataModel: Codable, Sendable, Equatable {
         self.surfaces = surfaces
     }
 
-    /// 指定サーフェスのみを残したコピーを返す — ストリッピングの基本操作。
-    /// どのエージェントがどのサーフェスを見てよいかは呼び出し元の知識。
+    /// Returns a copy holding only the named surfaces — the primitive that stripping is built on.
+    ///
+    /// Which agent may see which surface is the caller's knowledge, not this type's. Unknown IDs
+    /// are ignored, so the result can be empty. The copy carries `A2UIVersion.current`.
     public func keeping(_ surfaceIds: some Sequence<String>) -> A2UIRendererDataModel {
         let kept = Set(surfaceIds)
         return A2UIRendererDataModel(surfaces: surfaces.filter { kept.contains($0.key) })
     }
 }
 
-/// A2UI 語彙の `Message.metadata` キーと型付きアクセサ
-/// （公式オーケストレータのメタデータ処理のミラー）。
+/// The `Message.metadata` keys of the A2UI vocabulary, with typed accessors — mirrors how the
+/// official orchestrator reads and writes that metadata.
 public enum A2UIMessageMetadata {
-    /// 公式 `A2UI_CLIENT_CAPABILITIES_KEY`。
+    /// Metadata key for renderer capabilities; the official `A2UI_CLIENT_CAPABILITIES_KEY`.
     public static let rendererCapabilitiesKey = "a2uiRendererCapabilities"
-    /// 公式 `a2uiRendererDataModel` キー。
+    /// Metadata key for the renderer data model; the official `a2uiRendererDataModel` key.
     public static let rendererDataModelKey = "a2uiRendererDataModel"
 
-    /// v1.0: capabilities はバージョンキー配下に入れ子になる
-    /// （`{"a2uiRendererCapabilities": {"v1.0": {"supportedCatalogIds": […]}}}`）。
+    /// Reads renderer capabilities out of message metadata.
+    ///
+    /// In v1.0 capabilities nest under a version key
+    /// (`{"a2uiRendererCapabilities": {"v1.0": {"supportedCatalogIds": […]}}}`). A payload that is
+    /// not nested is decoded as it stands, so senders on either shape are understood.
+    /// `nil` covers both "no capabilities key" and "the key held something undecodable".
     public static func rendererCapabilities(in metadata: A2AMetadata?) -> A2UIRendererCapabilities? {
         guard let envelope = metadata?[rendererCapabilitiesKey] else { return nil }
-        // 現行バージョンのブロックを読む。無ければ入れ子でない旧形として解釈を試みる。
+        // Read the block for the current version; failing that, read the envelope as an
+        // un-nested payload.
         if let versioned = try? envelope[A2UIVersion.current].decode(A2UIRendererCapabilities.self),
            !versioned.supportedCatalogIds.isEmpty || versioned.inlineCatalogs != nil {
             return versioned

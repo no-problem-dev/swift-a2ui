@@ -1,6 +1,8 @@
 import A2UICore
 
-/// 画像をコンテナに合わせるリサイズ方法。CSS の `object-fit` プロパティに相当する。
+/// How an image is resized inside its container, matching the CSS `object-fit` values. The schema
+/// defaults to `fill`, which distorts an image whose aspect ratio differs from the box; `contain`
+/// and `cover` preserve it.
 public enum ImageFit: String, Codable, Sendable, Equatable, CaseIterable {
     case contain
     case cover

@@ -1,20 +1,23 @@
-/// 3 つの JSON スキーマ文字列を公式の A2UI スキーマブロック形式に整形する。
+/// Lays three JSON schema strings out as the official A2UI schema block.
 ///
-/// ブロックは `---BEGIN A2UI JSON SCHEMA---` と `---END A2UI JSON SCHEMA---` で囲み、
-/// 各スキーマはラベル付きの行に配置する — Python SDK の出力と完全に一致する形式。
+/// The block is delimited by `---BEGIN A2UI JSON SCHEMA---` and `---END A2UI JSON SCHEMA---`,
+/// each schema under its own labelled heading — byte for byte the layout the Python SDK emits,
+/// which is what lets a prompt built here be compared against the official one.
 public enum SchemaBlockFormatter {
-    /// スキーマブロックの開始デリミタ。
+    /// The line that opens the schema block; match on it to find the block inside a prompt.
     public static let beginMarker = "---BEGIN A2UI JSON SCHEMA---"
-    /// スキーマブロックの終了デリミタ。
+    /// The line that closes the schema block, paired with `beginMarker` to bound it.
     public static let endMarker = "---END A2UI JSON SCHEMA---"
 
-    /// 3 つのスキーマを公式スキーマブロック形式の文字列に組み立てる。
+    /// Assembles the three schemas into the official schema block.
     ///
     /// - Parameters:
-    ///   - agentToRendererSchema: サーバ → クライアントスキーマの JSON 文字列。
-    ///   - commonTypesSchema: 共通型スキーマの JSON 文字列。
-    ///   - catalogSchema: コンポーネントカタログスキーマの JSON 文字列。
-    /// - Returns: 公式 A2UI スキーマブロック形式の複数行文字列。
+    ///   - agentToRendererSchema: JSON string for the server-to-client schema.
+    ///   - commonTypesSchema: JSON string for the common types schema. An empty string or `{}`
+    ///     drops the section entirely — which is what pruning everything away produces, and
+    ///     what a catalog with no shared types should emit rather than an empty heading.
+    ///   - catalogSchema: JSON string for the component catalog schema.
+    /// - Returns: The multi-line block, delimiters included, ready to append to a prompt.
     public static func format(
         agentToRendererSchema: String,
         commonTypesSchema: String,

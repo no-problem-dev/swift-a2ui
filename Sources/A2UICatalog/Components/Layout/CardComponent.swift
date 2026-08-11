@@ -1,6 +1,10 @@
 import A2UICore
 
-/// カードコンポーネント。単一の子コンポーネントをカードスタイルのコンテナで囲む。
+/// Wraps exactly one child in a card container.
+///
+/// `child` is a single component ID. To put several things in a card, wrap them in a `Column` or
+/// `Row` and pass that container's ID; several IDs, or an ID that does not exist on the surface,
+/// are both invalid.
 public struct CardComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Card"
 

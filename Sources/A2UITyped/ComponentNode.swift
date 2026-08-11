@@ -1,33 +1,38 @@
 import A2UICore
 
-/// カタログの**ノード型**: そのカタログがデコード・描画できるコンポーネントの closed sum。
+/// A catalog's **node type**: the closed sum of components that catalog can decode and render.
 ///
-/// 文字列型の `ComponentModel.type` ディスパッチをタイプセーフに置き換える。
-/// レンダラーは `Node: ComponentNode` なカタログ型パラメータを受け取るため、
-/// 描画可能なコンポーネントの集合はコンパイル時に確定・網羅される。
-/// 一方でコンシューマーが具体的な `Node` を選択・合成できるため拡張にも開かれている。
+/// It replaces stringly-typed `ComponentModel.type` dispatch. A renderer takes the catalog as a type
+/// parameter whose `Node` conforms here, so the set of renderable components is fixed and switched
+/// exhaustively at compile time, yet stays open to extension because the consumer chooses and composes
+/// the concrete `Node`.
 ///
-/// `componentNames` は `CatalogNode` が A2UI の 2 種類の障害モードを分離するためのルーティングメタデータ:
-/// - このカタログが処理**しない** `component` 名 → 仕様の「unknown component」→ グレースフルフォールバック
-/// - 処理**する**が props が不正な名前 → デコード throw → 報告すべきバリデーションエラー
+/// `componentNames` is the routing metadata `CatalogNode` uses to keep A2UI's two failure modes apart:
+/// - a `component` name this catalog does **not** handle → the spec's "unknown component" → graceful
+///   fallback
+/// - a name it **does** handle but with malformed props → a decode throw → a validation error to report
 public protocol ComponentNode: Decodable, Sendable, Equatable {
-    /// このノードがデコードするワイヤー上の `component` ディスクリミネータの集合。
-    /// 各コンポーネントの `componentName` 定数（スキーマ SSOT）から構築され、文字列リテラルは使用しない。
+    /// The wire `component` discriminators this node decodes.
+    ///
+    /// Build it from each component's `componentName` constant — the schema's single source of truth —
+    /// and never from string literals, so a renamed component cannot quietly drop out of routing and
+    /// start arriving as an unknown component.
     static var componentNames: Set<String> { get }
 
-    /// インスタンスの id（フラット id-map のキーおよび子参照のターゲット）。
+    /// The instance id: the key in the flat id map, and what every child reference points at.
     var id: ComponentId { get }
 
-    /// このインスタンスのワイヤー上の `component` ディスクリミネータ。
+    /// The `component` discriminator this instance serializes as; it must be one of `componentNames`.
     var componentName: String { get }
 
-    /// v1.0 `ComponentCommon.catalogId`: このコンポーネントが属するカタログを明示する。
-    /// サーフェス既定の `catalogId` を上書きし、1 枚のサーフェスでカタログを混在させられる。
-    /// 明示しないコンポーネント（大多数）は `nil` を返せばよい。
+    /// The catalog this component declares itself to belong to (v1.0 `ComponentCommon.catalogId`).
+    ///
+    /// It overrides the surface default `catalogId`, which is what lets one surface mix catalogs. The
+    /// majority of components declare nothing and return `nil`.
     var catalogId: String? { get }
 }
 
 extension ComponentNode {
-    /// 既定ではカタログを明示しない — サーフェス既定の `catalogId` に従う。
+    /// Declares no catalog, deferring to the surface default `catalogId`.
     public var catalogId: String? { nil }
 }

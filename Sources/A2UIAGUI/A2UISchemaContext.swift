@@ -3,32 +3,31 @@ import A2UICore
 import AGUICore
 import Foundation
 
-/// クライアントの A2UI 対応宣言(`RunAgentInput.context` エントリ)。
+/// A client's declaration that it can render A2UI (a `RunAgentInput.context` entry).
 ///
-/// capabilities でもツール metadata でもなく、description 完全一致の context
-/// エントリで宣言するのが公式 a2ui-middleware の契約。`value` は
-/// `{catalogId}`(または `{catalogId, components}`)を文字列化した JSON。
+/// The upstream a2ui-middleware contract puts the declaration in a context entry whose
+/// `description` matches exactly — not in capabilities, not in tool metadata. `value` is
+/// `{catalogId}` (or `{catalogId, components}`) serialized as a JSON string.
 ///
-/// **既定は catalogId だけ送る。** A2UI 本体の `supportedCatalogIds` は
-/// 文字列 ID の配列で、コンポーネントのスキーマを送るのは
-/// `inlineCatalogs`(エージェントが `acceptsInlineCatalogs` を出したときだけ
-/// 使える任意の経路)の側。ID が中身を決める鍵なので、中身を変えたら
-/// カタログの版を上げる。
+/// **Send the catalogId alone by default.** A2UI's own `supportedCatalogIds` is an array of
+/// string IDs; shipping component schemas belongs to `inlineCatalogs`, an optional path usable
+/// only when the agent advertises `acceptsInlineCatalogs`. The ID is the key that pins the
+/// contents, so bump the catalog version whenever the contents change.
 public enum A2UISchemaContext {
-    /// クライアント側: 宣言エントリを構築する。
+    /// Client side: builds the declaration entry.
     ///
     /// - Parameters:
-    ///   - catalogId: クライアントが描画できるカタログの ID。
-    ///   - components: カタログのコンポーネントスキーマ(JSON 値)。
-    ///     **省略するのが既定**(ID だけ送る)。サーバーがそのカタログを
-    ///     知らない場合にだけ、中身を添えて送る用途に使う。
-    ///   - marker: この context エントリが宣言であることを示す `description`。
-    ///     **既定は公式 middleware の定数**(バイト一致で判別される)。
+    ///   - catalogId: ID of the catalog the client can render.
+    ///   - components: Component schemas of the catalog (JSON value). **Omitting it is the
+    ///     default** (send the ID alone); attach the contents only when the server does not
+    ///     know that catalog.
+    ///   - marker: The `description` marking this context entry as a declaration.
+    ///     **Defaults to the upstream middleware constant**, discriminated on a byte-exact match.
     ///
-    ///     `context` は汎用の配列なので、宣言かどうかはこの文字列でしか
-    ///     見分けられない。繋ぎ先が自前で、判別に使う値を決められるなら
-    ///     短いものに差し替えてよい — 137 文字を毎 run 送る必要は無い。
-    ///     **送る側と読む側で同じ値を使うこと。**
+    ///     `context` is a general-purpose array, so this string is the only thing that tells a
+    ///     declaration from anything else. If you own the other end and get to choose the value,
+    ///     use a shorter one — there is no need to send 137 characters on every run.
+    ///     **The sender and the reader must use the same value.**
     public static func declaration(
         catalogId: String,
         components: StructuredValue? = nil,
@@ -46,10 +45,10 @@ public enum A2UISchemaContext {
         )
     }
 
-    /// サーバー側: context 一覧から A2UI 宣言を探して catalogId を取り出す。
+    /// Server side: finds the A2UI declaration in a context list and pulls out its catalogId.
     ///
-    /// components の有無は見ない(公式 middleware の `extractFrontendCatalogId` と同じく、
-    /// カタログ ID のフォールバック解決はスキーマの有無と独立)。
+    /// Whether `components` is present is not considered: as in the upstream middleware's
+    /// `extractFrontendCatalogId`, resolving the catalog ID is independent of the schemas.
     public static func declaredCatalogId(
         in context: [AGUIContext],
         marker: String = A2UIAGUIConstants.schemaContextDescription
@@ -63,7 +62,8 @@ public enum A2UISchemaContext {
         return (catalogId?.isEmpty ?? true) ? nil : catalogId
     }
 
-    /// サーバー側: A2UI 宣言エントリそのもの(`marker` と完全一致するもの)。
+    /// Server side: the A2UI declaration entry itself — the first entry whose description is an
+    /// exact match for `marker`.
     public static func declaration(
         in context: [AGUIContext],
         marker: String = A2UIAGUIConstants.schemaContextDescription
@@ -71,19 +71,20 @@ public enum A2UISchemaContext {
         context.first { $0.description == marker }
     }
 
-    /// 解析済みのカタログ宣言(`{catalogId}` または `{catalogId, components}`)。
+    /// A parsed catalog declaration (`{catalogId}` or `{catalogId, components}`).
     public struct Declaration: Sendable, Equatable {
-        /// クライアントが描画できるカタログの ID。
+        /// ID of the catalog the client can render.
         public let catalogId: String
-        /// 宣言された components マップ(コンポーネント名 → JSON Schema)。
-        /// **`nil` が既定** — ID だけの宣言。中身はカタログの版が決める。
+        /// The declared components map (component name → JSON Schema).
+        /// **`nil` is the default** — an ID-only declaration, whose contents the catalog version
+        /// determines.
         public let components: StructuredValue?
 
-        /// 宣言されたコンポーネント名の集合。
+        /// The set of declared component names.
         ///
-        /// **`nil` は「絞り込みの指定なし」**で、空集合(「1 つも描けない」)とは
-        /// 意味が違う。ID だけの宣言では nil になり、受け手は自分が知っている
-        /// そのカタログの全体を使う。
+        /// **`nil` means "no narrowing was requested"**, which is not the same as an empty set
+        /// ("can render nothing"). An ID-only declaration yields `nil`, and the receiver then
+        /// uses every component it knows of that catalog.
         public var componentNames: Set<String>? {
             guard let object = components?.objectValue else {
                 return nil
@@ -97,19 +98,19 @@ public enum A2UISchemaContext {
         }
     }
 
-    /// サーバー側: context 内の**全**宣言を出現順で返す。
+    /// Server side: returns **every** declaration in the context, in order of appearance.
     ///
-    /// クライアントは対応カタログごとに 1 エントリを積み、並び順が優先順位になる
-    /// (A2UI 本体の `supportedCatalogIds` ハンドシェイクの AG-UI 運搬形)。
-    /// サーバーは自分が知っている catalogId を持つ最初の宣言を選ぶ。
-    /// 公式 a2ui-middleware の単一エントリ契約はこの特殊ケース(1 件)。
+    /// A client appends one entry per supported catalog, and that order is the preference order
+    /// (this is the AG-UI transport form of A2UI's own `supportedCatalogIds` handshake). The
+    /// server picks the first declaration whose catalogId it knows. The upstream a2ui-middleware
+    /// single-entry contract is the one-element case of this.
     ///
-    /// **`components` は任意。** 無ければ ID だけの宣言として通す
-    /// (中身はカタログの版が決める)。catalogId が空の宣言だけを
-    /// 「描画能力なし」として除外する。
+    /// **`components` is optional.** Without it the entry still passes, as an ID-only declaration
+    /// whose contents the catalog version determines. Only a declaration with an empty catalogId
+    /// is dropped, as "cannot render anything".
     ///
-    /// `components` が**空オブジェクト**のときも除外する — 「1 つも描けない」を
-    /// 明示した宣言であり、ID だけの宣言(絞り込みの指定なし)とは区別する。
+    /// A `components` that is an **empty object** is dropped too — it states "can render nothing"
+    /// explicitly, which is distinct from an ID-only declaration (no narrowing requested).
     public static func declarations(
         in context: [AGUIContext],
         marker: String = A2UIAGUIConstants.schemaContextDescription
@@ -124,11 +125,11 @@ public enum A2UISchemaContext {
                 return nil
             }
             guard let components = object["components"] else {
-                // ID だけの宣言(既定の形)。
+                // ID-only declaration: the default shape.
                 return Declaration(catalogId: catalogId)
             }
             guard let map = components.objectValue, !map.isEmpty else {
-                // 「1 つも描けない」を明示した宣言は落とす。
+                // Drop a declaration that explicitly says it can render nothing.
                 return nil
             }
             return Declaration(catalogId: catalogId, components: components)
@@ -136,10 +137,10 @@ public enum A2UISchemaContext {
     }
 }
 
-/// エージェント(サーバー側)に注入するレンダリングツールの定義。
+/// Definition of the rendering tool injected into the agent (server side).
 ///
-/// `catalogId` は引数に**含めない** — カタログ選択はホストの権限で、
-/// サブエージェントが未登録カタログを発明できないようにする(公式設計)。
+/// `catalogId` is deliberately **not** a parameter — choosing the catalog is the host's
+/// authority, so a sub-agent cannot invent a catalog that was never registered.
 public enum A2UIRenderTool {
     public static func definition() -> AGUITool {
         AGUITool(

@@ -1,11 +1,11 @@
 import A2UICore
 import A2UICatalog
 
-/// `BasicComponent`（同梱 basic カタログの sum 型）を `ComponentNode` として準拠させる拡張。
+/// Conforms `BasicComponent`, the sum type of the bundled basic catalog, to `ComponentNode`.
 ///
-/// `id` / `componentName` は `BasicComponent` 自体に定義済みのため、ルーティングセットのみ追加する。
-/// ルーティングセットは各コンポーネントの `componentName` 定数（スキーマ SSOT）から構築されるため
-/// 文字列リテラルは存在しない。`GeneratedSchemaEquivalence` が public カタログの完全性を CI で担保する。
+/// `id` and `componentName` already live on `BasicComponent`, so only the routing set is added here. It
+/// is built from each component's `componentName` constant (the schema's source of truth), which is why
+/// no string literal appears below; `GeneratedSchemaEquivalence` keeps the set complete in CI.
 extension BasicComponent: ComponentNode {
     public static let componentNames: Set<String> = [
         TextComponent.componentName,
@@ -29,24 +29,25 @@ extension BasicComponent: ComponentNode {
     ]
 }
 
-/// swift-a2ui に同梱される basic カタログのコンパイル時 `A2UICatalog` 実装。
+/// The compile-time `A2UICatalog` for the basic catalog bundled with swift-a2ui.
 ///
-/// 独自コンポーネントとの合成例: `CombinedNode<MyNode, BasicComponent>`。
+/// Use it as-is to render only standard components; to add your own, compose the node types instead:
+/// `CombinedNode<MyNode, BasicComponent>`.
 public enum BasicCatalog: A2UICatalog {
     public typealias Node = BasicComponent
     public static let catalogId = BasicComponentCatalog.catalogId
 }
 
-/// Basic カタログを直接（`BasicComponent`）または合成（`CombinedNode<MyNode, BasicComponent>`）で
-/// 埋め込むノード sum 型が準拠するプロトコル。
+/// A node sum type that embeds the basic catalog, either directly or through composition.
 ///
-/// 汎用 basic レンダラーが `ComponentNode` が提供しない 2 つのプロジェクションを必要とするため定義する:
-/// 子コンポーネント種別の判定（chip 行など）のための embedded basic コンポーネントと、
-/// レイアウト weight（flex-grow に相当）。
+/// Conformers are `BasicComponent` itself and `CombinedNode<MyNode, BasicComponent>`. The general-purpose
+/// basic renderer needs two projections `ComponentNode` does not offer: the embedded basic component, so
+/// it can tell what kind a child is (a row of chips, say), and the layout weight.
 public protocol BasicEmbeddingNode: ComponentNode {
-    /// 内部の `BasicComponent`（non-basic ノードは nil を返す）。
+    /// The `BasicComponent` inside, or `nil` for a consumer-defined node that wraps none.
     var basicComponent: BasicComponent? { get }
-    /// レイアウトの weight（flex-grow に相当）。
+    /// The layout weight, the equivalent of `flex-grow`; `nil` when the component declares none, which
+    /// is what lets a row of same-kind children fall back to chip scrolling instead of flex layout.
     var layoutWeight: Double? { get }
 }
 

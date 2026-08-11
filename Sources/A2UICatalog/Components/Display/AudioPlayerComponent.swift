@@ -1,6 +1,10 @@
 import A2UICore
 
-/// 音声再生コンポーネント。指定した URL の音声を再生するプレーヤーを表示する。
+/// Shows a player for the audio at `url`.
+///
+/// The accompanying description is a title or summary for the track; it is `componentDescription`
+/// in Swift but encodes as `description` on the wire. Both fields are `DynamicString`s, so a list
+/// of tracks can bind them per item.
 public struct AudioPlayerComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "AudioPlayer"
 

@@ -1,31 +1,31 @@
 import A2UICore
 
-/// コンポーネント／関数呼び出しをどのカタログで解釈するかの決定（A2UI v1.0 §Processing rules）。
+/// Which catalog interprets a component or function call (A2UI v1.0 §Processing rules).
 ///
-/// v1.0 で 1 枚のサーフェスに複数カタログを混在させられるようになり、解決順序が明文化された:
+/// v1.0 allows several catalogs on one surface, so the resolution order is spelled out:
 ///
-/// 1. コンポーネント（または関数呼び出し）自身の `catalogId`
-/// 2. 無ければサーフェス既定の `catalogId`（`createSurface` が持つもの）
-/// 3. どちらも無ければ**エラー**。そのコンポーネントは描画しない（関数呼び出しは失敗させる）
+/// 1. The `catalogId` on the component (or function call) itself.
+/// 2. Failing that, the surface default `catalogId` carried by `createSurface`.
+/// 3. With neither, it is an **error**: do not render the component (fail the function call).
 ///
-/// capabilities で宣言したカタログへのフォールバックは**しない** — 仕様が明示的に禁じている。
+/// There is **no** fallback to a catalog declared in capabilities — the spec forbids it outright.
 public enum CatalogResolution: Sendable, Equatable {
-    /// 解決できた。`catalogId` がこのコンポーネント／呼び出しを解釈するカタログ。
+    /// The catalog that interprets this component or call was determined.
     case resolved(catalogId: String)
-    /// コンポーネントにも surface にも `catalogId` が無い。描画してはならない。
+    /// Neither the component nor the surface names a catalog; the component must not be rendered.
     case unresolved
 
-    /// 解決済みのカタログ ID（未解決なら `nil`）。
+    /// The resolved catalog id, or `nil` when unresolved — treat `nil` as "drop it", never as "guess".
     public var catalogId: String? {
         if case .resolved(let id) = self { return id }
         return nil
     }
 
-    /// v1.0 の解決順序を適用する。
+    /// Applies the v1.0 resolution order. An empty string counts as absent, not as a catalog named "".
     ///
     /// - Parameters:
-    ///   - declared: コンポーネント／関数呼び出しが明示した `catalogId`。
-    ///   - surfaceDefault: `createSurface` が定めたサーフェス既定の `catalogId`。
+    ///   - declared: The `catalogId` the component or function call states for itself.
+    ///   - surfaceDefault: The surface-wide `catalogId` established by `createSurface`.
     public static func resolve(
         declared: String?,
         surfaceDefault: String?
@@ -35,10 +35,10 @@ public enum CatalogResolution: Sendable, Equatable {
         return .unresolved
     }
 
-    /// レンダラーが対応しているカタログの範囲まで含めて解決する。
+    /// Resolves, then narrows the result to the catalogs this renderer actually supports.
     ///
-    /// 解決した ID が `supported` に無い場合も `unresolved` を返す — 知らないカタログの
-    /// コンポーネントは描画できない。`supported` が空なら対応集合の検査は行わない。
+    /// An id that resolves but is missing from `supported` also comes back `unresolved` — a component
+    /// from an unknown catalog cannot be drawn. An empty `supported` skips the support check entirely.
     public static func resolve(
         declared: String?,
         surfaceDefault: String?,
@@ -52,16 +52,17 @@ public enum CatalogResolution: Sendable, Equatable {
 }
 
 extension CatalogNode {
-    /// このノードのカタログを v1.0 の順序で解決する（→ `CatalogResolution`）。
+    /// Resolves this node's catalog in the v1.0 order: its own `catalogId` first, then `surfaceDefault`.
     public func resolveCatalog(surfaceDefault: String?) -> CatalogResolution {
         CatalogResolution.resolve(declared: declaredCatalogId, surfaceDefault: surfaceDefault)
     }
 }
 
 extension FunctionCall {
-    /// この関数呼び出しのカタログを v1.0 の順序で解決する。
+    /// Resolves this call's catalog in the v1.0 order.
     ///
-    /// 組み込みのシステム関数（`@index` など）はカタログに属さないため、常に解決済みとして扱う。
+    /// Built-in system functions such as `@index` belong to no catalog, so they always come back
+    /// resolved (with an empty id) and are never rejected for lack of a surface default.
     public func resolveCatalog(surfaceDefault: String?) -> CatalogResolution {
         if isSystemFunction { return .resolved(catalogId: "") }
         return CatalogResolution.resolve(declared: catalogId, surfaceDefault: surfaceDefault)

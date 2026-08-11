@@ -1,6 +1,10 @@
 import A2UICore
 
-/// アイコンコンポーネント。`name` で指定したアイコンを表示する。
+/// Displays the single icon named by `name`.
+///
+/// `name` is more than a preset string: `IconNameValue` also accepts a custom SVG path or a data
+/// binding, which is how a surface swaps `play` for `pause` from the data model. There is no size
+/// or color property — the renderer decides both from context.
 public struct IconComponent: A2UIComponentProtocol, Codable, Sendable, Equatable {
     public static let componentName = "Icon"
 

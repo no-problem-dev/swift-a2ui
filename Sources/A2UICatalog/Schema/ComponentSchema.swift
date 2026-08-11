@@ -1,22 +1,26 @@
 import StructuredDataCore
 import A2UICore
 
-/// 1 つのコンポーネントの仕様をタイプセーフに記述する型。LLM 向けスキーマを生成するために使用する。
-/// 手書きの `catalog.json` の代わりに Swift 型が唯一の真実の源となる。
+/// A type-safe description of one component, from which the model-facing schema is generated
+/// instead of being maintained by hand in a `catalog.json`.
 ///
-/// `SchemaRenderer` が `[ComponentSchema]` を公式 A2UI カタログ JSON-Schema ドキュメントに変換する
-/// （`catalogs/basic/catalog.json` と意味的に等価）。
+/// `SchemaRenderer` turns a `[ComponentSchema]` into the A2UI catalog JSON-Schema document,
+/// semantically equivalent to `catalogs/basic/catalog.json`.
 public struct ComponentSchema: Sendable, Equatable {
-    /// コンポーネント名（`component` ディスクリミネータ const、例: "Text"）。
+    /// Emitted as the `component` discriminator `const` (for example `"Text"`), and required by the
+    /// spec to be a valid UAX #31 identifier.
     public let name: String
-    /// 機能カテゴリ（Display / Layout / Input）。設定 UI・ドキュメント・カタログブラウザ向けのメタデータ。
-    /// LLM 向けスキーマには出力されない（公式 catalog.json にカテゴリフィールドは存在しない）。
+    /// Display / layout / input grouping, for settings UI, documentation, and catalog browsers.
+    /// It never reaches the model: the official `catalog.json` has no category field.
     public let category: ComponentCategory
-    /// スキーマに出力される説明文（LLM 向け）。
+    /// Prose emitted into the schema — what the model reads to decide when to use the component.
+    /// It is written for the model, not for a Swift caller.
     public let description: String?
-    /// 宣言されたプロパティ（`component`/`id`/`weight` などの共有フィールドは除く）。
+    /// Properties this component declares on its own. The renderer adds the shared `component`,
+    /// `id`, and `weight` fields, so repeating them here would duplicate them.
     public let properties: [PropertySchema]
-    /// このコンポーネントが参加する共有ミックスイン（例: 入力/Button の `.checkable`）。
+    /// Shared fragments this component joins through `allOf` — every input component and `Button`
+    /// take `.checkable`.
     public let mixins: [SchemaMixin]
 
     public init(
@@ -33,33 +37,37 @@ public struct ComponentSchema: Sendable, Equatable {
         self.mixins = mixins
     }
 
-    /// 必須プロパティ名の一覧。`component` は常に含まれる。
+    /// Names for the schema's `required` array. `component` always leads it; the rest follow the
+    /// declaration order of `properties`, which the fidelity tests pin to the official catalog.
     public var requiredPropertyNames: [String] {
         ["component"] + properties.filter(\.isRequired).map(\.name)
     }
 }
 
-/// Basic カタログコンポーネントの機能カテゴリ（公式のコンポーネント構成に準拠）。
-/// `CaseIterable` の宣言順がカノニカルな表示順。
+/// Functional grouping of the basic catalog's components, following how the official catalog is
+/// organized. The `CaseIterable` declaration order is the canonical order to present them in.
 public enum ComponentCategory: String, Sendable, Equatable, CaseIterable {
     case display
     case layout
     case input
 }
 
-/// 公式カタログで `allOf` を通じて参照される共有スキーマフラグメント。
+/// Shared schema fragments the official catalog pulls into a component through `allOf`.
 public enum SchemaMixin: String, Sendable, Equatable, CaseIterable {
-    /// `common_types.json#/$defs/Checkable`。バリデーション/無効化用の `checks` 配列を追加する。
+    /// Adds the `checks` array of `common_types.json#/$defs/Checkable` — the validation rules a
+    /// renderer evaluates, each carrying its own failure message.
     case checkable
 }
 
-/// コンポーネントスキーマの 1 プロパティ。
+/// One property of a component schema: its name, its type, whether it is required, and the prose
+/// the model reads.
 public struct PropertySchema: Sendable, Equatable {
     public let name: String
     public let type: PropertyType
     public let isRequired: Bool
     public let description: String?
-    /// スキーマの `default` として出力するオプションのデフォルト値（例: enum のデフォルト "body"）。
+    /// Emitted as the schema's `default` (for example `"body"` for `Text.variant`), telling the
+    /// model what it gets when it leaves the property out.
     public let defaultValue: StructuredValue?
 
     public init(
@@ -86,34 +94,38 @@ public struct PropertySchema: Sendable, Equatable {
     }
 }
 
-/// コンポーネントプロパティの型。common-types の `$ref`、インラインスカラー、列挙型など、
-/// A2UI Basic カタログが使用するプロパティの種類を閉じた集合として表現する。
+/// The closed set of property shapes the A2UI basic catalog uses.
+///
+/// `$ref`s into common-types, inline scalars, enumerations, and — where the official schema is
+/// irregular — a verbatim fragment.
 public enum PropertyType: Sendable, Equatable {
-    // バインド可能な動的値型 — common_types.json の $ref としてレンダリングされる。
+    // Bindable dynamic values, rendered as $refs into common_types.json: the model may supply a
+    // literal, a data binding, or a function call for any of these.
     case dynamicString
     case dynamicNumber
     case dynamicBoolean
     case dynamicStringList
     case dynamicValue
-    // 構造的参照。
+    // Structural references.
     case componentId      // common_types.json#/$defs/ComponentId
     case child            // common_types.json#/$defs/Child (v1.0: a single child reference)
     case childList        // common_types.json#/$defs/ChildList
     case action           // common_types.json#/$defs/Action
-    // インラインスカラー。
+    // Inline scalars.
     case string
     case number
     case integer
     case boolean
-    /// 許可されたケース文字列を持つインライン string enum。
+    /// Inline string enum; the listed cases are the only values the model may emit here.
     case enumeration([String])
-    /// プロパティ型の配列（例: tabs の オブジェクト配列）。
+    /// An array of another property type, such as the array of objects behind `Tabs.tabs`.
     indirect case array(PropertyType)
-    /// 名前付きサブプロパティを持つインラインオブジェクト（例: タブエントリ { title, child }）。
+    /// An inline object with named sub-properties, such as a tab entry `{ title, child }`.
     case object([PropertySchema])
-    /// 上記の閉じた種類に収まらない非定型プロパティ向けの生 JSON-Schema フラグメント
-    /// （例: Icon の `oneOf`、DateTimeInput の `allOf`+`if/then`）。
-    /// フラグメントはそのまま出力されるため、`description` を含めなければならない
-    /// （`renderProperty` は追加しない）。
+    /// A JSON-Schema fragment for properties the cases above cannot express.
+    ///
+    /// The basic catalog needs it twice: `Icon.name`'s `oneOf`, and `DateTimeInput.min`/`max`'s
+    /// `allOf` + `if`/`then`. The fragment is emitted exactly as written, so it must carry its own
+    /// `description` — `renderProperty` will not add one, and drops the `PropertySchema`'s.
     case raw(StructuredValue)
 }

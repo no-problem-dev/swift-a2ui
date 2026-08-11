@@ -1,38 +1,42 @@
-/// エージェント起動の関数呼び出しに対する実行境界の検証（A2UI v1.0 §Processing rules）。
+/// Decides whether an agent is allowed to invoke a given function (A2UI v1.0 §Processing rules).
 ///
-/// v1.0 は `callableFrom` / `returnType` をワイヤーから外し、**実行時にカタログを引いて**検証する
-/// 方式にした。レンダラは `callFunction` を受け取ったら:
+/// Permission is not on the wire, so the renderer has to establish it itself. On receiving a
+/// `callFunction` it:
 ///
-/// 1. 関数名をアクティブなカタログのレジストリで引く
-/// 2. `callableFrom` が `rendererOnly`、または**未登録**なら、呼び出しを拒否して
-///    `error { code: "INVALID_FUNCTION_CALL" }` を返す
+/// 1. looks the function name up in the active catalog's registry
+/// 2. rejects the call with `error { code: "INVALID_FUNCTION_CALL" }` when `callableFrom` is
+///    `rendererOnly` or when the name is not registered at all
 ///
-/// `callableFrom` が省略されているカタログ関数は `rendererOnly` 既定。
+/// A catalog function that omits `callableFrom` is `rendererOnly` by default, so forgetting to
+/// declare it means agents cannot call it.
 public enum FunctionBoundary {
 
-    /// 仕様が定めるエラーコード。
+    /// The code the specification requires on a rejection; agents match on it.
     public static let invalidFunctionCallCode = "INVALID_FUNCTION_CALL"
 
-    /// エージェントからの呼び出しを受理してよいか判定する。
+    /// Returns whether a call arriving from the agent may run.
     ///
     /// - Parameters:
-    ///   - name: 呼び出された関数名。
-    ///   - callableFrom: カタログの `FunctionDefinition.callableFrom`。未登録なら `nil` を渡す。
-    ///     省略されている登録済み関数には `.rendererOnly`（既定）を渡す。
+    ///   - name: The function that was called.
+    ///   - callableFrom: The catalog's `FunctionDefinition.callableFrom`. Pass `nil` when the name
+    ///     is not registered, and `.rendererOnly` — the default — for a registered function that
+    ///     omits it.
     public static func acceptsAgentCall(name: String, callableFrom: CallableFrom?) -> Bool {
         switch callableFrom {
         case .agentOnly, .rendererOrAgent: true
-        // rendererOnly、または未登録（nil）は拒否する。
+        // rendererOnly, and an unregistered name (nil), are both refused.
         case .rendererOnly, nil: false
         }
     }
 
-    /// 拒否時に返す `error` メッセージを組み立てる。
+    /// Builds the `error` to send back for a refused call.
     ///
     /// - Parameters:
-    ///   - functionCallId: 拒否する `callFunction` の ID（相関のため必ず載せる）。
-    ///   - name: 呼び出された関数名。
-    ///   - registered: カタログに登録されていたか（メッセージの文言が変わる）。
+    ///   - functionCallId: Id of the `callFunction` being refused; always carry it, or the agent
+    ///     cannot tell which call failed.
+    ///   - name: The function that was called.
+    ///   - registered: Whether the catalog knows the name — it changes the wording so the agent can
+    ///     tell a typo from a permission problem.
     public static func rejection(
         functionCallId: CallId,
         name: String,
@@ -48,7 +52,8 @@ public enum FunctionBoundary {
         )
     }
 
-    /// 呼び出しを検証し、拒否すべきなら返すべき `error` を返す。受理できるなら `nil`。
+    /// Checks a call and returns the `error` to send back, or `nil` when it may run — the one entry
+    /// point a renderer needs before dispatching a `callFunction`.
     public static func validateAgentCall(
         _ message: CallFunctionMessage,
         callableFrom: CallableFrom?

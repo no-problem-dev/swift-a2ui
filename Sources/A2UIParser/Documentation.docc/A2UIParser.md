@@ -1,29 +1,47 @@
 # ``A2UIParser``
 
-LLM のストリーミングレスポンスから A2UI JSON ブロックをリアルタイムに抽出するパーサーモジュール。
+Recovers A2UI messages from the text an LLM actually produced, including the malformed shapes.
+
+> **Unofficial.** Not affiliated with or endorsed by the authors of the A2UI protocol. Conforming to the specification is not a goal of this project.
 
 ## Overview
 
-`A2UIParser` は LLM が生成するテキストストリームを受け取り、その中に埋め込まれた A2UI JSON ペイロードをリアルタイムで検出・デコードする。LLM はプレーンテキストと JSON を混在させて出力することがあるため、このモジュールがストリームを監視して A2UI メッセージ部分だけを取り出す。
+A model asked for A2UI JSON does not reliably return only A2UI JSON. It wraps the payload in a
+code fence, adds `// comments`, leaves a trailing comma, types smart quotes, writes LaTeX with
+single backslashes, or ignores the tool contract and puts the JSON in its chat text. This module
+is where those shapes are absorbed, so that a disobeyed instruction does not become raw JSON on
+the user's screen.
 
-`A2UIStreamingParser` はチャンクごとにテキストを受け取るステートフルなパーサー。各チャンクを渡すと `A2UIResponsePart` の配列として「テキスト断片」または「解析済み A2UI メッセージ」が返る。`A2UIBlockParser` は完結した文字列から A2UI ブロック全体をパースするステートレスな関数集合。
+There are two temperaments here, and choosing between them is the main decision a caller makes.
+``A2UIBlockParser``, ``A2UIStreamingParser`` and ``A2UITextSalvage`` are lenient: they keep
+whatever decodes and silently discard whatever does not, because a half-rendered surface beats no
+surface. ``A2UIPayloadFixer`` is strict: when the payload arrives as a tool argument the model is
+still in the loop, so a payload that will not decode throws and the error goes back as a tool
+error for the model to correct.
 
-`JSONSanitizer` は LLM が生成する不完全な JSON（末尾カンマ・コメント・エスケープ崩れなど）を修復し、パース成功率を高める。`A2UIPayloadFixer` は意味レベルの補正（欠落フィールドのデフォルト補完など）を担う。
+``JSONSanitizer`` performs the repairs common to both — smart quotes, fences, comments, trailing
+commas. Only comment stripping is string-aware; the other steps rewrite the whole document,
+string values included. ``A2UIPayloadFixer`` adds one more repair on top, doubling backslashes
+that do not begin a valid JSON escape, which is what makes LaTeX-heavy content decode.
+
+``A2UIStreamingParser`` is the incremental front end: feed it chunks and it emits each
+`<a2ui-json>` block as soon as the closing tag arrives. It withholds text until a block completes,
+so `finalize()` is mandatory — a response with no block at all yields nothing until it is called.
 
 ```swift
 import A2UIParser
 
 let parser = A2UIStreamingParser()
 
-// LLM からチャンクが届くたびに呼び出す
+// Call as each chunk arrives from the LLM
 for chunk in llmChunks {
     let parts = parser.feed(chunk)
     for part in parts {
         if let text = part.text {
-            print("テキスト:", text)
+            print("text:", text)
         }
         if let messages = part.messages {
-            print("A2UI メッセージ:", messages)
+            print("A2UI messages:", messages)
         }
     }
 }
@@ -32,16 +50,17 @@ let finalParts = parser.finalize()
 
 ## Topics
 
-### ストリーミングパーサー
+### Streaming
 
 - ``A2UIStreamingParser``
 - ``A2UIResponsePart``
 
-### ブロックパーサー
+### Whole-response parsing
 
 - ``A2UIBlockParser``
 
-### JSON 修復
+### Repairing malformed output
 
 - ``JSONSanitizer``
 - ``A2UIPayloadFixer``
+- ``A2UITextSalvage``
