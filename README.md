@@ -266,7 +266,7 @@ let metadata = try ownership.outboundMetadata(
 Add to your `Package.swift` `dependencies`:
 
 ```swift
-.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", from: "0.12.5"),
+.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", .upToNextMinor(from: "0.25.0")),
 ```
 
 List the modules you need in your target's `dependencies`:
