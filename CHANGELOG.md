@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-08-11
+
 ### Removed
 
 - **BREAKING** — `FunctionSchema` types `returnType` and `callableFrom` as their enums instead of
