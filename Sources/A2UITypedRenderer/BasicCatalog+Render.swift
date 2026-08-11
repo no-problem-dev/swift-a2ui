@@ -1,6 +1,7 @@
 import SwiftUI
 import DesignSystem
 import SwiftMarkdownView
+import SwiftMarkdownViewDesignSystem
 import A2UICore
 import A2UICatalog
 import A2UIRuntime
@@ -114,7 +115,16 @@ public struct BasicComponentView<Catalog: RenderableCatalog>: View where Catalog
     private func textView(_ c: TextComponent, in ctx: RenderContext<Catalog>) -> some View {
         let text = ctx.resolve(c.text)
         if shouldRenderMarkdown(text, variant: c.variant) {
-            MarkdownView(text).frame(maxWidth: .infinity, alignment: .leading)
+            // MarkdownView draws through TextKit, so it does not inherit `.foregroundStyle`
+            // the way the two branches below do — it reads its colors from the Markdown
+            // environment. Without this the body fell back to `DefaultMarkdownPalette`, whose
+            // `.primary` resolves against the *system* appearance rather than the A2UI theme:
+            // a light surface under a dark-appearance host rendered white text on white.
+            // Since A2UI v1.0 routes every heading and emphasis through markdown, that is the
+            // common path, not an edge case.
+            MarkdownView(text)
+                .markdownPalette(DesignSystemMarkdownPalette(ctx.colors))
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else if BasicCatalog.containsMathDelimiters(text) {
             // Heading/caption variants keep their typography, so math inside
             // them is typeset inline at the variant's size instead of routing

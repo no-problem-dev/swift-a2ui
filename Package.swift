@@ -71,6 +71,9 @@ let package = Package(
             "A2UICore", "A2UICatalog", "A2UISurface", "A2UIRuntime", "A2UITyped",
             .product(name: "DesignSystem", package: "swift-design-system"),
             .product(name: "SwiftMarkdownView", package: "swift-markdown-view"),
+            // Reads the design-system palette as Markdown colors. Without it MarkdownView
+            // falls back to system semantic colors and ignores the A2UI theme entirely.
+            .product(name: "SwiftMarkdownViewDesignSystem", package: "swift-markdown-view"),
         ]),
         // Tool-call generation pattern. Depends on the LLM tool layer the same way the Python
         // SDK's a2ui.adk depends on google-adk. UI-free — tests run on the CLI.
