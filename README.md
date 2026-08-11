@@ -78,7 +78,7 @@ including how to compose a catalog of your own components.
 Add the package to your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", .upToNextMinor(from: "0.27.0")),
+.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", .upToNextMinor(from: "0.28.0")),
 ```
 
 Each module ships as its own library, so depend only on what you use — `A2UICore` for the

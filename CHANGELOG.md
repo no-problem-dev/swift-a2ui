@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-08-11
+
 ### Changed
 
 - **BREAKING** — raised the swift-design-system pin to 4.1.0 and swift-markdown-view to 7.0.0.
