@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** — raised the swift-design-system pin to 4.1.0 and swift-markdown-view to 7.0.0.
+  Both are public dependencies here, so their majors become this one's.
+
+
 ## [0.27.0] - 2026-08-11
 
 ### Removed

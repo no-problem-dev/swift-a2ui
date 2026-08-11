@@ -45,8 +45,8 @@ let package = Package(
         .package(url: "https://github.com/no-problem-dev/swift-a2a.git", .upToNextMinor(from: "0.8.0")),
         .package(url: "https://github.com/no-problem-dev/swift-agui.git", .upToNextMinor(from: "0.2.0")),
         // Uses mediaViewable, the SurfaceStyle environment, Glass Card, and the motion tokens.
-        .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "3.0.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "6.0.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "4.1.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "7.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "5.0.0"),
     ],
     targets: [
