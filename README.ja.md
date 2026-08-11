@@ -76,7 +76,7 @@ let tools = A2UIPresenterAgent.tools(
 `Package.swift` に追加する。
 
 ```swift
-.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", .upToNextMinor(from: "0.25.0")),
+.package(url: "https://github.com/no-problem-dev/swift-a2ui.git", .upToNextMinor(from: "0.26.0")),
 ```
 
 モジュールごとに library を分けてあるので、使うものだけに依存すればよい。

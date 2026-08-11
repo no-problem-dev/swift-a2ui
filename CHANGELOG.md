@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-08-11
+
 ### Changed
 
 - Raised the swift-llm-client pin to 4.0.0 and the swift-structured-data pin to 3.0.0. Neither
