@@ -47,7 +47,7 @@ let package = Package(
         // Uses mediaViewable, the SurfaceStyle environment, Glass Card, and the motion tokens.
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "3.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-markdown-view.git", from: "6.0.0"),
-        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "4.0.0"),
+        .package(url: "https://github.com/no-problem-dev/swift-llm-client.git", from: "5.0.0"),
     ],
     targets: [
         .target(name: "A2UICore", dependencies: [
