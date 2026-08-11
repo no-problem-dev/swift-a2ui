@@ -330,3 +330,57 @@ struct A2UIPromptBuilderBundledTests {
         }
     }
 }
+
+/// The prompt and the tool that validates the model's answer read the same allowlists, so what the
+/// prompt advertises has to be exactly what the tool accepts. These pin that invariant against the
+/// ways it used to break silently — with the build green and the tests green either way.
+@Suite("Prompt and enforcement cannot drift apart")
+struct PromptEnforcementAgreementTests {
+
+    /// The bundled `agent_to_renderer.json` is what tells the model the protocol has any messages
+    /// at all. A missing resource used to make `loadBundledResource` answer `"{}"`, which reads to
+    /// the model as a protocol with nothing in it — and nothing in the build or the suite noticed.
+    @Test("the bundled protocol schema really is in the bundle")
+    func bundledSchemasAreNotEmpty() {
+        let s2c = A2UIPromptBuilder.bundledAgentToRendererJSON()
+        #expect(s2c != "{}")
+        for message in A2UIExample.presenterMessageNames {
+            #expect(s2c.contains(message), "agent_to_renderer.json does not mention \(message)")
+        }
+        #expect(A2UIPromptBuilder.bundledCommonTypesJSON() != "{}")
+    }
+
+    /// One schema that will not parse must not disarm the allowlist on the others. The catalog
+    /// allowlist is the one with teeth — `SendA2UIToClientTool` rejects any component outside it —
+    /// so a broken common-types schema used to produce a prompt offering the whole catalog while
+    /// the tool still refused everything but the nine presenter components.
+    @Test("an unparseable common-types schema does not un-prune the catalog")
+    func brokenCommonTypesKeepsCatalogPruned() {
+        let builder = A2UIPromptBuilder(
+            agentToRendererSchema: nil,
+            commonTypesSchema: "{ this is not json",
+            catalogSchema: nil,
+            allowedComponents: ["Text"],
+            allowedMessages: A2UIExample.presenterMessageNames
+        )
+        let block = builder.schemaBlock()
+        #expect(block.contains("\"Text\""))
+        for refused in ["ChoicePicker", "Slider", "DateTimeInput", "Tabs"] {
+            #expect(!block.contains("\"\(refused)\""), "prompt still advertises \(refused), which the tool refuses")
+        }
+    }
+
+    /// The mirror image: a broken catalog must not un-prune the message list.
+    @Test("an unparseable catalog schema does not un-prune the message list")
+    func brokenCatalogKeepsMessagesPruned() {
+        let builder = A2UIPromptBuilder(
+            agentToRendererSchema: nil,
+            commonTypesSchema: nil,
+            catalogSchema: "{ this is not json",
+            allowedMessages: ["CreateSurfaceMessage"]
+        )
+        let block = builder.schemaBlock()
+        #expect(block.contains("CreateSurfaceMessage"))
+        #expect(!block.contains("DeleteSurfaceMessage"))
+    }
+}

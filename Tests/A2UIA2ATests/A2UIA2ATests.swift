@@ -216,6 +216,15 @@ struct A2UIMessageMetadataTests {
         #expect(stripped.surfaces["owned"] == dataModel.surfaces["owned"])
     }
 
+    /// Stripping selects surfaces. It is not a place to decide what protocol version the sender
+    /// was speaking, and restamping a foreign version as the current one destroys the only
+    /// evidence of an incompatibility — the receiver then reads a v0.9 payload as v1.0 and the
+    /// mismatch surfaces later as an unexplained decode failure.
+    @Test func keepingPreservesAForeignVersion() {
+        let dataModel = A2UIRendererDataModel(surfaces: ["owned": .object(["a": .int(1)])], version: "v0.9")
+        #expect(dataModel.keeping(["owned"]).version == "v0.9")
+    }
+
     @Test func absentMetadataReadsAsNil() {
         #expect(A2UIMessageMetadata.rendererCapabilities(in: nil) == nil)
         #expect(A2UIMessageMetadata.rendererDataModel(in: [:]) == nil)

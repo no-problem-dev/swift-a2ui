@@ -34,10 +34,18 @@ public struct A2UIRendererDataModel: Codable, Sendable, Equatable {
     /// Returns a copy holding only the named surfaces — the primitive that stripping is built on.
     ///
     /// Which agent may see which surface is the caller's knowledge, not this type's. Unknown IDs
-    /// are ignored, so the result can be empty. The copy carries `A2UIVersion.current`.
+    /// are ignored, so the result can be empty.
+    ///
+    /// The copy keeps the version it was given. Selecting surfaces says nothing about which
+    /// protocol the sender was speaking, and restamping a foreign version as the current one
+    /// erases the only evidence of a real incompatibility: the receiver then reads a v0.9 payload
+    /// as v1.0, and the mismatch resurfaces later as an unexplained decode failure.
     public func keeping(_ surfaceIds: some Sequence<String>) -> A2UIRendererDataModel {
         let kept = Set(surfaceIds)
-        return A2UIRendererDataModel(surfaces: surfaces.filter { kept.contains($0.key) })
+        return A2UIRendererDataModel(
+            surfaces: surfaces.filter { kept.contains($0.key) },
+            version: version
+        )
     }
 }
 

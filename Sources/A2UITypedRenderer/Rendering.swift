@@ -3,6 +3,7 @@ import SwiftUI
 import DesignSystem
 import A2UICore
 import A2UIRuntime
+import A2UISurface
 import A2UITyped
 
 /// A catalog that also knows how to draw its own `Node` into SwiftUI.
@@ -199,15 +200,33 @@ public struct RenderContext<Catalog: RenderableCatalog> {
     }
 
     /// Resolves a `DynamicStringList` — a ChoicePicker's selection — to the current `[String]`.
-    /// Non-string entries in the bound array are skipped, and a `functionCall` list resolves empty.
+    ///
+    /// Non-string entries are skipped. A `functionCall` is evaluated like any other dynamic value:
+    /// an array yields its string entries and a single value yields a one-element list, which is
+    /// the shape a mutually-exclusive picker binds to. It used to return `[]` outright, so a
+    /// function-backed picker showed nothing selected however the function answered.
     public func resolveStringList(_ value: DynamicStringList) -> [String] {
         if case .literal = value {} else { trackData() }
         switch value {
         case .literal(let list): return list
         case .binding(let b):
-            guard case .array(let arr)? = surface.dataModel.get(b.path, scope: scope) else { return [] }
-            return arr.compactMap { if case .string(let s) = $0 { return s } else { return nil } }
-        case .functionCall: return []
+            return stringList(surface.dataModel.get(b.path, scope: scope))
+        case .functionCall(let call):
+            return stringList(dataContext.resolve(DynamicValue.functionCall(call)))
+        }
+    }
+
+    /// The strings in a resolved value: an array contributes its string entries, and any other
+    /// non-empty value is coerced to a single entry.
+    private func stringList(_ value: StructuredValue?) -> [String] {
+        switch value {
+        case .array(let entries):
+            return entries.compactMap { if case .string(let s) = $0 { return s } else { return nil } }
+        case .none, .null:
+            return []
+        case .some(let single):
+            let text = A2UISurface.TypeCoercion.toString(single)
+            return text.isEmpty ? [] : [text]
         }
     }
 
@@ -278,7 +297,7 @@ public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
         } else {
             HStack(spacing: spacing.sm) {
                 ProgressView().controlSize(.small)
-                Text("UI を生成中…").foregroundStyle(colors.onSurfaceVariant)
+                Text(RendererStrings.generatingUI()).foregroundStyle(colors.onSurfaceVariant)
             }
         }
     }
@@ -286,7 +305,7 @@ public struct A2UISurfaceView<Catalog: RenderableCatalog>: View {
     private var busyPill: some View {
         HStack(spacing: spacing.xs) {
             ProgressView().controlSize(.small)
-            Text("実行中").typography(.labelSmall).foregroundStyle(colors.onSurface)
+            Text(RendererStrings.busy()).typography(.labelSmall).foregroundStyle(colors.onSurface)
         }
         .padding(.horizontal, spacing.sm)
         .padding(.vertical, spacing.xxs)

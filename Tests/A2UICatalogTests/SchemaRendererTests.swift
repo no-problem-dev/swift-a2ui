@@ -111,7 +111,7 @@ struct SchemaRendererCatalogTests {
             title: "Test",
             description: "desc",
             components: [ComponentSchema(name: "Text", category: .display, properties: [.required("text", .dynamicString)])],
-            functions: [FunctionSchema(name: "required", description: "Checks presence.", arguments: [.required("value", .dynamicValue, "The value to check.")], returnType: "boolean")]
+            functions: [FunctionSchema(name: "required", description: "Checks presence.", arguments: [.required("value", .dynamicValue, "The value to check.")], returnType: .boolean)]
         )
         let json = (try! JSONSerialization.jsonObject(with: doc.data(using: .utf8)!)) as! [String: Any]
         #expect(json["catalogId"] as? String == "https://example.com/cat.json")

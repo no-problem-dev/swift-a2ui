@@ -74,8 +74,12 @@ public final class A2UIStreamingParser: @unchecked Sendable {
             // Extract and decode the JSON block (resilient: keeps valid messages if some are bad).
             let jsonString = String(buffer[openRange.upperBound..<closeRange.lowerBound])
             let sanitized = JSONSanitizer.sanitize(jsonString)
-            if let messages = A2UIBlockParser.decodeMessages(from: sanitized) {
-                parts.append(.messages(messages))
+            let decoded = A2UIBlockParser.decodeMessages(from: sanitized)
+            if !decoded.messages.isEmpty {
+                parts.append(.messages(decoded.messages))
+            }
+            if decoded.skipped > 0 || decoded.messages.isEmpty {
+                parts.append(.malformed(A2UIMalformedBlock(raw: jsonString, skipped: decoded.skipped)))
             }
 
             // Advance the buffer past the close tag

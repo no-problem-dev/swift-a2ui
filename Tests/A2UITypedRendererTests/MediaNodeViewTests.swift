@@ -57,3 +57,48 @@ struct MediaNodeViewTests {
         _ = A2UISurfaceView(surface).a2uiMediaViewer(false)
     }
 }
+
+/// Everything the renderer itself puts on screen — as opposed to what the agent wrote — has to
+/// follow the consumer's locale. These were Japanese literals, so an English-locale host rendered
+/// Japanese with no way to change it.
+@Suite("The renderer's own text follows the host's locale")
+struct RendererStringsLocalizationTests {
+
+    @Test func englishHostSeesEnglish() throws {
+        let english = try #require(RendererStrings.bundle(forLanguage: "en"))
+        #expect(RendererStrings.generatingUI(english) == "Generating UI…")
+        #expect(RendererStrings.busy(english) == "Working")
+        #expect(RendererStrings.untitledMedia(english) == "Media")
+    }
+
+    /// The Japanese wording is kept as a translation rather than deleted, so a Japanese-locale host
+    /// reads exactly what it read before this became localizable at all.
+    @Test func japaneseHostStillSeesJapanese() throws {
+        let japanese = try #require(RendererStrings.bundle(forLanguage: "ja"))
+        #expect(RendererStrings.generatingUI(japanese) == "UI を生成中…")
+        #expect(RendererStrings.busy(japanese) == "実行中")
+        #expect(RendererStrings.untitledMedia(japanese) == "メディア")
+    }
+
+    /// No Japanese literal may creep back into a view. The strings table is the only place that
+    /// language belongs.
+    @Test func noJapaneseLiteralsLeftInTheRenderer() throws {
+        let sources = ["Rendering.swift", "BasicCatalog+Render.swift", "BasicCatalog+Inputs.swift",
+                       "TypedSurface.swift", "LayoutMappings.swift", "FlexRowLayout.swift",
+                       "TypedMessageProcessor.swift", "MediaViewerEnvironment.swift"]
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/A2UITypedRenderer")
+        for name in sources {
+            let text = try String(contentsOf: root.appendingPathComponent(name), encoding: .utf8)
+            for (offset, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+                let code = line.contains("//") ? String(line[..<line.range(of: "//")!.lowerBound]) : String(line)
+                let japanese = code.unicodeScalars.filter {
+                    (0x3040...0x309F).contains($0.value) || (0x30A0...0x30FF).contains($0.value)
+                        || (0x4E00...0x9FFF).contains($0.value)
+                }
+                #expect(japanese.isEmpty, "\(name):\(offset + 1) has a Japanese literal in code")
+            }
+        }
+    }
+}

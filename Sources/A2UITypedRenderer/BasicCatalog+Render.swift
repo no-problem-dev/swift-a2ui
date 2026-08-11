@@ -525,7 +525,7 @@ struct MediaNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
 
     var body: some View {
         #if os(iOS)
-        Label(url.isEmpty ? "メディア" : url, systemImage: kind.systemImage)
+        Label(url.isEmpty ? RendererStrings.untitledMedia() : url, systemImage: kind.systemImage)
             .typography(.labelMedium)
             .lineLimit(1)
             .padding(spacing.sm)
@@ -535,7 +535,7 @@ struct MediaNodeView<Catalog: RenderableCatalog>: View where Catalog.Node: Basic
             .mediaViewable(viewerItem, enabled: viewerEnabled && resolvedURL != nil)
         #else
         Link(destination: resolvedURL ?? URL(string: "https://example.invalid")!) {
-            Label(url.isEmpty ? "メディア" : url, systemImage: kind.systemImage).typography(.labelMedium)
+            Label(url.isEmpty ? RendererStrings.untitledMedia() : url, systemImage: kind.systemImage).typography(.labelMedium)
         }
         #endif
     }

@@ -134,7 +134,7 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
 
         // Return under the same key as upstream's `wrapAsOperationsEnvelope`.
         // The raw operations stay in the history as this tool's result.
-        return .json(try JSONEncoder().encode(OperationsEnvelope(a2ui_operations: result.messages)))
+        return .json(try JSONEncoder().encode(OperationsEnvelope(messages: result.messages)))
     }
 
     /// Drops the trailing message when it holds this tool's own call, still awaiting a result.
@@ -180,8 +180,31 @@ public struct GenerateA2UITool: TurnEndingTool, TranscriptAwareTool {
 
 /// The envelope shape upstream's `wrapAsOperationsEnvelope` produces.
 ///
-/// The property name is the wire key, so renaming it to Swift casing silently breaks every
-/// consumer that reads `a2ui_operations` — including `A2UIOperationsExtractor`.
+/// Keyed by `A2UISubagentConstants.operationsKey` through an explicit coding key, so that constant
+/// is what actually decides the wire key. Spelling it as a Swift property name instead left the
+/// constant looking authoritative while changing it did nothing — and the key is a contract shared
+/// with AG-UI activity content and `A2UIOperationsExtractor`.
 struct OperationsEnvelope: Codable {
-    let a2ui_operations: [AgentMessage]
+    let messages: [AgentMessage]
+
+    private struct Key: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    private static var operationsKey: Key { Key(stringValue: A2UISubagentConstants.operationsKey)! }
+
+    init(messages: [AgentMessage]) { self.messages = messages }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: Key.self)
+        messages = try container.decode([AgentMessage].self, forKey: Self.operationsKey)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: Key.self)
+        try container.encode(messages, forKey: Self.operationsKey)
+    }
 }

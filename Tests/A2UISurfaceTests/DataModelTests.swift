@@ -149,6 +149,52 @@ struct TypeCoercionTests {
         #expect(TypeCoercion.toNumber(.string("abc")) == 0)
         #expect(TypeCoercion.toNumber(.int(7)) == 7)
     }
+
+    /// JSON cannot write NaN or ±Infinity, so a value meaning one of them is malformed input —
+    /// but `Double(_:)` parses `"nan"`, `"inf"` and `"1e400"` happily, and an agent writing the
+    /// data model puts such strings there like any other.
+    @Test("to Number: what JSON cannot express is not a number", arguments: ["nan", "NaN", "inf", "-inf", "infinity", "1e400"])
+    func numberCoercionNonFinite(_ raw: String) {
+        #expect(Double(raw)?.isFinite == false, "precondition: Swift parses this into a non-finite Double")
+        #expect(TypeCoercion.toNumber(.string(raw)) == 0)
+    }
+
+    @Test("to Number: a non-finite number value is clamped too")
+    func numberCoercionNonFiniteNumber() {
+        #expect(TypeCoercion.toNumber(.double(.nan)) == 0)
+        #expect(TypeCoercion.toNumber(.double(.infinity)) == 0)
+    }
+
+    /// `Int(_: Double)` traps rather than failing, so nothing that came out of the data model may
+    /// reach it. This is the one conversion the package is allowed to use.
+    @Test("to Int: truncates toward zero, and answers nil where Int(_:) would trap")
+    func integerConversion() {
+        #expect(TypeCoercion.integer(truncating: 2.7) == 2)
+        #expect(TypeCoercion.integer(truncating: -2.7) == -2)
+        #expect(TypeCoercion.integer(truncating: .nan) == nil)
+        #expect(TypeCoercion.integer(truncating: .infinity) == nil)
+        #expect(TypeCoercion.integer(truncating: -.infinity) == nil)
+        #expect(TypeCoercion.integer(truncating: 1e300) == nil)
+        #expect(TypeCoercion.integer(truncating: -1e300) == nil)
+    }
+
+    @Test("exact Int: refused past the range a Double carries every integer in")
+    func exactInteger() {
+        #expect(TypeCoercion.exactInteger(7) == 7)
+        #expect(TypeCoercion.exactInteger(7.5) == nil)
+        #expect(TypeCoercion.exactInteger(1e15) == nil)
+        #expect(TypeCoercion.exactInteger(.nan) == nil)
+        #expect(TypeCoercion.exactInteger(.infinity) == nil)
+    }
+
+    /// The string form asks the same "is there an Int for this?" question as the storage form,
+    /// so a number too large to render as an integer must not trap on the way to text either.
+    @Test("to String: a huge or non-finite number renders without trapping")
+    func stringCoercionNonFinite() {
+        #expect(TypeCoercion.toString(.double(1e300)) == String(1e300))
+        #expect(TypeCoercion.toString(.double(.nan)) == String(Double.nan))
+        #expect(TypeCoercion.toString(.int(7)) == "7")
+    }
 }
 
 // MARK: - DataModel (reactive get/set/subscribe, bubble & cascade)

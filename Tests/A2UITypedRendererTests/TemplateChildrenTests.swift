@@ -94,3 +94,34 @@ struct TemplateChildrenTests {
         #expect(kids == [ResolvedChild(componentId: "t1", basePath: "/somewhere")])
     }
 }
+
+/// A `ChoicePicker` whose selection is a `functionCall` used to resolve to `[]` unconditionally, so
+/// nothing ever read as selected and the first tap silently discarded whatever the function said.
+/// The other two `DynamicStringList` cases resolve; this one returned a hard-coded empty list.
+@MainActor
+@Suite("A function-backed string list resolves")
+struct FunctionBackedStringListTests {
+
+    private func context(_ data: StructuredValue) -> RenderContext<BasicCatalog> {
+        let surface = TypedSurface<BasicCatalog>(rootId: "root", nodes: [], dataModel: DataModel(data))
+        return RenderContext(surface: surface, scope: "")
+    }
+
+    /// `formatString` returns a string; a single-value list is the shape a mutually-exclusive
+    /// picker binds to.
+    @Test func functionCallResolvesToItsValue() {
+        let ctx = context(.object(["chosen": .string("student")]))
+        let list = DynamicStringList.functionCall(FunctionCall(
+            call: "formatString",
+            args: ["value": .string("${/chosen}")]))
+        #expect(ctx.resolveStringList(list) == ["student"])
+    }
+
+    /// An unknown function still resolves to nothing — the fallback stays, it just is not the only
+    /// outcome any more.
+    @Test func unknownFunctionStillResolvesEmpty() {
+        let ctx = context(.object([:]))
+        let list = DynamicStringList.functionCall(FunctionCall(call: "noSuchFunction"))
+        #expect(ctx.resolveStringList(list).isEmpty)
+    }
+}

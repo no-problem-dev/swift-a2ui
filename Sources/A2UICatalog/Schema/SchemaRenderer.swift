@@ -223,9 +223,9 @@ public enum SchemaRenderer {
 
         var node: OrderedObject = ["type": .string("object")]
         if let description = fn.description { node["description"] = .string(description) }
-        node["returnType"] = .string(fn.returnType)
+        node["returnType"] = .string(fn.returnType.rawValue)
         if let callableFrom = fn.callableFrom {
-            node["callableFrom"] = .string(callableFrom)
+            node["callableFrom"] = .string(callableFrom.rawValue)
         }
         node["allOf"] = .array([ref("FunctionCommon"), .object(inner)])
         node["unevaluatedProperties"] = .bool(false)

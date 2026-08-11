@@ -1,6 +1,7 @@
 import Foundation
 import A2UICore
 import A2UISurface
+import A2UICatalog
 import A2UITyped
 
 /// Applies A2UI `AgentMessage`s to a set of typed surfaces — the typed counterpart of
@@ -23,8 +24,24 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
     /// `MessageProcessor.onAction`. Assign it before processing messages or actions are dropped.
     public var onAction: (UserAction) -> Void
 
-    public init(onAction: @escaping (UserAction) -> Void = { _ in }) {
+    /// The host's sink for an agent-initiated `callFunction` that **passed** the permission check.
+    /// Running it is the host's job — the surface store has no function registry to run it with —
+    /// but reaching this sink now means the boundary has already allowed it.
+    public var onFunctionCall: (CallFunctionMessage) -> Void
+
+    /// The host's sink for an error the renderer owes the agent: today, a `callFunction` refused by
+    /// `FunctionBoundary`. Send it back on the same channel the message arrived on, carrying the
+    /// `functionCallId`, or the agent cannot tell which of its calls failed.
+    public var onRendererError: (RendererError) -> Void
+
+    public init(
+        onAction: @escaping (UserAction) -> Void = { _ in },
+        onFunctionCall: @escaping (CallFunctionMessage) -> Void = { _ in },
+        onRendererError: @escaping (RendererError) -> Void = { _ in }
+    ) {
         self.onAction = onAction
+        self.onFunctionCall = onFunctionCall
+        self.onRendererError = onRendererError
     }
 
     /// Surfaces in creation order, ready for `ForEach` or a pager. A surface that never made it
@@ -70,9 +87,26 @@ public final class TypedMessageProcessor<Catalog: A2UICatalog> {
         case .deleteSurface(let ds):
             surfaces.removeValue(forKey: ds.surfaceId)
             creationOrder.removeAll { $0 == ds.surfaceId }
-        case .callFunction, .actionResponse:
-            // v1.0 server-initiated RPC / action responses are handled by the host, not the
-            // surface store (they don't mutate the component tree directly).
+        case .callFunction(let message):
+            // Permission is not on the wire: the call carries no proof that it is allowed, so the
+            // renderer looks the name up in the active catalog and refuses `rendererOnly` and
+            // unregistered names with INVALID_FUNCTION_CALL. This used to be a bare `break`, which
+            // left the agent with neither the effect it asked for nor the refusal the spec owes it,
+            // and left `FunctionBoundary` — the control that decides this — unreachable from the
+            // render path.
+            // A registered function that omits `callableFrom` is `rendererOnly`; only an
+            // *unregistered* name may arrive as `nil`, which is what lets the refusal tell a typo
+            // apart from a denial.
+            let registered = Catalog.functions.first { $0.name == message.callFunction.call }
+            let callableFrom = registered.map { $0.callableFrom ?? .rendererOnly }
+            if let error = FunctionBoundary.validateAgentCall(message, callableFrom: callableFrom) {
+                onRendererError(error)
+            } else {
+                onFunctionCall(message)
+            }
+        case .actionResponse:
+            // Handled by the host: an action response writes through the originating action's
+            // `responsePath`, not through the component tree.
             break
         }
     }

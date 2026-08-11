@@ -224,3 +224,89 @@ struct ChecksEvaluatorTests {
         #expect(ChecksEvaluator.allPass(checks, in: c) == true)
     }
 }
+
+/// An LLM agent writes the data model, so `"nan"`, `"inf"` and `"1e400"` are ordinary strings to
+/// find in it — `Double(_:)` parses all three into a non-finite value. Every function that turned a
+/// resolved number into an `Int` used to hand it straight to `Int(_: Double)`, which traps and takes
+/// the host app down from inside rendering.
+///
+/// Two distinct inputs reach those sites, and they land on two different documented rules:
+///
+/// - **Not a number at all** — `"abc"`, and now `"nan"` / `"inf"` / `"1e400"`, since JSON cannot
+///   write those and the coercion table says an unparseable string is `0`.
+/// - **A number with no `Int`** — `1e300` parses and is finite, but no `Int` holds it, so the
+///   argument is unrepresentable and reads as absent.
+///
+/// Neither may crash, which is what these assert first.
+@Suite("BasicFunctions: numbers the JSON wire cannot express")
+struct BasicFunctionsNonFiniteTests {
+
+    /// Strings JSON has no syntax for. `Double(_:)` accepts every one of them.
+    static let notNumbers = ["nan", "NaN", "inf", "-inf", "infinity", "1e400"]
+
+    private func eval(_ call: FunctionCall, _ data: StructuredValue = .object([:])) -> StructuredValue? {
+        let fns = BasicFunctions()
+        return fns.evaluate(call, in: DataContext(dataModel: DataModel(data), functions: fns))
+    }
+
+    private func indexed(_ call: FunctionCall, _ data: StructuredValue = .object([:])) -> StructuredValue? {
+        let fns = BasicFunctions()
+        return fns.evaluate(call, in: DataContext(
+            dataModel: DataModel(data), path: "/items/2", collectionIndex: 2, functions: fns))
+    }
+
+    @Test("@index: an offset that is not a number is no offset", arguments: notNumbers)
+    func indexOffsetNotANumber(_ raw: String) {
+        let call = FunctionCall(call: FunctionCall.indexFunctionName, args: ["offset": .string(raw)])
+        #expect(indexed(call) == .int(2))
+        // …the same answer `"abc"` has always given, so garbage keeps one meaning.
+        #expect(indexed(FunctionCall(
+            call: FunctionCall.indexFunctionName, args: ["offset": .string("abc")])) == .int(2))
+    }
+
+    @Test("@index: an offset with no Int is no offset")
+    func indexOffsetUnrepresentable() {
+        let call = FunctionCall(call: FunctionCall.indexFunctionName, args: ["offset": .double(1e300)])
+        #expect(indexed(call) == .int(2))
+    }
+
+    @Test("length: a bound that is not a number reads as 0", arguments: notNumbers)
+    func lengthBoundNotANumber(_ raw: String) {
+        let value = StructuredValue.string("abcde")
+        #expect(eval(FunctionCall(call: "length", args: ["value": value, "min": .string(raw)])) == .bool(true))
+        #expect(eval(FunctionCall(call: "length", args: ["value": value, "max": .string(raw)])) == .bool(false))
+    }
+
+    @Test("length: a bound with no Int does not constrain")
+    func lengthBoundUnrepresentable() {
+        let value = StructuredValue.string("abcde")
+        #expect(eval(FunctionCall(call: "length", args: ["value": value, "max": .double(1e300)])) == .bool(true))
+        #expect(eval(FunctionCall(call: "length", args: ["value": value, "min": .double(-1e300)])) == .bool(true))
+    }
+
+    @Test("formatNumber: decimals that are not a number read as 0", arguments: notNumbers)
+    func formatNumberDecimalsNotANumber(_ raw: String) {
+        let call = FunctionCall(call: "formatNumber", args: ["value": .double(1234.5), "decimals": .string(raw)])
+        #expect(eval(call) == .string("1,234"))
+    }
+
+    @Test("formatNumber: decimals with no Int fall back to the default precision")
+    func formatNumberDecimalsUnrepresentable() {
+        let call = FunctionCall(call: "formatNumber", args: ["value": .double(1234.5), "decimals": .double(1e300)])
+        #expect(eval(call) == eval(FunctionCall(call: "formatNumber", args: ["value": .double(1234.5)])))
+    }
+
+    @Test("numeric: a value that is not a number fails the check", arguments: notNumbers)
+    func numericRejectsNonNumbers(_ raw: String) {
+        // No bounds: every comparison would pass vacuously, so the value itself has to be rejected.
+        #expect(eval(FunctionCall(call: "numeric", args: ["value": .string(raw)])) == .bool(false))
+    }
+
+    @Test("a binding, not just a literal, carries the value in")
+    func viaBinding() {
+        let call = FunctionCall(
+            call: FunctionCall.indexFunctionName,
+            args: ["offset": .object(["path": .string("/offset")])])
+        #expect(indexed(call, .object(["offset": .string("nan")])) == .int(2))
+    }
+}

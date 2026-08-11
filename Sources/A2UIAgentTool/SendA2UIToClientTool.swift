@@ -88,7 +88,7 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
             return failure(issues.joined(separator: "; "))
         }
 
-        return .json(try JSONEncoder().encode(ValidatedPayload(validated_a2ui_json: messages)))
+        return .json(try JSONEncoder().encode(ValidatedPayload(messages: messages)))
     }
 
     /// Pulls the `a2ui_json` argument out as a normalized JSON string.
@@ -119,4 +119,24 @@ public struct SendA2UIToClientTool<Catalog: A2UICatalog>: TurnEndingTool {
 }
 
 private struct ToolArgs: Decodable { let a2ui_json: String? }
-private struct ValidatedPayload: Encodable { let validated_a2ui_json: [AgentMessage] }
+
+/// The success envelope, keyed by `A2UIToolConstants.validatedJSONKey`.
+///
+/// Written through an explicit coding key rather than as a Swift property name, so the constant is
+/// what actually decides the wire key — a Python host reading this result and the constant it is
+/// documented to mirror cannot drift apart while looking like they agree.
+private struct ValidatedPayload: Encodable {
+    let messages: [AgentMessage]
+
+    private struct Key: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: Key.self)
+        try container.encode(messages, forKey: Key(stringValue: A2UIToolConstants.validatedJSONKey)!)
+    }
+}

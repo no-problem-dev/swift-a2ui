@@ -17,8 +17,6 @@ public enum ComponentTreeResolver {
         case circularReference(String)
         /// The tree is deeper than `maxDepth`; the payload is the depth at which resolution stopped.
         case depthLimitExceeded(Int)
-        /// Ids present in the dictionary that nothing in the tree references.
-        case orphanedComponents([String])
     }
 
     /// The depth at which resolution throws `depthLimitExceeded` instead of recursing further.
@@ -29,6 +27,10 @@ public enum ComponentTreeResolver {
     /// A child id that is not present in the dictionary is skipped without comment, so a payload
     /// with a broken reference resolves to a smaller tree rather than failing. The three faults that
     /// do stop resolution are a missing root, a cycle, and a tree deeper than `maxDepth`.
+    ///
+    /// Components nothing references are not among them. An agent that leaves an unused component
+    /// in the dictionary has written a larger payload, not a broken one, and the tree it asked for
+    /// is still exactly the tree it gets.
     /// - Throws: A ``TreeError`` describing which of those three it hit.
     public static func resolve(components: [String: StructuredValue]) throws -> ComponentNode {
         guard let rootComponent = components["root"] else {

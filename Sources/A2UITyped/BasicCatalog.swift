@@ -36,6 +36,9 @@ extension BasicComponent: ComponentNode {
 public enum BasicCatalog: A2UICatalog {
     public typealias Node = BasicComponent
     public static let catalogId = BasicComponentCatalog.catalogId
+    /// Every basic-catalog function omits `callableFrom`, so all of them are `rendererOnly` and no
+    /// agent may invoke one remotely.
+    public static let functions = BasicCatalogSchema.functions
 }
 
 /// A node sum type that embeds the basic catalog, either directly or through composition.

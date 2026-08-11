@@ -40,8 +40,8 @@ public enum TypeCoercion {
             // Locale-neutral. Render integral numbers without a trailing ".0"
             // to match JS/Dart-style output used by other A2UI clients.
             let d = n.double
-            if d == d.rounded() && abs(d) < 1e15 {
-                return String(Int(d))
+            if let i = exactInteger(d) {
+                return String(i)
             }
             return String(d)
         case .string(let s):
@@ -83,6 +83,12 @@ public enum TypeCoercion {
     /// null and undefined become 0, and a string that does not parse also becomes 0 — a malformed
     /// number is indistinguishable from a literal `"0"` in the result. Arrays and objects likewise
     /// come back as 0, so a caller that must reject bad input has to inspect the value first.
+    ///
+    /// The result is always finite. JSON has no way to write NaN or ±Infinity, so a value that
+    /// means one of them is malformed input by definition — but `Double("nan")`, `Double("inf")`
+    /// and `Double("1e400")` all parse, and an agent writing the data model puts such strings there
+    /// like any other. Letting one through would hand every downstream caller a number that
+    /// arithmetic quietly poisons and `Int(_:)` traps on.
     public static func toNumber(_ value: StructuredValue?) -> Double {
         guard let value else { return 0 }
         switch value {
@@ -91,12 +97,47 @@ public enum TypeCoercion {
         case .bool(let b):
             return b ? 1 : 0
         case .number(let n):
-            return n.double
+            return finite(n.double)
         case .string(let s):
-            return Double(s) ?? 0
+            return finite(Double(s) ?? 0)
         case .array, .object:
             return 0
         }
+    }
+
+    /// Coerces a value to an `Int`, or `nil` when it has none.
+    ///
+    /// Runs `toNumber` and truncates toward zero, exactly as `Int(_: Double)` does — except that a
+    /// magnitude past `Int`'s range answers `nil` instead of trapping. Callers read `nil` the way
+    /// they read a missing argument.
+    public static func toInt(_ value: StructuredValue?) -> Int? {
+        integer(truncating: toNumber(value))
+    }
+
+    /// The `Int` a `Double` truncates to, or `nil` when it has none.
+    ///
+    /// **The only place in the package that converts a `Double` to an `Int`.** `Int(_: Double)`
+    /// traps — on NaN, on ±infinity, and on any magnitude past `Int`'s range — so no number that
+    /// reached us from the data model may be handed to it. An LLM agent writes that data model,
+    /// which makes such numbers ordinary input rather than an edge case.
+    public static func integer(truncating d: Double) -> Int? {
+        // Non-finite input fails `Int(exactly:)` after truncation, so it needs no separate guard.
+        Int(exactly: d.rounded(.towardZero))
+    }
+
+    /// The `Int` that stands in for `d` without loss, or `nil` when none does.
+    ///
+    /// Both the storage decision (`.int` vs `.double`) and the text rendering ask this same
+    /// question, so they ask it in one place. Past `1e15` a `Double` no longer carries every
+    /// integer, so the substitution stops being faithful there even though it still fits.
+    public static func exactInteger(_ d: Double) -> Int? {
+        guard abs(d) < 1e15, d == d.rounded() else { return nil }
+        return integer(truncating: d)
+    }
+
+    /// Replaces NaN and ±infinity with `0`, the same value every other unusable input coerces to.
+    private static func finite(_ d: Double) -> Double {
+        d.isFinite ? d : 0
     }
 
     private static func jsonString(_ value: StructuredValue) -> String {

@@ -1,0 +1,8 @@
+/* Placeholder shown while an agent's surface is still being generated and no root component has arrived yet. */
+"surface.generating" = "UI を生成中…";
+
+/* Label on the progress pill floated over a surface while the agent is working. */
+"surface.busy" = "実行中";
+
+/* Fallback label for a video or audio tile whose URL is empty. */
+"media.untitled" = "メディア";

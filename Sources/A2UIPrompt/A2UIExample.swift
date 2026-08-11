@@ -98,8 +98,8 @@ public enum A2UIExample {
 
             DividerComponent(id: "div1"),
             TabsComponent(id: "tabs", tabs: [
-                TabItem(title: "概要", child: "about"),
-                TabItem(title: "プログラム", child: "programList"),
+                TabItem(title: "Overview", child: "about"),
+                TabItem(title: "Schedule", child: "programList"),
             ]),
             TextComponent(id: "about", text: path("/about"), variant: .body),
             // Template-driven list: the canonical pattern for arrays. Teaches the spec's scope rule —
@@ -111,35 +111,35 @@ public enum A2UIExample {
             TextComponent(id: "programTitle", text: path("title"), variant: .body),
 
             DividerComponent(id: "div2"),
-            TextComponent(id: "formTitle", text: "## 参加登録"),
-            TextFieldComponent(id: "nameField", label: "お名前", value: path("/form/name")),
+            TextComponent(id: "formTitle", text: "## Register"),
+            TextFieldComponent(id: "nameField", label: "Your name", value: path("/form/name")),
             ChoicePickerComponent(
                 id: "ticket",
-                options: [ChoiceOption(label: "一般", value: "一般"), ChoiceOption(label: "学生", value: "学生")],
+                options: [ChoiceOption(label: "General", value: "general"), ChoiceOption(label: "Student", value: "student")],
                 value: .binding(DataBinding(path: "/form/ticket")),
                 variant: .mutuallyExclusive, displayStyle: .chips
             ),
-            DateTimeInputComponent(id: "datetime", value: path("/form/date"), enableDate: true, label: "参加希望日"),
-            SliderComponent(id: "seats", value: .binding(DataBinding(path: "/form/seats")), max: 8, label: "参加人数", min: 1),
-            CheckBoxComponent(id: "agree", label: "参加規約に同意する", value: .binding(DataBinding(path: "/form/agree"))),
+            DateTimeInputComponent(id: "datetime", value: path("/form/date"), enableDate: true, label: "Preferred date"),
+            SliderComponent(id: "seats", value: .binding(DataBinding(path: "/form/seats")), max: 8, label: "Seats", min: 1),
+            CheckBoxComponent(id: "agree", label: "I agree to the terms", value: .binding(DataBinding(path: "/form/agree"))),
             ButtonComponent(
                 id: "submit", child: "submitLabel",
                 action: .event(EventAction(name: "register", context: ["name": .binding(DataBinding(path: "/form/name"))])),
                 variant: .primary
             ),
-            TextComponent(id: "submitLabel", text: "申し込む"),
+            TextComponent(id: "submitLabel", text: "Register"),
 
             DividerComponent(id: "div3"),
             ModalComponent(id: "mapModal", trigger: "mapTrigger", content: "mapContent"),
             RowComponent(id: "mapTrigger", children: .ids(["mapIcon", "mapTriggerText"]), align: .center),
             IconComponent(id: "mapIcon", name: .preset(.locationOn)),
-            TextComponent(id: "mapTriggerText", text: "アクセスマップを見る", variant: .body),
+            TextComponent(id: "mapTriggerText", text: "See how to get there", variant: .body),
             ColumnComponent(id: "mapContent", children: .ids(["mapTitle", "mapBody"]), align: .stretch),
-            TextComponent(id: "mapTitle", text: "## アクセス"),
+            TextComponent(id: "mapTitle", text: "## Getting there"),
             TextComponent(id: "mapBody", text: path("/access"), variant: .body),
 
             DividerComponent(id: "div4"),
-            TextComponent(id: "linksTitle", text: "## 関連リンク"),
+            TextComponent(id: "linksTitle", text: "## Related links"),
             RowComponent(id: "links", children: .ids(["lk1", "lk2"]), justify: .start),
             ButtonComponent(id: "lk1", child: "lk1t", action: openUrl("/link1Url"), variant: .borderless),
             TextComponent(id: "lk1t", text: path("/link1Label")),
@@ -147,7 +147,7 @@ public enum A2UIExample {
             TextComponent(id: "lk2t", text: path("/link2Label")),
 
             DividerComponent(id: "div5"),
-            TextComponent(id: "nextTitle", text: "### 次に気になること"),
+            TextComponent(id: "nextTitle", text: "### What people ask next"),
             RowComponent(id: "followups", children: .ids(["fu1", "fu2"]), justify: .start),
             ButtonComponent(id: "fu1", child: "fu1t", action: followup("/next1"), variant: .borderless),
             TextComponent(id: "fu1t", text: path("/next1")),
@@ -157,22 +157,22 @@ public enum A2UIExample {
 
         let dataModel: StructuredValue = .object([
             "photo": .string("https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=600"),
-            "title": .string("SwiftUI 実践ワークショップ"),
-            "badge": .string("残りわずか"),
-            "date": .string("2026/07/12 (土) 13:00"),
-            "venue": .string("横浜・みなとみらい"),
-            "summary": .string("現場で使える SwiftUI の設計とアニメーションを、手を動かしながら学ぶ少人数ワークショップです。"),
-            "about": .string("状態管理・レイアウト・アニメーションの実践テクニックを習得します。中級者向け。"),
+            "title": .string("SwiftUI in Practice: A Hands-On Workshop"),
+            "badge": .string("Almost full"),
+            "date": .string("Sat, 12 Jul 2026, 13:00"),
+            "venue": .string("Minatomirai, Yokohama"),
+            "summary": .string("A small-group workshop on SwiftUI layout and animation you can use at work, taught by building."),
+            "about": .string("Practical techniques for state, layout and animation. Aimed at intermediate developers."),
             "program": .array([
-                .object(["time": .string("13:00"), "title": .string("レイアウトと状態管理")]),
-                .object(["time": .string("14:30"), "title": .string("アニメーションと画面遷移")]),
+                .object(["time": .string("13:00"), "title": .string("Layout and state")]),
+                .object(["time": .string("14:30"), "title": .string("Animation and navigation")]),
             ]),
-            "access": .string("みなとみらい駅から徒歩5分、地下2階イベントスペース。"),
-            "link1Label": .string("イベント詳細"), "link1Url": .string("https://example.com/event"),
-            "link2Label": .string("過去の開催レポート"), "link2Url": .string("https://example.com/report"),
-            "next1": .string("持ち物・事前準備は？"),
-            "next2": .string("オンライン参加はできる？"),
-            "form": .object(["name": .string(""), "ticket": .string("一般"), "date": .string(""), "seats": .int(1), "agree": .bool(false)]),
+            "access": .string("Five minutes from Minatomirai station; event space on basement level 2."),
+            "link1Label": .string("Event details"), "link1Url": .string("https://example.com/event"),
+            "link2Label": .string("Reports from past sessions"), "link2Url": .string("https://example.com/report"),
+            "next1": .string("What should I bring or prepare?"),
+            "next2": .string("Can I attend online?"),
+            "form": .object(["name": .string(""), "ticket": .string("general"), "date": .string(""), "seats": .int(1), "agree": .bool(false)]),
         ])
 
         return [
@@ -248,7 +248,7 @@ public enum A2UIExample {
             TextComponent(id: "summary", text: path("/summary"), variant: .body),
 
             DividerComponent(id: "div1"),
-            TextComponent(id: "highlightsTitle", text: "## ポイント"),
+            TextComponent(id: "highlightsTitle", text: "## Highlights"),
             // Template-driven list: the canonical pattern for arrays. Teaches the spec's scope rule —
             // inside the instantiated template, paths WITHOUT a leading slash are RELATIVE to each
             // array element ("label" → /highlights/0/label); leading-slash paths stay absolute (root).
@@ -265,7 +265,7 @@ public enum A2UIExample {
             TextComponent(id: "detailText", text: path("/detailText"), variant: .body),
 
             DividerComponent(id: "div3"),
-            TextComponent(id: "sourcesTitle", text: "## 出典"),
+            TextComponent(id: "sourcesTitle", text: "## Sources"),
             RowComponent(id: "sources", children: .ids(["src1", "src2"]), justify: .start),
             ButtonComponent(id: "src1", child: "src1t", action: openUrl("/source1Url"), variant: .borderless),
             TextComponent(id: "src1t", text: path("/source1Label")),
@@ -273,7 +273,7 @@ public enum A2UIExample {
             TextComponent(id: "src2t", text: path("/source2Label")),
 
             DividerComponent(id: "div4"),
-            TextComponent(id: "nextTitle", text: "### 次に気になること"),
+            TextComponent(id: "nextTitle", text: "### What people ask next"),
             RowComponent(id: "followups", children: .ids(["fu1", "fu2"]), justify: .start),
             ButtonComponent(id: "fu1", child: "fu1t", action: followup("/next1"), variant: .borderless),
             TextComponent(id: "fu1t", text: path("/next1")),
@@ -283,21 +283,21 @@ public enum A2UIExample {
 
         let dataModel: StructuredValue = .object([
             "photo": .string("https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=600"),
-            "title": .string("Swift Concurrency 移行の現在地"),
-            "badge": .string("2026年6月時点"),
-            "meta": .string("調査ソース 4 件・最終更新 2026/06"),
-            "summary": .string("Swift 6 の strict concurrency への移行は、段階的アプローチが主流になりつつあります。"),
+            "title": .string("Where Swift Concurrency migration stands"),
+            "badge": .string("As of June 2026"),
+            "meta": .string("4 sources · last updated 2026/06"),
+            "summary": .string("Migrating to Swift 6 strict concurrency is settling into a staged approach."),
             "highlights": .array([
-                .object(["label": .string("@MainActor 既定化で UI 層の移行コストが大幅減")]),
-                .object(["label": .string("ライブラリは Sendable 対応が事実上の必須要件に")]),
-                .object(["label": .string("移行は target 単位の段階的有効化が推奨")]),
+                .object(["label": .string("@MainActor by default cuts the cost of migrating the UI layer sharply")]),
+                .object(["label": .string("Sendable conformance is now effectively required of libraries")]),
+                .object(["label": .string("Enabling it target by target is the recommended path")]),
             ]),
-            "detailTitle": .string("移行の進め方"),
-            "detailText": .string("まず警告のみの minimal モードで影響範囲を把握し、モジュール境界から Sendable を整えるのが定石です。"),
-            "source1Label": .string("Swift.org 移行ガイド"), "source1Url": .string("https://swift.org/migration"),
-            "source2Label": .string("WWDC セッション"), "source2Url": .string("https://developer.apple.com/videos"),
-            "next1": .string("既存コードの典型的な警告は？"),
-            "next2": .string("ライブラリ側の対応手順は？"),
+            "detailTitle": .string("How to approach the migration"),
+            "detailText": .string("Start in warnings-only minimal mode to size the impact, then work Sendable outward from the module boundaries."),
+            "source1Label": .string("Swift.org migration guide"), "source1Url": .string("https://swift.org/migration"),
+            "source2Label": .string("WWDC session"), "source2Url": .string("https://developer.apple.com/videos"),
+            "next1": .string("What warnings does existing code usually hit?"),
+            "next2": .string("What do library authors need to do?"),
         ])
 
         return [

@@ -119,3 +119,36 @@ struct A2UIExampleTests {
         #expect(block.contains("\"#/$defs/CreateSurfaceMessage\""))
     }
 }
+
+/// A package published for other people cannot decide what language its consumers ship in.
+///
+/// The worked example is the strongest instruction in the whole prompt — the model imitates it far
+/// more literally than it follows a sentence about language. A Japanese example handed to a model
+/// that was just told to write English is a contradiction inside one prompt, and the example wins.
+@Suite("The worked example carries no language of its own")
+struct ExampleLanguageNeutralityTests {
+
+    /// CJK ideographs, hiragana and katakana. Latin text passes; anything here is a hard-coded
+    /// natural language the host never asked for.
+    private func japaneseRuns(in text: String) -> [String] {
+        text.split(whereSeparator: { !isJapanese($0) }).map(String.init)
+    }
+
+    private func isJapanese(_ c: Character) -> Bool {
+        c.unicodeScalars.contains { scalar in
+            (0x3040...0x309F).contains(scalar.value)   // hiragana
+                || (0x30A0...0x30FF).contains(scalar.value) // katakana
+                || (0x4E00...0x9FFF).contains(scalar.value) // CJK unified ideographs
+        }
+    }
+
+    @Test func referenceSurfaceIsNotJapanese() {
+        let found = japaneseRuns(in: A2UIExample.referenceSurface())
+        #expect(found.isEmpty, "reference example still contains Japanese: \(found.prefix(5))")
+    }
+
+    @Test func presenterSurfaceIsNotJapanese() {
+        let found = japaneseRuns(in: A2UIExample.presenterSurface())
+        #expect(found.isEmpty, "presenter example still contains Japanese: \(found.prefix(5))")
+    }
+}

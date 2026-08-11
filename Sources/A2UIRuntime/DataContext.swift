@@ -145,7 +145,7 @@ public struct DataContext: Sendable {
     }
 
     private func numberValue(_ n: Double) -> StructuredValue {
-        if n == n.rounded() && abs(n) < 1e15 { return .int(Int(n)) }
+        if let i = TypeCoercion.exactInteger(n) { return .int(i) }
         return .double(n)
     }
 }

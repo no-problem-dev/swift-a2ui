@@ -64,3 +64,59 @@ struct PartialUpdateTests {
         #expect(surface.node("t2") != nil)
     }
 }
+
+/// `FunctionBoundary` is the spec's permission control: `callableFrom` never travels on the wire, so
+/// an agent's `callFunction` carries no proof it is allowed and the renderer has to look the name up
+/// itself. It existed, was tested, and nothing on the render path called it — `TypedMessageProcessor`
+/// dropped every `callFunction` with a bare `break`, so a host wiring its own dispatch got no
+/// permission-checked path to use and no refusal to send back.
+@MainActor
+@Suite("Agent-initiated callFunction is permission-checked on the render path")
+struct FunctionBoundaryWiringTests {
+
+    private func processor() -> (TypedMessageProcessor<BasicCatalog>, Box) {
+        let box = Box()
+        let processor = TypedMessageProcessor<BasicCatalog>()
+        processor.onRendererError = { box.errors.append($0) }
+        processor.onFunctionCall = { box.calls.append($0) }
+        return (processor, box)
+    }
+
+    final class Box {
+        var errors: [RendererError] = []
+        var calls: [CallFunctionMessage] = []
+    }
+
+    private func call(_ name: String) -> AgentMessage {
+        .callFunction(CallFunctionMessage(
+            functionCallId: CallId("c1"), callFunction: FunctionCall(call: name)))
+    }
+
+    @Test("a rendererOnly catalog function is refused with INVALID_FUNCTION_CALL")
+    func refusesRendererOnly() {
+        let (processor, box) = processor()
+        // Every basic-catalog function omits `callableFrom`, which the spec reads as rendererOnly.
+        processor.process(call("formatString"))
+        #expect(box.calls.isEmpty)
+        #expect(box.errors.count == 1)
+        #expect(box.errors.first?.code == FunctionBoundary.invalidFunctionCallCode)
+        #expect(box.errors.first?.functionCallId == CallId("c1"))
+    }
+
+    @Test("a name the catalog does not know is refused too")
+    func refusesUnregistered() {
+        let (processor, box) = processor()
+        processor.process(call("definitelyNotAFunction"))
+        #expect(box.calls.isEmpty)
+        #expect(box.errors.first?.code == FunctionBoundary.invalidFunctionCallCode)
+    }
+
+    @Test("the refusal names whether the function exists, so a typo reads differently from a denial")
+    func refusalDistinguishesTypoFromDenial() {
+        let (processor, box) = processor()
+        processor.process(call("formatString"))
+        processor.process(call("definitelyNotAFunction"))
+        #expect(box.errors[0].message.contains("rendererOnly"))
+        #expect(box.errors[1].message.contains("not registered"))
+    }
+}

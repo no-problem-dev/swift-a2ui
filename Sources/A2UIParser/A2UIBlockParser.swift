@@ -5,9 +5,10 @@ import A2UICore
 
 /// Splits a complete LLM text response into plain text and the `<a2ui-json>` blocks embedded in it.
 ///
-/// Tolerant on purpose, because model output is often partly malformed: a block whose JSON never
-/// decodes is dropped without a trace, and an open tag with no close tag turns the rest of the
-/// input into plain text. Use `A2UIPayloadFixer` where a failure has to be reported instead.
+/// Tolerant on purpose, because model output is often partly malformed: an open tag with no close
+/// tag turns the rest of the input into plain text, and a block whose JSON never decodes still
+/// yields a part — a `.malformed` one — rather than vanishing. Use `A2UIPayloadFixer` where a
+/// failure has to stop the parse instead of being reported alongside what did work.
 public enum A2UIBlockParser {
     /// Opening delimiter of an A2UI JSON block, shared with `A2UIStreamingParser` and
     /// `A2UITextSalvage` so every path agrees on where a block starts.
@@ -19,8 +20,9 @@ public enum A2UIBlockParser {
     ///
     /// Content outside the tags becomes `.text` parts and decoded content inside them becomes
     /// `.messages` parts, interleaved in source order. Text runs that are only whitespace are
-    /// dropped, and a block that fails to decode contributes no part, so input made entirely of
-    /// undecodable blocks comes back as an empty array rather than an error.
+    /// dropped. A block that fails to decode becomes a `.malformed` part carrying its raw content,
+    /// so an empty result now means what it says — the input held no A2UI — instead of also
+    /// covering the case where every block was unreadable.
     ///
     /// - Parameter text: The raw LLM output to parse.
     /// - Returns: The response parts in the order they appeared.
@@ -52,8 +54,12 @@ public enum A2UIBlockParser {
             let jsonString = String(remaining[remaining.startIndex..<closeRange.lowerBound])
             let sanitized = JSONSanitizer.sanitize(jsonString)
 
-            if let messages = decodeMessages(from: sanitized) {
-                parts.append(.messages(messages))
+            let decoded = decodeMessages(from: sanitized)
+            if !decoded.messages.isEmpty {
+                parts.append(.messages(decoded.messages))
+            }
+            if decoded.skipped > 0 || decoded.messages.isEmpty {
+                parts.append(.malformed(A2UIMalformedBlock(raw: jsonString, skipped: decoded.skipped)))
             }
 
             remaining = remaining[closeRange.upperBound...]
@@ -78,29 +84,29 @@ public enum A2UIBlockParser {
     /// 3. Lenient path — parse the top-level array and decode each element on its own, keeping
     ///    the valid messages and skipping the bad ones (a wrong `version`, for example).
     ///
-    /// `nil` means nothing at all decoded. Elements skipped by step 3 are not reported, so a
-    /// caller cannot tell a fully valid array from one that lost half its messages.
-    static func decodeMessages(from json: String) -> [AgentMessage]? {
-        guard let data = json.data(using: .utf8) else { return nil }
+    /// `skipped` counts what step 3 had to drop, so a caller can tell a fully valid array from one
+    /// that lost half its messages. Empty messages with `skipped` 0 means nothing decoded at all.
+    static func decodeMessages(from json: String) -> (messages: [AgentMessage], skipped: Int) {
+        guard let data = json.data(using: .utf8) else { return ([], 0) }
 
         // 1) Whole-array fast path.
         if let messages = try? JSONParser().parse(data).decode([AgentMessage].self) {
-            return messages
+            return (messages, 0)
         }
 
-        guard let root = try? JSONParser().parse(data) else { return nil }
+        guard let root = try? JSONParser().parse(data) else { return ([], 0) }
 
         // 2) Single message.
         if let message = try? root.decode(AgentMessage.self) {
-            return [message]
+            return ([message], 0)
         }
 
-        // 3) Resilient per-element decode — keep whatever is valid.
+        // 3) Resilient per-element decode — keep whatever is valid, and say what was lost.
         if case .array(let elements) = root {
             let decoded = elements.compactMap { try? $0.decode(AgentMessage.self) }
-            if !decoded.isEmpty { return decoded }
+            if !decoded.isEmpty { return (decoded, elements.count - decoded.count) }
         }
 
-        return nil
+        return ([], 0)
     }
 }

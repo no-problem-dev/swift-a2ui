@@ -143,7 +143,7 @@ public struct A2UIPromptBuilder: Sendable {
     /// Returns the bundled `agent_to_renderer.json`, minified with sorted keys.
     ///
     /// A hook for derived builders that need to post-process the schema before feeding it back
-    /// through an initializer. Returns `"{}"` if the resource cannot be read.
+    /// through an initializer. Traps if the resource is missing from the package bundle.
     public static func bundledAgentToRendererJSON() -> String {
         loadBundledResource("agent_to_renderer")
     }
@@ -151,8 +151,8 @@ public struct A2UIPromptBuilder: Sendable {
     /// Returns the bundled `common_types.json`, minified with sorted keys.
     ///
     /// The hook `A2UIPromptCompactBuilder` uses: it runs the result through
-    /// `CommonTypesCompactor` and passes the stripped schema back in. Returns `"{}"` if the
-    /// resource cannot be read.
+    /// `CommonTypesCompactor` and passes the stripped schema back in. Traps if the resource is
+    /// missing from the package bundle.
     public static func bundledCommonTypesJSON() -> String {
         loadBundledResource("common_types")
     }
@@ -215,26 +215,35 @@ public struct A2UIPromptBuilder: Sendable {
     /// reachability, the last of which runs unconditionally — laid out by
     /// `SchemaBlockFormatter`.
     ///
-    /// If any of the three schemas fails to parse, pruning is skipped and the schemas are
-    /// emitted as given, so an allowlist has no effect on an unparseable schema.
+    /// Each allowlist is applied to the schema it narrows, on its own. The catalog allowlist needs
+    /// only the catalog and the message allowlist needs only agent_to_renderer, so a third schema
+    /// that will not parse cannot disarm either of them.
+    ///
+    /// That independence is the whole point. `SendA2UIToClientTool` rejects any component outside
+    /// `allowedComponents`, so a prompt built from an un-pruned catalog offers the model components
+    /// its own tool will refuse — the model spends the turn on a payload that cannot be accepted,
+    /// and nothing in the build or the tests says so. Common-types reachability is the one step
+    /// that genuinely needs all three, and it is skipped when it cannot run; leaving extra shared
+    /// type definitions in the prompt costs tokens but advertises no component.
     public func schemaBlock() -> String {
         var catalogString = resolvedCatalogSchema
         var s2cString = resolvedServerToClientSchema
         var commonString = resolvedCommonTypesSchema
 
-        if let catalog = Self.parseJSON(catalogString),
-           let s2c = Self.parseJSON(s2cString),
-           let common = Self.parseJSON(commonString) {
-            let pruned = SchemaPruner.withPruning(
-                catalog: catalog,
-                agentToRenderer: s2c,
-                commonTypes: common,
-                allowedComponents: allowedComponents,
-                allowedMessages: allowedMessages
-            )
-            catalogString = Self.serializeJSON(pruned.catalog) ?? catalogString
-            s2cString = Self.serializeJSON(pruned.agentToRenderer) ?? s2cString
-            commonString = Self.serializeJSON(pruned.commonTypes) ?? commonString
+        var catalog = Self.parseJSON(catalogString)
+        var s2c = Self.parseJSON(s2cString)
+
+        if let allowedComponents, let parsed = catalog {
+            catalog = SchemaPruner.pruneComponents(catalog: parsed, allowedComponents: allowedComponents)
+            catalogString = Self.serializeJSON(catalog!) ?? catalogString
+        }
+        if let allowedMessages, let parsed = s2c {
+            s2c = SchemaPruner.pruneMessages(agentToRenderer: parsed, allowedMessages: allowedMessages)
+            s2cString = Self.serializeJSON(s2c!) ?? s2cString
+        }
+        if let catalog, let s2c, let common = Self.parseJSON(commonString) {
+            let reachable = SchemaPruner.pruneCommonTypes(commonTypes: common, reachableFrom: [catalog, s2c])
+            commonString = Self.serializeJSON(reachable) ?? commonString
         }
 
         return SchemaBlockFormatter.format(
@@ -274,16 +283,28 @@ public struct A2UIPromptBuilder: Sendable {
     /// `.copy("Resources")` layout) and falls back to a flat lookup, which is
     /// the layout SwiftPM produces when `.process("Resources")` flattens the
     /// directory hierarchy.
+    /// A missing resource stops the process rather than degrading.
+    ///
+    /// It used to answer `"{}"`, which is not a fallback — it is a schema saying the A2UI protocol
+    /// has no messages, handed to the model as fact, on every turn, for the price of a full prompt.
+    /// Nothing downstream can detect it, and the build and the test suite both stay green. This is
+    /// the package's own bundle, so it can only go missing through a packaging mistake: no agent
+    /// input reaches here, and no host can recover at run time.
     private static func loadBundledResource(_ name: String) -> String {
         let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Resources")
             ?? Bundle.module.url(forResource: name, withExtension: "json")
         guard let url, let data = try? Data(contentsOf: url) else {
-            return "{}"
+            preconditionFailure(
+                "A2UIPrompt is missing its bundled resource \(name).json. The package cannot build a "
+                    + "prompt without it — check the target's `resources:` declaration.")
         }
         if let minified = minifyJSON(data) {
             return minified
         }
-        return String(data: data, encoding: .utf8) ?? "{}"
+        guard let raw = String(data: data, encoding: .utf8) else {
+            preconditionFailure("A2UIPrompt bundled resource \(name).json is not valid UTF-8.")
+        }
+        return raw
     }
 
     /// Minifies a bundled JSON resource for embedding in the prompt.

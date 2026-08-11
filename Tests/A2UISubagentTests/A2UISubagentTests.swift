@@ -390,31 +390,42 @@ struct A2UIOperationsExtractorTests {
 
     @Test("generate_a2ui の成功結果から operations を取り出す")
     func extractsFromSuccess() throws {
-        let messages = try #require(A2UIOperationsExtractor.messages(
+        let messages = try #require(A2UIOperationsExtractor.payload(
             fromToolResult: A2UISubagentConstants.generateToolName, output: envelope, isError: false
-        ))
+        ).messages)
         #expect(messages.count == 1)
     }
 
-    @Test("エラー結果は破棄する")
+    @Test("エラー結果は破棄するが、理由は toolError として残る")
     func discardsErrors() {
-        #expect(A2UIOperationsExtractor.messages(
+        #expect(A2UIOperationsExtractor.payload(
             fromToolResult: A2UISubagentConstants.generateToolName, output: envelope, isError: true
-        ) == nil)
+        ) == .toolError)
     }
 
     @Test("他ツールの結果は無視する")
     func ignoresOtherTools() {
-        #expect(A2UIOperationsExtractor.messages(
+        #expect(A2UIOperationsExtractor.payload(
             fromToolResult: "search_recipes", output: envelope, isError: false
-        ) == nil)
+        ) == .otherTool)
+    }
+
+    /// generate_a2ui が成功を報告したのに封筒が読めない場合。
+    /// 「他ツールだった」と同じ答えにしてしまうと、サーフェスが出ないことに誰も気づけない。
+    @Test("成功を名乗る読めない封筒は unreadable として区別される")
+    func unreadableEnvelopeIsNotSilence() {
+        #expect(A2UIOperationsExtractor.payload(
+            fromToolResult: A2UISubagentConstants.generateToolName,
+            output: #"{"a2ui_operations": "oops"}"#,
+            isError: false
+        ) == .unreadable)
     }
 
     @Test("カスタムツール名にも対応する")
     func honorsCustomToolName() throws {
-        let messages = try #require(A2UIOperationsExtractor.messages(
+        let messages = try #require(A2UIOperationsExtractor.payload(
             fromToolResult: "render_ui", output: envelope, isError: false, toolName: "render_ui"
-        ))
+        ).messages)
         #expect(messages.count == 1)
     }
 }

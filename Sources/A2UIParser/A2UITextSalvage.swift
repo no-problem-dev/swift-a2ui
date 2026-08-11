@@ -174,10 +174,8 @@ public enum A2UITextSalvage {
     private static func decode(_ body: String) -> [AgentMessage]? {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        guard let messages = A2UIBlockParser.decodeMessages(from: JSONSanitizer.sanitize(trimmed)),
-              !messages.isEmpty else {
-            return nil
-        }
+        let messages = A2UIBlockParser.decodeMessages(from: JSONSanitizer.sanitize(trimmed)).messages
+        guard !messages.isEmpty else { return nil }
         return messages
     }
 }

@@ -96,32 +96,56 @@ struct A2UIToolResultExtractorTests {
     @Test("成功結果から AgentMessage を抽出")
     func extractsMessagesFromSuccess() async throws {
         let result = try await execute(a2uiJSON: validPayload)
-        let messages = A2UIToolResultExtractor.messages(
+        let payload = A2UIToolResultExtractor.payload(
             fromToolResult: "send_a2ui_json_to_client",
             output: result.stringValue,
             isError: false
         )
-        #expect(messages?.count == 2)
+        #expect(payload.messages?.count == 2)
     }
 
-    @Test("エラー結果はドロップ（nil）")
+    @Test("エラー結果はドロップするが、理由は toolError として残る")
     func dropsErrorResults() {
-        let messages = A2UIToolResultExtractor.messages(
+        let payload = A2UIToolResultExtractor.payload(
             fromToolResult: "send_a2ui_json_to_client",
             output: "Error: Failed to call A2UI tool",
             isError: true
         )
-        #expect(messages == nil)
+        #expect(payload == .toolError)
     }
 
-    @Test("他ツールの結果は無視（nil）")
+    @Test("他ツールの結果は無視する")
     func ignoresOtherTools() {
-        let messages = A2UIToolResultExtractor.messages(
+        let payload = A2UIToolResultExtractor.payload(
             fromToolResult: "send_message",
             output: #"{"validated_a2ui_json": []}"#,
             isError: false
         )
-        #expect(messages == nil)
+        #expect(payload == .otherTool)
+    }
+
+    /// これが本題: ツールは成功を報告したのに封筒が読めない。
+    /// 「他ツールだった」とも「空を送ってきた」とも区別できなければ、
+    /// 呼び出し側は画面が空になったことに気づけない。
+    @Test("成功を名乗る読めない封筒は unreadable として区別される")
+    func unreadableEnvelopeIsNotSilence() {
+        let payload = A2UIToolResultExtractor.payload(
+            fromToolResult: "send_a2ui_json_to_client",
+            output: "not json at all",
+            isError: false
+        )
+        #expect(payload == .unreadable)
+        #expect(payload.messages == nil)
+    }
+
+    @Test("本当に空の配列は messages([]) であって失敗ではない")
+    func emptyListIsNotAFailure() {
+        let payload = A2UIToolResultExtractor.payload(
+            fromToolResult: "send_a2ui_json_to_client",
+            output: #"{"validated_a2ui_json": []}"#,
+            isError: false
+        )
+        #expect(payload == .messages([]))
     }
 }
 
@@ -159,5 +183,31 @@ struct SendA2UIToClientToolAllowlistTests {
         guard case .json = result else {
             Issue.record("expected .json, got \(result)"); return
         }
+    }
+}
+
+/// The wire keys are declared as constants that a Python host is documented to match. They used to
+/// be spelled a second time as Swift property names, which is what actually decided the JSON — so
+/// editing the constant changed nothing while looking like it changed everything.
+@Suite("The wire key constants decide the wire")
+struct WireKeyConstantsTests {
+
+    @Test("the success envelope is keyed by the constant, not by a property name")
+    func successEnvelopeUsesTheConstant() async throws {
+        let result = try await execute(a2uiJSON: validPayload)
+        let json = try #require(
+            try JSONSerialization.jsonObject(with: Data(result.stringValue.utf8)) as? [String: Any])
+        #expect(json.keys.sorted() == [A2UIToolConstants.validatedJSONKey])
+    }
+
+    /// The reader is keyed by the same constant, so writer and reader cannot drift apart.
+    @Test("the extractor reads the same key it is written under")
+    func extractorReadsTheConstant() {
+        let output = "{\"\(A2UIToolConstants.validatedJSONKey)\":[]}"
+        #expect(A2UIToolResultExtractor.payload(
+            fromToolResult: A2UIToolConstants.toolName, output: output, isError: false) == .messages([]))
+        // A different key is unreadable, not silently empty.
+        #expect(A2UIToolResultExtractor.payload(
+            fromToolResult: A2UIToolConstants.toolName, output: "{\"other\":[]}", isError: false) == .unreadable)
     }
 }

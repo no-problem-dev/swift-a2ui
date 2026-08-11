@@ -1,4 +1,5 @@
 import A2UICore
+import A2UICatalog
 
 /// The **catalog** a consumer injects, fixing at compile time which components a renderer can draw.
 ///
@@ -17,6 +18,19 @@ public protocol A2UICatalog: Sendable {
     /// The canonical identifier URI, matching the `catalogId` that components and function calls name on
     /// the wire.
     static var catalogId: String { get }
+
+    /// The functions this catalog registers, which is what makes the spec's permission boundary
+    /// checkable at run time: `callableFrom` never travels with a `callFunction`, so the renderer has
+    /// to look the name up here rather than trust the message.
+    ///
+    /// The default is empty, and an unregistered name is refused — a catalog that declares no
+    /// functions therefore refuses every agent-initiated call, which is the safe reading and the one
+    /// the spec asks for.
+    static var functions: [FunctionSchema] { get }
+}
+
+extension A2UICatalog {
+    public static var functions: [FunctionSchema] { [] }
 }
 
 /// Composes two node types, routing each `component` name to whichever one claims it.

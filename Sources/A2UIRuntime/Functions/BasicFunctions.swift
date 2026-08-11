@@ -28,14 +28,20 @@ public struct BasicFunctions: FunctionResolving {
             guard let v = args[key] else { return nil }
             return ArgResolver.resolve(v, in: context, functions: self)
         }
+        /// An integer argument, or `nil` when there is none: the key is absent, or it holds a
+        /// number with no `Int` — `"1e400"` and the like, which an agent writes into the data
+        /// model as readily as it writes `"5"`. Every caller here treats the two cases alike.
+        func argInt(_ key: String) -> Int? {
+            guard args[key] != nil else { return nil }
+            return TypeCoercion.integer(truncating: argNumber(key))
+        }
 
         // The v1.0 built-in `@index` is a core system evaluation rather than a catalog function, so it
         // is handled ahead of catalog dispatch (the `@` prefix is reserved by the core).
         if call.call == FunctionCall.indexFunctionName {
             // Called outside a collection scope (a template iteration) it is an evaluation error, i.e. unresolved.
             guard let index = context.collectionIndex else { return nil }
-            let offset = args["offset"] == nil ? 0 : Int(argNumber("offset"))
-            return .int(index + offset)
+            return .int(index + (argInt("offset") ?? 0))
         }
 
         switch call.call {
@@ -58,8 +64,8 @@ public struct BasicFunctions: FunctionResolving {
 
         case "length":
             let len = argString("value").count
-            let minOK = args["min"] == nil || len >= Int(argNumber("min"))
-            let maxOK = args["max"] == nil || len <= Int(argNumber("max"))
+            let minOK = argInt("min").map { len >= $0 } ?? true
+            let maxOK = argInt("max").map { len <= $0 } ?? true
             return .bool(minOK && maxOK)
 
         case "numeric":
@@ -70,7 +76,7 @@ public struct BasicFunctions: FunctionResolving {
 
         case "formatNumber":
             let n = argNumber("value")
-            let decimals = args["decimals"].map { _ in Int(argNumber("decimals")) }
+            let decimals = argInt("decimals")
             let grouping = args["grouping"].map { _ in ArgResolver.bool(args["grouping"], in: context, functions: self) } ?? true
             return .string(formatNumber(n, decimals: decimals, grouping: grouping))
 
@@ -132,12 +138,18 @@ public struct BasicFunctions: FunctionResolving {
         return regex.firstMatch(in: value, range: range) != nil
     }
 
+    /// The number `numeric` validates, or `nil` when the value is not one.
+    ///
+    /// Non-finite is not a number here: `Double("nan")` parses, and without this an unbounded
+    /// `numeric` check would call `"nan"` a valid number because no comparison contradicts it.
     private func parseNumber(_ value: StructuredValue?) -> Double? {
+        let parsed: Double?
         switch value {
-        case .number(let n): return n.double
-        case .string(let s): return Double(s)
-        default: return nil
+        case .number(let n): parsed = n.double
+        case .string(let s): parsed = Double(s)
+        default: parsed = nil
         }
+        return parsed.flatMap { $0.isFinite ? $0 : nil }
     }
 
     private func boolList(_ value: StructuredValue?, in context: DataContext) -> [Bool] {

@@ -33,6 +33,35 @@ struct FlexDistributionTests {
         #expect(slots.map(\.width) == [200, 100, 100, 150])
     }
 
+    /// weight 2 : 1 が実際に 2 : 1 になる。
+    ///
+    /// `proportionalWeights` は ideal 0 を渡しているので、この欠陥を隠していた。実際の子
+    /// (Column / List はどれも `maxWidth: .infinity`) は提案された幅をそのまま ideal として返す
+    /// ので、旧実装では ideal 合計が content を必ず超え、縮小で余白を食い尽くし、weight ループに
+    /// 届く leftover が 0 になって重みが無効化されていた。
+    @Test func weightsSurviveChildrenThatFillTheirProposal() {
+        let slots = FlexDistribution.compute(
+            ideals: [370, 370], weights: [2, 1], available: 370, spacing: 10, justify: nil)
+        #expect(slots.map(\.width) == [240, 120])
+        #expect(slots[1].x + slots[1].width == 370)
+    }
+
+    /// weight 付きの子は、weight なしの子が取った残りを weight 比で分ける (CSS `flex: N` 相当)。
+    @Test func unweightedChildrenKeepTheirWidthBeforeWeightsShare() {
+        let slots = FlexDistribution.compute(
+            ideals: [100, 500, 500], weights: [nil, 2, 1], available: 400, spacing: 0, justify: nil)
+        #expect(slots.map(\.width) == [100, 200, 100])
+    }
+
+    /// weight なしの子だけで提案幅を超えるなら、そちらを比例縮小し、weight 付きの子は 0 になる。
+    /// 行が提案幅からはみ出さないことが優先される。
+    @Test func weightsGetNothingWhenUnweightedChildrenAlreadyOverflow() {
+        let slots = FlexDistribution.compute(
+            ideals: [300, 300, 400], weights: [nil, nil, 1], available: 300, spacing: 0, justify: nil)
+        #expect(slots.map(\.width) == [150, 150, 0])
+        #expect(slots.map(\.width).reduce(0, +) <= 300)
+    }
+
     /// weight なしの spaceBetween(ラベル + 値): 余白が gap として子の間に入り、
     /// 最後の子が右端に到達する。
     @Test func spaceBetweenPushesApart() {
@@ -172,6 +201,63 @@ struct WeightedRowRegressionTests {
         #expect(left.weight == 1)
         #expect(right.weight == 1)
         #expect(row.weight == nil)
+    }
+
+    /// 実レンダリング: weight 2 : 1 の Row で、2 列の境目が幅の 2/3 に来る。
+    ///
+    /// FlexDistribution の純粋テストと違い、実際の子 (Column) が自分の ideal 幅として
+    /// 「提案された幅そのもの」を返す経路を通る。旧実装はこの経路で必ず 1 : 1 に潰れていた。
+    static let twoToOneCorpus = """
+    [
+      {"version":"v1.0","createSurface":{"surfaceId":"s1","catalogId":"basic"}},
+      {"version":"v1.0","updateComponents":{"surfaceId":"s1","components":[
+        {"id":"root","component":"Column","align":"stretch","children":["row"]},
+        {"id":"row","component":"Row","align":"start","children":["left","right"]},
+        {"id":"left","component":"Column","weight":2,"align":"stretch","children":["leftText"]},
+        {"id":"leftText","component":"Text","text":"AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA AAAA"},
+        {"id":"right","component":"Column","weight":1,"align":"stretch","children":["rightText"]},
+        {"id":"rightText","component":"Text","text":"BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB BBBB"}
+      ]}}
+    ]
+    """
+
+    /// 列と列の間の「インクが 1 ピクセルも無い縦帯」のうち最も広いものの中心 x (0...1 に正規化)。
+    /// 2 列レイアウトではこれが列の境目になる。
+    private func widestGapCenter(_ image: CGImage) -> Double? {
+        let p = pixels(image)
+        let w = image.width, h = image.height
+        // 端の余白は境目ではないので探索範囲から外す。
+        let lo = w / 5, hi = w * 4 / 5
+        var inked = [Bool](repeating: false, count: w)
+        for x in lo..<hi {
+            for y in 0..<h where max(p[(y * w + x) * 4], p[(y * w + x) * 4 + 1], p[(y * w + x) * 4 + 2]) < 250 {
+                inked[x] = true
+                break
+            }
+        }
+        var best: (start: Int, length: Int)? = nil
+        var runStart: Int? = nil
+        for x in lo...hi {
+            if x < hi, !inked[x] {
+                if runStart == nil { runStart = x }
+            } else if let start = runStart {
+                let length = x - start
+                if best == nil || length > best!.length { best = (start, length) }
+                runStart = nil
+            }
+        }
+        guard let best, best.length > 2 else { return nil }
+        return (Double(best.start) + Double(best.length) / 2) / Double(w)
+    }
+
+    @Test("weight 2 : 1 の Row は実レンダリングでも 2 : 1 に分かれる")
+    func twoToOneSplitsAtTwoThirds() throws {
+        let img = try #require(rasterize(A2UISurfaceView(try surface(Self.twoToOneCorpus))))
+        writePNG(img, "/tmp/typed_two_to_one_row.png")
+        let center = try #require(widestGapCenter(img), "列の境目が見つからない")
+        // 2 : 1 なら ~0.667、1 : 1 なら ~0.5。両者を確実に区別する幅で挟む。
+        #expect(center > 0.60, "境目 x=\(center): weight が効いていない(1:1 に潰れている)")
+        #expect(center < 0.74, "境目 x=\(center)")
     }
 
     @Test("weighted spaceBetween Row が画面幅からはみ出さない(マージンににじまない)")

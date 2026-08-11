@@ -85,7 +85,11 @@ public enum A2UIPresenterAgent {
     /// The pruned schema for the presenter subset and the worked-example surface are owned by the
     /// tool (`SendA2UIToClientTool`) and travel with it when it is attached, so only the
     /// instructions live here.
-    public static func systemPrompt(language: String = "Japanese") -> SystemPrompt {
+    /// - Parameter language: The language every user-facing string the model writes must be in.
+    ///   Defaults to English — not as a preference, but because a library published for other
+    ///   people has no business choosing a language its host never asked for. The host makes that
+    ///   call; the package only has to stop making it silently.
+    public static func systemPrompt(language: String = "English") -> SystemPrompt {
         var role = SystemPrompt {
             PromptComponent.role("You are an A2UI agent. Render the content given to you as A2UI surface(s) on the user's screen.")
             PromptComponent.note("All user-facing text you produce must be written in \(language).")

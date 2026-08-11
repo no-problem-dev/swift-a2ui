@@ -26,22 +26,40 @@ enum FlexDistribution {
         let content = max(0, available - spacing * CGFloat(count - 1))
 
         var widths = ideals.map { min(max($0, 0), content) }
-        let total = widths.reduce(0, +)
-        if total > content, total > 0 {
-            let factor = content / total
-            widths = widths.map { $0 * factor }
+        func isWeighted(_ index: Int) -> Bool { (weights[index] ?? 0) > 0 }
+        let totalWeight = weights.compactMap { $0 }.filter { $0 > 0 }.reduce(0, +)
+
+        if totalWeight > 0 {
+            // A weighted child is sized by its weight out of what the unweighted children leave —
+            // CSS `flex: N`, whose basis is zero — so its own ideal width never enters the
+            // arithmetic. It cannot: a child that expands to whatever it is proposed (every Column,
+            // every List, anything with `maxWidth: .infinity`) measures as the full row width, and
+            // treating that as an ideal made the shrink below consume the row and leave the weights
+            // nothing to divide, which laid 2:1 out as 1:1.
+            var unweighted: CGFloat = 0
+            for index in widths.indices where !isWeighted(index) { unweighted += widths[index] }
+            if unweighted > content, unweighted > 0 {
+                // The unweighted children alone overflow: shrink them to fit and leave the
+                // weighted ones at zero, because staying inside the proposal comes first.
+                let factor = content / unweighted
+                for index in widths.indices where !isWeighted(index) { widths[index] *= factor }
+                unweighted = content
+            }
+            let pool = content - unweighted
+            for index in widths.indices where isWeighted(index) {
+                widths[index] = pool * CGFloat(weights[index]! / totalWeight)
+            }
+        } else {
+            let total = widths.reduce(0, +)
+            if total > content, total > 0 {
+                let factor = content / total
+                widths = widths.map { $0 * factor }
+            }
         }
 
-        var leftover = content - widths.reduce(0, +)
-        let totalWeight = weights.compactMap { $0 }.filter { $0 > 0 }.reduce(0, +)
-        if totalWeight > 0, leftover > 0 {
-            for index in widths.indices {
-                if let weight = weights[index], weight > 0 {
-                    widths[index] += leftover * CGFloat(weight / totalWeight)
-                }
-            }
-            leftover = 0
-        }
+        // Weighted children absorb every spare point, so `justify` has nothing left to place —
+        // again as in flexbox.
+        let leftover = content - widths.reduce(0, +)
 
         var lead: CGFloat = 0
         var gap = spacing

@@ -366,3 +366,38 @@ struct OfficialExampleDecodingTests {
         #expect(hasTemplate, "Should have at least one List with template children")
     }
 }
+
+/// `FunctionReturnType` and `CallableFrom` are the protocol's own vocabulary for these two fields.
+/// While the schema spelled them as `String`, the enums were documentation nothing enforced — a
+/// typo like `"bolean"` or `"agentonly"` compiled, shipped, and reached the model in the prompt.
+@Suite("Catalog function metadata is typed, not stringly")
+struct FunctionSchemaTypingTests {
+
+    @Test("every bundled function declares a return type from the protocol's vocabulary")
+    func returnTypesAreFromTheVocabulary() {
+        #expect(!BasicCatalogSchema.functions.isEmpty)
+        for function in BasicCatalogSchema.functions {
+            // Typed at compile time; this pins the rendered JSON to the same spelling.
+            #expect(FunctionReturnType(rawValue: function.returnType.rawValue) != nil)
+        }
+    }
+
+    @Test("openUrl returns void and the validators return boolean")
+    func knownReturnTypes() {
+        func returnType(_ name: String) -> FunctionReturnType? {
+            BasicCatalogSchema.functions.first { $0.name == name }?.returnType
+        }
+        #expect(returnType("openUrl") == .void)
+        #expect(returnType("required") == .boolean)
+        #expect(returnType("formatString") == .string)
+    }
+
+    /// Omitting `callableFrom` means `rendererOnly`, which is what makes agent-initiated calls into
+    /// the basic catalog refusable by default.
+    @Test("no bundled function opens itself to agent calls")
+    func noneAreAgentCallable() {
+        for function in BasicCatalogSchema.functions {
+            #expect(!FunctionBoundary.acceptsAgentCall(name: function.name, callableFrom: function.callableFrom))
+        }
+    }
+}

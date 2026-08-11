@@ -20,7 +20,7 @@ struct A2UIPresenterAgentTests {
         #expect(rendered.contains(A2UIWorkflowRules.scopeRules))
         #expect(rendered.contains("## UI Description:"))
         #expect(rendered.contains("Maintain a SINGLE surface"))
-        #expect(rendered.contains("written in Japanese"))
+        #expect(rendered.contains("written in English"))
         // スキーマと手本はツールが所有し同伴する — system prompt 本体には含まれない。
         #expect(!rendered.contains(SchemaBlockFormatter.beginMarker))
         #expect(!rendered.contains("REFERENCE SURFACE EXAMPLE"))
@@ -28,9 +28,9 @@ struct A2UIPresenterAgentTests {
 
     @Test("言語は引数で差し替えられる")
     func languageParameter() {
-        let rendered = A2UIPresenterAgent.systemPrompt(language: "English").render()
-        #expect(rendered.contains("written in English"))
-        #expect(!rendered.contains("written in Japanese"))
+        let rendered = A2UIPresenterAgent.systemPrompt(language: "Japanese").render()
+        #expect(rendered.contains("written in Japanese"))
+        #expect(!rendered.contains("written in English"))
     }
 
     @Test("tools は公式ツール一本で、presenter スキーマと手本を同伴する")
@@ -123,5 +123,19 @@ struct A2UIPresenterAgentPaletteTests {
         #expect(A2UIPresenterAgent.exampleSurface(for: BasicComponent.componentNames) == A2UIExample.referenceSurface())
         #expect(A2UIPresenterAgent.exampleSurface(for: A2UIExample.presenterComponentNames) == A2UIExample.presenterSurface())
         #expect(A2UIPresenterAgent.exampleSurface(for: ["Column", "Text"]) == nil)
+    }
+}
+
+/// A library default that forces one language onto every consumer is a defect in a package
+/// published for others. English is not a preference here — it is the absence of a choice the host
+/// did not make.
+@Suite("The presenter agent has no language of its own")
+struct PresenterAgentLanguageTests {
+
+    @Test("the default system prompt does not impose Japanese")
+    func defaultIsNotJapanese() {
+        let rendered = A2UIPresenterAgent.systemPrompt().render()
+        #expect(rendered.contains("written in English"))
+        #expect(!rendered.contains("written in Japanese"))
     }
 }
