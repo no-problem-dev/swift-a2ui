@@ -68,7 +68,8 @@ let tools = A2UIPresenterAgent.tools(
 
 ## ドキュメント
 
-[全モジュールの API リファレンス](https://no-problem-dev.github.io/swift-a2ui/documentation/a2uicore/)。
+全モジュールの API リファレンスは `Sources/*/Documentation.docc` の DocC カタログにある
+（入口は [`A2UICore`](Sources/A2UICore/Documentation.docc)）。
 独自コンポーネントのカタログを組む手順もここにある。
 
 ## インストール
