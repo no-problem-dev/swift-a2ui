@@ -70,7 +70,8 @@ let tools = A2UIPresenterAgent.tools(
 
 ## Documentation
 
-[API reference for every module](https://no-problem-dev.github.io/swift-a2ui/documentation/a2uicore/),
+API reference for every module in the DocC catalogs under `Sources/*/Documentation.docc`
+(start with [`A2UICore`](Sources/A2UICore/Documentation.docc)),
 including how to compose a catalog of your own components.
 
 ## Installation
